@@ -1,0 +1,166 @@
+/**
+ * FullCalendar scroll fixes — organizer, admin, student, and multimedia dashboards.
+ */
+
+.calendar-container,
+.eventify-dashboard-cal-container,
+.mm-cal-container {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#student-calendar,
+#calendar,
+#mmCalendar {
+    flex: 1 1 auto;
+    min-height: 380px;
+    width: 100%;
+}
+
+#student-calendar .fc,
+#calendar .fc,
+#mmCalendar .fc {
+    min-height: 380px;
+}
+
+/* Student dashboard only — bounded calendar height */
+body:not(.admin-dashboard):not(.organizer-dashboard):not(.multimedia-dashboard) .main-content .calendar-container {
+    flex: 0 0 auto;
+    height: clamp(420px, calc(100dvh - var(--student-navbar-height, 64px) - 240px), 720px);
+    min-height: 420px;
+}
+
+@media (max-width: 768px) {
+    body:not(.admin-dashboard):not(.organizer-dashboard):not(.multimedia-dashboard) .main-content .calendar-container {
+        height: clamp(360px, 55vh, 580px);
+        min-height: 360px;
+    }
+
+    body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller,
+    body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller {
+        overscroll-behavior-y: auto;
+    }
+}
+
+.calendar-container .fc-scroller,
+.eventify-dashboard-cal-container .fc-scroller {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+}
+
+/* Organizer + admin: scroll on the harness scroller only */
+body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller,
+body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+}
+
+body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller-liquid-absolute,
+body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller-liquid-absolute {
+    overflow: hidden !important;
+}
+
+/* Prevent weekday header from sticking incorrectly when the page scrolls */
+body:not(.admin-dashboard):not(.organizer-dashboard) .calendar-container .fc-scrollgrid-section-sticky > *,
+body:not(.admin-dashboard):not(.organizer-dashboard) .calendar-container .fc-col-header,
+body:not(.admin-dashboard):not(.organizer-dashboard) .eventify-dashboard-cal-container .fc-scrollgrid-section-sticky > *,
+body:not(.admin-dashboard):not(.organizer-dashboard) .eventify-dashboard-cal-container .fc-col-header,
+body.multimedia-dashboard .mm-cal-container .fc-scrollgrid-section-sticky > *,
+body.multimedia-dashboard .mm-cal-container .fc-col-header {
+    position: relative !important;
+    top: auto !important;
+}
+
+.calendar-container .fc-daygrid-day-frame,
+.eventify-dashboard-cal-container .fc-daygrid-day-frame,
+.mm-cal-container .fc-daygrid-day-frame {
+    position: relative;
+}
+
+.calendar-container .fc-daygrid-day-events,
+.eventify-dashboard-cal-container .fc-daygrid-day-events,
+.mm-cal-container .fc-daygrid-day-events {
+    position: relative;
+    min-height: 1.25rem;
+}
+
+.calendar-container .fc-daygrid-event-harness,
+.calendar-container .fc-daygrid-event-harness-abs,
+.eventify-dashboard-cal-container .fc-daygrid-event-harness,
+.eventify-dashboard-cal-container .fc-daygrid-event-harness-abs,
+.mm-cal-container .fc-daygrid-event-harness,
+.mm-cal-container .fc-daygrid-event-harness-abs {
+    visibility: visible;
+}
+
+.calendar-container .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+.calendar-container .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)),
+.eventify-dashboard-cal-container .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+.eventify-dashboard-cal-container .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)),
+.mm-cal-container .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+.mm-cal-container .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)) {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+}
+
+.calendar-container .fc-event,
+.eventify-dashboard-cal-container .fc-event,
+.mm-cal-container .fc-event {
+    max-width: 100%;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Multimedia: use standard bounded calendar container (same as admin/organizer) */
+body.multimedia-dashboard .main-content .mm-cal-container.eventify-dashboard-cal-container {
+    flex: 0 0 auto;
+    overflow: hidden;
+    min-height: 480px;
+    height: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    margin-top: 0.75rem;
+}
+
+body.multimedia-dashboard .main-content .mm-cal-container #mmCalendar,
+body.multimedia-dashboard .main-content .mm-cal-container #mmCalendar .fc {
+    min-height: 480px;
+    height: 100%;
+}
+
+@media (max-width: 768px) {
+    body.multimedia-dashboard .main-content .mm-cal-container.eventify-dashboard-cal-container {
+        min-height: 420px;
+    }
+
+    body.multimedia-dashboard .main-content .mm-cal-container #mmCalendar,
+    body.multimedia-dashboard .main-content .mm-cal-container #mmCalendar .fc {
+        min-height: 420px !important;
+    }
+
+    body.multimedia-dashboard .mm-cal-container .fc-daygrid-day-frame {
+        min-height: 4.25rem !important;
+    }
+
+    body.multimedia-dashboard .mm-cal-container .fc-col-header-cell-cushion {
+        font-size: 0.68rem !important;
+        padding: 0.35rem 0 !important;
+    }
+
+    body.multimedia-dashboard .mm-cal-container .fc-daygrid-day-number {
+        font-size: 0.78rem !important;
+        padding: 4px 6px !important;
+    }
+
+    body.multimedia-dashboard .mm-cal-container .fc-scroller {
+        overflow-y: visible !important;
+        max-height: none;
+    }
+}

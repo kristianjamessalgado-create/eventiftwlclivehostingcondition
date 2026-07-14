@@ -1,0 +1,18 @@
+<?php
+/**
+ * PayMongo (GCash) credentials.
+ *
+ * 1. Copy this file to: config/paymongo.local.php  (that copy is gitignored)
+ * 2. Paste your keys from the PayMongo dashboard (https://dashboard.paymongo.com).
+ *
+ * Use TEST keys (sk_test_..., pk_test_...) for development / your demo —
+ * no real money moves and GCash shows a simulated authorization page.
+ * Switch to LIVE keys (sk_live_..., pk_live_...) only on a real, public,
+ * HTTPS deployment with a verified PayMongo merchant account.
+ */
+
+define('EVENTIFY_PAYMONGO_SECRET_KEY', 'PASTE_YOUR_PAYMONGO_SECRET_KEY');
+define('EVENTIFY_PAYMONGO_PUBLIC_KEY', 'PASTE_YOUR_PAYMONGO_PUBLIC_KEY');
+
+// Optional: enforce a minimum order total for online GCash (pesos). Default in config.php is 0 (no minimum).
+// define('EVENTIFY_PAYMONGO_GCASH_MIN_PESO', 20);

@@ -1,0 +1,10 @@
+<?php
+/**
+ * Copy to config/db.local.php and fill in your hosting MySQL credentials.
+ * Used on GoDaddy/cPanel when DB settings differ from local XAMPP defaults.
+ * This file is optional if you set DB_* in .env instead.
+ */
+$host = 'localhost';
+$user = 'your_cpanel_mysql_user';
+$pass = 'your_mysql_password';
+$db   = 'eventify';

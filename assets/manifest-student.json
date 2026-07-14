@@ -1,0 +1,47 @@
+{
+  "id": "/student",
+  "name": "EVENTIFY Student",
+  "short_name": "EVENTIFY",
+  "description": "School events, RSVP, tickets, and QR check-in",
+  "start_url": "/backend/auth/dashboard_student.php?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#064e3b",
+  "theme_color": "#064e3b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education", "events"],
+  "shortcuts": [
+    {
+      "name": "My tickets",
+      "short_name": "Tickets",
+      "url": "/backend/auth/dashboard_student.php?panel=tickets",
+      "icons": [{ "src": "/assets/pwa/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Scan QR",
+      "short_name": "Scan",
+      "url": "/backend/auth/dashboard_student.php?open_modal=scan",
+      "icons": [{ "src": "/assets/pwa/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

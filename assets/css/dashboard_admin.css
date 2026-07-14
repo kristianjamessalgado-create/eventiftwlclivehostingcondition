@@ -1,0 +1,2050 @@
+/* Admin shell — neutral page background (student dashboard CSS also loads globally). */
+body.admin-dashboard {
+    background: #eef2f7 !important;
+    background-attachment: scroll !important;
+    min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    color: #0f172a;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    --eventify-kb-focus: #1b4a1b;
+    --admin-navbar-h: 64px;
+    --admin-cal-chrome: 12.5rem;
+}
+
+.eventify-kb-scroll-zone:focus {
+    outline: none;
+}
+
+.eventify-kb-scroll-zone:focus-visible {
+    outline: 2px solid var(--eventify-kb-focus, #1b4a1b);
+    outline-offset: -2px;
+}
+
+/* Student CSS uses margin-left:320px + fixed sidebar; admin uses flex — reset fully. */
+body.admin-dashboard .dashboard-layout {
+    display: flex !important;
+    flex-direction: row;
+    align-items: stretch;
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100vh - var(--admin-navbar-h, 64px));
+    min-height: calc(100vh - var(--admin-navbar-h, 64px));
+    max-height: calc(100vh - var(--admin-navbar-h, 64px));
+    overflow: hidden !important;
+    box-sizing: border-box;
+}
+
+body.admin-dashboard .adm-navbar {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+body.admin-dashboard #adminSidebar,
+body.admin-dashboard .sidebar {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    flex: 0 0 320px;
+    width: 320px !important;
+    min-width: 320px;
+    max-width: 320px;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    transform: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    display: flex !important;
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+body.admin-dashboard #adminSidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(46, 204, 113, 0.35) transparent;
+}
+
+body.admin-dashboard #adminSidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+body.admin-dashboard #adminSidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+body.admin-dashboard #adminSidebar::-webkit-scrollbar-thumb {
+    background: rgba(46, 204, 113, 0.35);
+    border-radius: 999px;
+}
+
+body.admin-dashboard #adminSidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(46, 204, 113, 0.55);
+}
+
+body.admin-dashboard .adm-stat-card,
+body.admin-dashboard .adm-chart-card {
+    background: #ffffff;
+}
+
+body.admin-dashboard .sidebar .action-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(230, 197, 74, 0.28);
+    color: #f8fafc;
+    box-shadow: none;
+}
+
+body.admin-dashboard .sidebar .action-btn:hover {
+    background: rgba(230, 197, 74, 0.16);
+    border-color: #e6c54a;
+    color: #e6c54a;
+    transform: none;
+}
+
+body.admin-dashboard #adminSidebar .action-btn.logout-btn,
+body.admin-dashboard .sidebar .action-btn.logout-btn {
+    color: #fca5a5 !important;
+    background: rgba(248, 113, 113, 0.12) !important;
+    border: 1px solid rgba(248, 113, 113, 0.35) !important;
+}
+
+body.admin-dashboard #adminSidebar .action-btn.logout-btn:hover,
+body.admin-dashboard #adminSidebar .action-btn.logout-btn:focus,
+body.admin-dashboard .sidebar .action-btn.logout-btn:hover,
+body.admin-dashboard .sidebar .action-btn.logout-btn:focus {
+    color: #fecaca !important;
+    background: rgba(248, 113, 113, 0.22) !important;
+    border-color: #f87171 !important;
+}
+
+body.admin-dashboard #adminSidebar .quick-actions .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+}
+
+body.admin-dashboard #adminSidebar .quick-actions .action-btn .ms-auto {
+    margin-left: auto !important;
+}
+
+/* Stack above .dashboard-layout so dropdowns are not painted underneath the sidebar/main (sibling stacking). Keep below Bootstrap modals (~1055). */
+.adm-navbar {
+    position: relative;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(180deg, #1b4a1b 0%, #021a08 100%);
+    border-bottom: 3px solid #e6c54a;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    overflow: visible;
+}
+.adm-brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.25rem; color: #ffffff; text-decoration: none; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.adm-brand i { color: #e6c54a; }
+.admin-dashboard .adm-navbar .nav-btn {
+    color: rgba(247, 244, 231, 0.9);
+}
+.admin-dashboard .adm-navbar .nav-btn:hover {
+    background: rgba(230, 197, 74, 0.18);
+    color: #e6c54a;
+}
+.adm-user { color: #94a3b8; font-size: 0.9rem; margin-right: 0.75rem; }
+.adm-logout { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; color: #94a3b8; text-decoration: none; font-weight: 600; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); }
+.adm-logout:hover { color: #0ea5e9; border-color: #0ea5e9; background: rgba(14, 165, 233, 0.1); }
+.adm-user-menu {
+    background: transparent;
+    border: 1px solid rgba(230, 197, 74, 0.45);
+    color: #f7f4e7;
+    border-radius: 8px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.adm-logout-mobile {
+    display: none;
+}
+.adm-user-menu:hover,
+.adm-user-menu:focus {
+    color: #e6c54a;
+    border-color: #e6c54a;
+    background: rgba(230, 197, 74, 0.14);
+}
+.adm-user-menu__avatar {
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.adm-dropdown-menu {
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+.adm-dropdown-menu .dropdown-item {
+    font-size: 0.9rem;
+    padding: 0.55rem 0.9rem;
+}
+.adm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; padding: 1.25rem 1.5rem; }
+.adm-stat-card { border-radius: 12px; border: 1px solid #e2e8f0; padding: 1rem; background: #f8fafc; }
+.adm-stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 0.25rem; }
+.adm-stat-value { font-size: 1.5rem; font-weight: 800; color: #0f172a; }
+.adm-badge-pending { background: #fef3c7; color: #92400e; }
+.adm-badge-dept { background: #eff6ff; color: #136f30; }
+.adm-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.adm-btn-approve { background: #10b981; color: #fff; border: none; padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.adm-btn-reject { background: #fee2e2; color: #b91c1c; border: none; padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+/* Keep quick-action links readable on dark sidebar (fixes "Messages" link color). */
+body.admin-dashboard .sidebar .quick-actions a.action-btn,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:link,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:visited,
+body.admin-dashboard .sidebar .quick-actions a.action-btn.text-reset,
+body.admin-dashboard .sidebar .quick-actions a.action-btn.text-reset:visited {
+    color: var(--school-text-on-dark, #f8fafc) !important;
+    text-decoration: none;
+}
+body.admin-dashboard .sidebar .quick-actions a.action-btn:hover,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:focus {
+    color: var(--org-emerald, #2ecc71) !important;
+}
+
+.admin-action-badge,
+.admin-pending-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    margin-left: 0.45rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    flex-shrink: 0;
+}
+.admin-action-badge--red,
+.admin-pending-badge {
+    background: #dc2626;
+    color: #ffffff;
+}
+.admin-action-badge--gold {
+    background: #e6c54a;
+    color: #1b4a1b;
+    border-color: rgba(27, 74, 27, 0.35);
+}
+.admin-action-badge--green {
+    background: #16a34a;
+    color: #ffffff;
+}
+#auditLogModal .modal-body,
+.adm-audit-log-panel .adm-audit-log-table-wrap {
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+}
+#auditLogModal .table,
+.adm-audit-log-panel .table {
+    font-size: 0.8rem;
+}
+#auditLogModal .table thead th,
+.adm-audit-log-panel .table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8fafc;
+    z-index: 1;
+}
+.adm-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; padding: 0 1.5rem 1rem; }
+.adm-charts--modal {
+    padding: 0;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.adm-stats--modal {
+    padding: 0;
+    margin-bottom: 0;
+}
+#adminAnalyticsModal .adm-chart-wrap,
+.adm-analytics-panel .adm-chart-wrap {
+    height: 240px;
+}
+#adminAnalyticsModal .modal-body,
+.adm-analytics-panel .adm-dash-panel__shell {
+    background: #f8fafc;
+}
+.adm-chart-card { border-radius: 12px; border: 1px solid #e2e8f0; padding: 1rem; background: #fff; }
+.adm-chart-card h6 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 0.75rem; }
+.adm-chart-wrap { position: relative; height: 220px; }
+.adm-chart-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 0.85rem; text-align: center; }
+/* Remove inherited student fixed-sidebar top offset */
+body.admin-dashboard .sidebar,
+body.admin-dashboard #adminSidebar {
+    margin-top: 0 !important;
+}
+
+/* Admin profile card — match organizer sidebar structure */
+body.admin-dashboard #adminSidebar .organizer-user-card {
+    border-radius: 18px;
+    padding: 18px 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0 !important;
+    flex-shrink: 0;
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    overflow: hidden;
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-name {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-role {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+body.admin-dashboard #adminSidebar .quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+body.admin-dashboard #adminSidebar .mini-calendar-widget {
+    flex-shrink: 0;
+}
+.sidebar-toggle-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (min-width: 769px) {
+    body.admin-dashboard .dashboard-layout {
+        overflow: hidden !important;
+    }
+
+    #adminSidebar {
+        transition: width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                    padding-left 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                    padding-right 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+                    opacity 0.22s ease,
+                    border-color 0.22s ease,
+                    box-shadow 0.22s ease;
+    }
+
+    body.admin-sidebar-collapsed .dashboard-layout {
+        margin-left: 0 !important;
+    }
+
+    body.admin-sidebar-collapsed #adminSidebar,
+    body.admin-sidebar-collapsed .sidebar,
+    #adminSidebar.is-collapsed {
+        flex: 0 0 0 !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        border-right: none !important;
+        border-right-color: transparent !important;
+        box-shadow: none !important;
+        opacity: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    body.admin-sidebar-collapsed .main-content {
+        border-left: 0 !important;
+        flex: 1 1 auto !important;
+        width: auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body.admin-dashboard {
+        overflow-x: hidden;
+        max-width: 100vw;
+    }
+
+    body.admin-dashboard.admin-sidebar-open {
+        overflow: hidden;
+    }
+
+    body.admin-dashboard.admin-sidebar-open .dashboard-layout {
+        touch-action: none;
+    }
+
+    body.admin-dashboard.admin-sidebar-open .main-content {
+        overflow: hidden !important;
+        pointer-events: none;
+    }
+
+    /* Hard reset inherited student offsets — single column, full-width main */
+    body.admin-dashboard .dashboard-layout {
+        display: block !important;
+        flex-direction: column !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        min-height: calc(100dvh - var(--admin-navbar-h, 64px));
+        position: relative;
+        z-index: 1;
+        overflow-x: hidden;
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 64px 0 0 0;
+        background: rgba(2, 6, 23, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s ease;
+        z-index: 990;
+    }
+
+    body.admin-dashboard #adminSidebar,
+    body.admin-dashboard .sidebar {
+        position: fixed !important;
+        top: var(--admin-navbar-h, 64px) !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        right: auto !important;
+        transform: translateX(-100%) !important;
+        width: min(88vw, 320px) !important;
+        min-width: 0 !important;
+        max-width: 320px !important;
+        height: calc(100dvh - var(--admin-navbar-h, 64px)) !important;
+        max-height: calc(100dvh - var(--admin-navbar-h, 64px)) !important;
+        flex: none !important;
+        z-index: 1001 !important;
+        transition: transform 0.22s ease;
+        padding: 2.75rem 1rem 1rem !important;
+        margin: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+    }
+
+    body.admin-dashboard.admin-sidebar-open #adminSidebar,
+    body.admin-dashboard.admin-sidebar-open .sidebar {
+        transform: translateX(0) !important;
+        touch-action: pan-y;
+    }
+
+    body.admin-dashboard.admin-sidebar-open .sidebar-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .sidebar-close-mobile {
+        display: inline-flex !important;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 34px;
+        height: 34px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 8px;
+        background: rgba(2, 6, 23, 0.25);
+        color: #f8fafc;
+        z-index: 2;
+    }
+
+    body.admin-dashboard .main-content {
+        width: 100% !important;
+        max-width: 100vw !important;
+        margin-left: 0 !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: auto;
+        box-sizing: border-box;
+    }
+
+    .adm-navbar {
+        padding: 0.75rem 0.85rem;
+        flex-wrap: nowrap;
+        gap: 0.35rem;
+        align-items: center;
+        max-width: 100vw;
+        overflow: visible;
+    }
+
+    .adm-brand {
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+    .adm-brand span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: min(130px, 34vw);
+    }
+
+    .adm-navbar > .d-flex {
+        flex-shrink: 0;
+        align-items: center;
+        gap: 0.2rem;
+    }
+
+    .adm-logout-mobile {
+        display: inline-flex !important;
+        flex-shrink: 0;
+        color: #fca5a5;
+    }
+
+    .adm-logout-mobile:hover,
+    .adm-logout-mobile:focus {
+        color: #fecaca;
+        background: rgba(248, 113, 113, 0.16);
+    }
+
+    .adm-user-menu {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        max-width: none;
+        min-width: 40px;
+        min-height: 40px;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+        font-size: 0.9rem;
+        padding: 0.45rem 0.55rem;
+    }
+
+    .adm-user-menu__label {
+        display: none;
+    }
+
+    .adm-user-menu__icon {
+        margin: 0 !important;
+    }
+
+    .adm-navbar .dropdown-menu {
+        z-index: 1100;
+    }
+
+    body.admin-dashboard .calendar-title {
+        font-size: 1rem;
+        max-width: min(150px, 40vw);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    body.admin-dashboard .eventify-dashboard-cal-controls,
+    body.admin-dashboard .eventify-dashboard-cal-legend,
+    body.admin-dashboard .eventify-dashboard-cal-container {
+        margin-left: 0.5rem !important;
+        margin-right: 0.5rem !important;
+        max-width: calc(100vw - 1rem);
+        box-sizing: border-box;
+    }
+
+    .sidebar-toggle-mobile {
+        display: inline-flex !important;
+    }
+}
+
+#adminSettingsModal .modal-body {
+    background: #f8fafc;
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#adminSettingsModal .settings-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 0.85rem;
+    margin-bottom: 0.85rem;
+}
+
+#adminSettingsModal .settings-section h6 {
+    margin-bottom: 0.65rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+#adminSettingsModal .form-check-label {
+    font-size: 0.92rem;
+    color: #334155;
+}
+
+/* ===============================
+   LANDING-STYLE SHIMMER CTA
+   Mirrors index.css Get Started sweep
+================================ */
+.adm-btn-approve,
+.adm-user-menu,
+.btn-primary,
+.view-btn.active,
+.action-btn:not(.logout-btn) {
+    position: relative;
+    overflow: hidden;
+}
+
+.adm-btn-approve::after,
+.adm-user-menu::after,
+.btn-primary::after,
+.view-btn.active::after,
+.action-btn:not(.logout-btn)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        transparent 38%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 62%,
+        transparent 100%
+    );
+    transform: translateX(-120%);
+    animation: dashboardShimmer 3.4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes dashboardShimmer {
+    0%, 18% { transform: translateX(-120%); }
+    40%, 100% { transform: translateX(120%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-btn-approve::after,
+    .adm-user-menu::after,
+    .btn-primary::after,
+    .view-btn.active::after,
+    .action-btn:not(.logout-btn)::after {
+        animation: none;
+    }
+}
+
+/* Pending event approvals modal */
+.adm-pending-modal {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+}
+.adm-pending-modal__header {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fff7ed 100%);
+    border-bottom: 1px solid #fde68a;
+    padding: 1rem 1.25rem;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+.adm-pending-modal__head-text {
+    flex: 1;
+    min-width: 0;
+}
+.adm-pending-modal__header .modal-title {
+    font-weight: 800;
+    color: #78350f;
+    font-size: 1.1rem;
+}
+.adm-pending-modal__subtitle {
+    font-size: 0.82rem;
+    color: #92400e;
+    margin-top: 0.2rem;
+}
+.adm-pending-modal__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.55rem;
+    border-radius: 999px;
+    background: #b45309;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+.adm-pending-modal__body {
+    background: #f8fafc;
+    padding: 1rem 1.25rem 1.25rem;
+}
+.adm-pending-modal__footer {
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+}
+.adm-pending-alert {
+    border-radius: 10px;
+    font-size: 0.85rem;
+}
+.adm-pending-empty {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: #64748b;
+}
+.adm-pending-empty__icon {
+    font-size: 2.5rem;
+    color: #10b981;
+    margin-bottom: 0.75rem;
+}
+.adm-pending-empty__title {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.35rem;
+}
+.adm-pending-empty__text {
+    font-size: 0.9rem;
+}
+.adm-pending-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+.adm-pending-toolbar__select {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    user-select: none;
+}
+.adm-pending-toolbar__select input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+}
+.adm-pending-toolbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.adm-pending-toolbar__hint {
+    flex: 1 1 100%;
+    font-size: 0.78rem;
+    color: #64748b;
+}
+@media (min-width: 768px) {
+    .adm-pending-toolbar__hint {
+        flex: 1 1 auto;
+        text-align: right;
+        margin-left: auto;
+    }
+}
+.adm-pending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.adm-pending-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.85rem 1rem;
+    align-items: start;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.adm-pending-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.adm-pending-card.is-selected {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25);
+}
+.adm-pending-card.is-focused {
+    border-color: #059669;
+    background: #ecfdf5;
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.28), 0 8px 24px rgba(5, 150, 105, 0.12);
+    animation: admPendingCardFocus 1.1s ease-out 2;
+}
+@keyframes admPendingCardFocus {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.28), 0 8px 24px rgba(5, 150, 105, 0.12); }
+    50% { box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.38), 0 10px 28px rgba(5, 150, 105, 0.16); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .adm-pending-card.is-focused {
+        animation: none;
+    }
+}
+.adm-pending-card__check {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 0.15rem;
+    margin: 0;
+    cursor: pointer;
+}
+.adm-pending-card__check input {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    cursor: pointer;
+}
+.adm-pending-card__body {
+    min-width: 0;
+}
+.adm-pending-card__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+.adm-pending-card__id {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.03em;
+}
+.adm-pending-card__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.adm-pending-card__badge--pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+.adm-pending-card__badge--dept {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+.adm-pending-card__title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.25rem;
+    line-height: 1.3;
+}
+.adm-pending-card__desc {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin: 0 0 0.5rem;
+    line-height: 1.45;
+}
+.adm-pending-card__meta {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.adm-pending-card__meta li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: #475569;
+    line-height: 1.35;
+}
+.adm-pending-card__meta i {
+    width: 0.9rem;
+    color: #94a3b8;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+.adm-pending-card__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    min-width: 9.5rem;
+}
+.adm-pending-card__otp-form {
+    margin: 0;
+}
+.adm-pending-assign-form {
+    margin: 0 0 0.35rem;
+    padding: 0.55rem 0.6rem;
+    border-radius: 10px;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+}
+.adm-pending-assign-form__label {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+}
+.adm-pending-assign-form__row {
+    display: flex;
+    gap: 0.35rem;
+    align-items: stretch;
+}
+.adm-pending-assign-form__select {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.78rem;
+}
+.adm-pending-assign-form__hint {
+    font-size: 0.68rem;
+    color: #64748b;
+    margin-top: 0.35rem;
+    line-height: 1.35;
+}
+.adm-pending-btn--compact {
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+    white-space: nowrap;
+}
+.adm-pending-card__quick {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+.adm-pending-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.adm-pending-btn--block {
+    width: 100%;
+}
+.adm-pending-btn--primary {
+    background: #1d4ed8;
+    color: #fff;
+    border-color: #1d4ed8;
+}
+.adm-pending-btn--primary:hover:not(:disabled) {
+    background: #1e40af;
+    border-color: #1e40af;
+    color: #fff;
+}
+.adm-pending-btn--primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.adm-pending-btn--danger {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.adm-pending-btn--danger:hover {
+    background: #fecaca;
+}
+.adm-pending-btn--ghost {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+.adm-pending-btn--ghost:hover {
+    background: #f1f5f9;
+}
+.adm-pending-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.adm-pending-icon-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+.adm-pending-icon-btn--danger {
+    color: #b91c1c;
+    border-color: #fecaca;
+    background: #fff5f5;
+}
+.adm-pending-icon-btn--danger:hover {
+    background: #fee2e2;
+    color: #991b1b;
+}
+@media (max-width: 767px) {
+    .adm-pending-card {
+        grid-template-columns: auto 1fr;
+    }
+    .adm-pending-card__actions {
+        grid-column: 1 / -1;
+        min-width: 0;
+        width: 100%;
+    }
+    .adm-pending-card__quick {
+        justify-content: flex-start;
+    }
+}
+
+/* Pending reminder widget (>24h) */
+.adm-pending-reminder {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+}
+.adm-pending-reminder--sidebar {
+    margin: 0.35rem 0 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    background: rgba(234, 179, 8, 0.12);
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    color: #92400e;
+}
+.adm-pending-reminder--sidebar i {
+    margin-right: 0.35rem;
+}
+.adm-pending-reminder--banner {
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(253, 230, 138, 0.55));
+    border: 1px solid rgba(234, 179, 8, 0.45);
+    color: #78350f;
+}
+.adm-pending-reminder__content {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+}
+.adm-pending-reminder__content > i {
+    margin-top: 0.15rem;
+    font-size: 1.1rem;
+}
+.adm-pending-reminder__sub {
+    font-size: 0.78rem;
+    opacity: 0.9;
+}
+.adm-pending-card__badge--stale {
+    background: rgba(234, 88, 12, 0.15);
+    color: #c2410c;
+    border: 1px solid rgba(234, 88, 12, 0.35);
+}
+
+/* Event details attendance summary (admin calendar click) */
+.adm-event-attendance-summary__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+.adm-event-attendance-summary__item {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.55rem 0.75rem;
+    background: #f8fafc;
+    text-align: center;
+}
+.adm-event-attendance-summary__value {
+    display: block;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+}
+.adm-event-attendance-summary__label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+/* Admin edit pending event — department checkboxes */
+.adm-edit-dept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.45rem;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+.adm-edit-dept-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+.adm-edit-dept-option input {
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+}
+.adm-edit-dept-option--all {
+    grid-column: 1 / -1;
+    font-weight: 600;
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 0.45rem;
+    margin-top: 0.15rem;
+}
+
+/* ===============================
+   EMERALD THEME OVERRIDE
+   Modern · Dark sidebar · Emerald accents
+================================ */
+:root,
+body.admin-dashboard {
+    --org-sidebar: #121212;
+    --org-sidebar-elevated: #1e1e1e;
+    --org-sidebar-border: rgba(255, 255, 255, 0.06);
+    --org-emerald: #2ecc71;
+    --org-emerald-dim: #27ae60;
+    --org-emerald-glow: rgba(46, 204, 113, 0.18);
+    --org-emerald-muted: rgba(46, 204, 113, 0.12);
+    --org-surface: #f8f9fa;
+    --org-card: #ffffff;
+    --org-text: #1a1a2e;
+    --org-muted: #64748b;
+    --org-border: #e2e8f0;
+    --org-radius-lg: 18px;
+    --org-radius-md: 12px;
+    --org-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+    --org-shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.08);
+    --org-white: var(--org-card);
+    --school-gold: var(--org-emerald);
+    --school-forest-card: var(--org-sidebar);
+    --school-border: var(--org-sidebar-border);
+    --school-text-on-dark: #ffffff;
+    --school-text-muted: #94a3b8;
+    --eventify-kb-focus: var(--org-emerald);
+}
+
+body.admin-dashboard {
+    background: var(--org-surface) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--org-text);
+}
+
+body.admin-dashboard .adm-navbar {
+    background: var(--org-sidebar);
+    border-bottom: 1px solid var(--org-sidebar-border);
+    box-shadow: var(--org-shadow);
+}
+
+body.admin-dashboard .adm-brand {
+    color: var(--school-text-on-dark);
+    text-shadow: none;
+    font-weight: 700;
+}
+
+body.admin-dashboard .adm-brand i {
+    color: var(--org-emerald);
+}
+
+body.admin-dashboard .adm-navbar .nav-btn {
+    color: var(--school-text-muted);
+    border-radius: var(--org-radius-md);
+}
+
+body.admin-dashboard .adm-navbar .nav-btn:hover {
+    background: var(--org-emerald-muted);
+    color: var(--org-emerald);
+}
+
+body.admin-dashboard .adm-user-menu {
+    border-color: var(--org-sidebar-border);
+    color: var(--school-text-on-dark);
+    border-radius: var(--org-radius-md);
+}
+
+body.admin-dashboard .adm-user-menu:hover,
+body.admin-dashboard .adm-user-menu:focus {
+    color: var(--org-emerald);
+    border-color: rgba(46, 204, 113, 0.35);
+    background: var(--org-emerald-muted);
+}
+
+body.admin-dashboard .sidebar,
+body.admin-dashboard #adminSidebar {
+    background:
+        radial-gradient(ellipse 80% 50% at 0% 0%, var(--org-emerald-glow), transparent 55%),
+        var(--org-sidebar) !important;
+    border-right: 1px solid var(--org-sidebar-border) !important;
+    box-shadow: none;
+}
+
+body.admin-dashboard .sidebar .section-title {
+    color: var(--org-muted);
+    letter-spacing: 0.1em;
+    text-shadow: none;
+    font-weight: 600;
+}
+
+body.admin-dashboard .sidebar .action-btn {
+    background: var(--org-sidebar-elevated);
+    border-color: var(--org-sidebar-border);
+    color: var(--school-text-on-dark);
+    border-radius: var(--org-radius-md);
+}
+
+body.admin-dashboard .sidebar .action-btn:hover {
+    background: var(--org-emerald-muted);
+    border-color: rgba(46, 204, 113, 0.35);
+    color: var(--org-emerald);
+}
+
+body.admin-dashboard .sidebar .action-btn i {
+    color: var(--org-emerald);
+}
+
+body.admin-dashboard .sidebar .quick-actions a.action-btn:hover,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:focus {
+    color: var(--org-emerald) !important;
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-card {
+    background: var(--org-sidebar-elevated);
+    border: 1px solid var(--org-sidebar-border);
+    border-radius: var(--org-radius-lg);
+    box-shadow: var(--org-shadow);
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-avatar {
+    background: linear-gradient(135deg, var(--org-emerald) 0%, var(--org-emerald-dim) 100%);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-name {
+    color: var(--school-text-on-dark);
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-role {
+    color: var(--org-sidebar);
+    background: var(--org-emerald);
+    border: none;
+}
+
+body.admin-dashboard .sidebar .mini-cal-month {
+    color: var(--school-text-on-dark);
+    font-weight: 500;
+}
+
+body.admin-dashboard .sidebar .mini-cal-day {
+    color: var(--school-text-muted);
+    border-radius: 8px;
+}
+
+body.admin-dashboard .sidebar .mini-cal-day-header {
+    color: var(--org-muted);
+    font-weight: 600;
+}
+
+body.admin-dashboard .sidebar .mini-cal-day:hover {
+    background: var(--org-emerald-muted);
+}
+
+body.admin-dashboard .sidebar .mini-cal-day.today {
+    background: var(--org-emerald);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+body.admin-dashboard .sidebar .mini-cal-day.selected {
+    background: var(--org-emerald-muted);
+    color: var(--org-emerald);
+    font-weight: 700;
+    outline: 1px solid rgba(46, 204, 113, 0.45);
+}
+
+body.admin-dashboard .mini-calendar-widget {
+    background: var(--org-sidebar-elevated);
+    border: 1px solid var(--org-sidebar-border);
+    border-radius: var(--org-radius-lg);
+    box-shadow: var(--org-shadow);
+    padding: 16px;
+}
+
+body.admin-dashboard .mini-calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+body.admin-dashboard .mini-cal-nav {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--school-text-muted);
+    transition: all 0.2s ease;
+}
+
+body.admin-dashboard .mini-cal-nav:hover {
+    background: var(--org-emerald-muted);
+    color: var(--org-emerald);
+}
+
+body.admin-dashboard .mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+body.admin-dashboard .sidebar .action-btn.logout-btn,
+body.admin-dashboard #adminSidebar .action-btn.logout-btn {
+    color: #fca5a5 !important;
+    background: rgba(248, 113, 113, 0.12) !important;
+    border-color: rgba(248, 113, 113, 0.25) !important;
+}
+
+body.admin-dashboard .sidebar .action-btn.logout-btn:hover,
+body.admin-dashboard .sidebar .action-btn.logout-btn:focus,
+body.admin-dashboard #adminSidebar .action-btn.logout-btn:hover,
+body.admin-dashboard #adminSidebar .action-btn.logout-btn:focus {
+    background: rgba(127, 29, 29, 0.25) !important;
+    border-color: #f87171 !important;
+    color: #fecaca !important;
+}
+
+body.admin-dashboard #adminSidebar .user-info-card {
+    background: var(--org-sidebar-elevated);
+    border: 1px solid var(--org-sidebar-border);
+    border-radius: var(--org-radius-lg);
+    box-shadow: var(--org-shadow);
+}
+
+body.admin-dashboard #adminSidebar .user-avatar-large {
+    background: linear-gradient(135deg, var(--org-emerald) 0%, var(--org-emerald-dim) 100%);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+body.admin-dashboard #adminSidebar .user-dept-badge {
+    background: var(--org-emerald);
+    color: var(--org-sidebar);
+    border: none;
+    font-weight: 700;
+}
+
+body.admin-dashboard .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    border-left: none;
+    box-shadow: none;
+    background: var(--org-surface);
+}
+
+body.admin-dashboard .adm-stat-card,
+body.admin-dashboard .adm-chart-card {
+    background: var(--org-card);
+    border-color: var(--org-border);
+    border-radius: var(--org-radius-md);
+    box-shadow: var(--org-shadow);
+}
+
+body.admin-dashboard .adm-stat-value {
+    color: var(--org-text);
+}
+
+body.admin-dashboard .adm-btn-approve {
+    background: var(--org-emerald);
+}
+
+body.admin-dashboard .adm-btn-approve:hover {
+    background: var(--org-emerald-dim);
+}
+
+body.admin-dashboard .admin-action-badge--gold {
+    background: var(--org-emerald);
+    color: var(--org-sidebar);
+    border-color: rgba(46, 204, 113, 0.35);
+}
+
+body.admin-dashboard .eventify-dashboard-cal-controls {
+    border: 1px solid var(--org-border);
+    border-radius: var(--org-radius-lg);
+    background: var(--org-card);
+    margin: 16px 16px 0;
+    box-shadow: var(--org-shadow);
+}
+
+body.admin-dashboard .eventify-dashboard-cal-controls .control-nav:hover,
+body.admin-dashboard .eventify-dashboard-cal-controls .view-btn:hover {
+    border-color: var(--org-emerald);
+    color: var(--org-emerald-dim);
+    background: var(--org-emerald-muted);
+}
+
+body.admin-dashboard .eventify-dashboard-cal-controls .view-btn.active {
+    background: var(--org-emerald);
+    border-color: var(--org-emerald);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(46, 204, 113, 0.35);
+}
+
+body.admin-dashboard .eventify-dashboard-cal-legend {
+    border: 1px solid var(--org-border);
+    border-radius: var(--org-radius-md);
+    background: var(--org-card);
+    margin-inline: 16px;
+}
+
+body.admin-dashboard .main-content .eventify-dashboard-cal-container {
+    border: 1px solid var(--org-border);
+    border-radius: var(--org-radius-lg);
+    background: var(--org-card);
+    margin: 12px 16px 16px;
+    box-shadow: var(--org-shadow);
+}
+
+body.admin-dashboard .fc-col-header-cell {
+    background: var(--org-emerald-muted) !important;
+    border-bottom-color: var(--org-border) !important;
+}
+
+body.admin-dashboard .fc-col-header-cell-cushion {
+    color: var(--org-text) !important;
+    font-weight: 600;
+}
+
+body.admin-dashboard .fc-day-today {
+    background-color: var(--org-emerald-muted) !important;
+}
+
+body.admin-dashboard .fc-day-today .fc-daygrid-day-number {
+    background: var(--org-emerald);
+    color: #ffffff !important;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+body.admin-dashboard .fc-event[data-event-state="active"] {
+    background-color: var(--org-emerald) !important;
+    border-color: var(--org-emerald-dim) !important;
+}
+
+body.admin-dashboard .fc-event[data-event-state="pending"] {
+    background-color: #d97706 !important;
+    border-color: #b45309 !important;
+}
+
+body.admin-dashboard .fc-more-link {
+    color: var(--org-emerald-dim) !important;
+}
+
+body.admin-dashboard .calendar-title {
+    color: var(--org-text);
+    font-weight: 700;
+}
+
+body.admin-dashboard .eventify-notif-dropdown__header {
+    background: var(--org-sidebar);
+    color: var(--org-white);
+    border-bottom: 1px solid var(--org-sidebar-border);
+}
+
+body.admin-dashboard .eventify-notif-card--unread {
+    border-left-color: var(--org-emerald);
+    background: linear-gradient(90deg, var(--org-emerald-muted) 0%, var(--org-card) 28%);
+}
+
+body.admin-dashboard .eventify-notif-footer-btn--done {
+    background: var(--org-emerald);
+    color: #ffffff;
+    border-color: var(--org-emerald);
+    border-radius: var(--org-radius-md);
+}
+
+body.admin-dashboard .efy-modal {
+    --efy-cream: var(--org-card);
+    --efy-cream-2: var(--org-surface);
+    --efy-forest: var(--org-sidebar);
+    --efy-forest-deep: #0a0a0a;
+    --efy-gold: var(--org-emerald);
+    --efy-gold-dim: var(--org-emerald-dim);
+    --efy-green: var(--org-emerald);
+    --efy-border: var(--org-border);
+    --efy-border-gold: rgba(46, 204, 113, 0.35);
+    --efy-text: var(--org-text);
+    --efy-muted: var(--org-muted);
+}
+
+body.admin-dashboard .modal-content {
+    border: 1px solid var(--org-border);
+    border-radius: var(--org-radius-lg);
+    box-shadow: var(--org-shadow-lg);
+}
+
+body.admin-dashboard .main-content.eventify-kb-scroll-zone:focus,
+body.admin-dashboard .main-content.eventify-kb-scroll-zone:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Page-level scroll for the admin dashboard: let the whole main panel scroll
+   with a visible scrollbar on the right, and allow the calendar to grow to its
+   natural height instead of being clipped. */
+@media (min-width: 769px) {
+    body.admin-dashboard .main-content {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-width: thin;
+        scrollbar-color: var(--org-emerald, #1b4a1b) #e8edf2;
+    }
+
+    body.admin-dashboard .main-content::-webkit-scrollbar {
+        width: 12px;
+    }
+
+    body.admin-dashboard .main-content::-webkit-scrollbar-track {
+        background: #e8edf2;
+        border-radius: 999px;
+    }
+
+    body.admin-dashboard .main-content::-webkit-scrollbar-thumb {
+        background: var(--org-emerald, #1b4a1b);
+        border: 2px solid #e8edf2;
+        border-radius: 999px;
+    }
+
+    body.admin-dashboard .main-content::-webkit-scrollbar-thumb:hover {
+        background: var(--org-emerald-dim, #2f6626);
+    }
+
+    body.admin-dashboard .main-content .eventify-dashboard-cal-container {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 480px !important;
+        overflow: visible;
+    }
+
+    body.admin-dashboard .main-content .eventify-dashboard-cal-container #calendar,
+    body.admin-dashboard .main-content .eventify-dashboard-cal-container #calendar .fc {
+        height: auto !important;
+        min-height: 480px !important;
+    }
+
+    body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller {
+        overflow-y: visible !important;
+        max-height: none;
+    }
+}
+
+/* In-dashboard admin panels */
+body.admin-dashboard .sidebar .action-btn.is-active {
+    background: var(--org-emerald-muted);
+    border-color: var(--org-emerald);
+    color: var(--org-emerald);
+}
+
+.adm-dash-panel {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+body.admin-dashboard .main-content > #adminDashboardHome:not(.d-none),
+body.admin-dashboard .main-content > .adm-dash-panel:not(.d-none):not([hidden]) {
+    animation: admMainViewIn 0.28s ease-out both;
+}
+
+@keyframes admMainViewIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.admin-dashboard .main-content > #adminDashboardHome:not(.d-none),
+    body.admin-dashboard .main-content > .adm-dash-panel:not(.d-none):not([hidden]) {
+        animation: none;
+    }
+}
+
+.adm-dash-panel__shell {
+    background: linear-gradient(145deg, var(--org-emerald-muted) 0%, #ffffff 38%, var(--org-surface) 100%);
+    border: 1px solid var(--org-border);
+    border-radius: var(--org-radius-lg);
+    padding: 1rem 1.1rem 1.25rem;
+    box-shadow: var(--org-shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.adm-dash-panel__shell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--org-emerald) 0%, var(--org-emerald-dim) 55%, var(--org-emerald) 100%);
+}
+
+.adm-dash-panel__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.adm-dash-panel__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--org-border);
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--org-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0.42rem 0.85rem 0.42rem 0.55rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.adm-dash-panel__back:hover {
+    transform: translateX(-2px);
+    border-color: var(--org-emerald);
+    box-shadow: 0 4px 14px var(--org-emerald-glow);
+}
+
+.adm-dash-panel__back-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--org-emerald-dim) 0%, #064e3b 100%);
+    color: #fff;
+    font-size: 0.72rem;
+}
+
+.adm-dash-panel__count-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--org-emerald-dim);
+    background: var(--org-emerald-muted);
+    border: 1px solid rgba(46, 204, 113, 0.35);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+}
+
+.adm-dash-panel__hero {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 1.1rem;
+}
+
+.adm-dash-panel__hero-icon {
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--org-emerald-dim) 0%, #064e3b 100%);
+    color: #fff;
+    font-size: 1.25rem;
+    box-shadow: 0 8px 20px rgba(6, 78, 59, 0.22);
+}
+
+.adm-dash-panel__title {
+    margin: 0 0 0.2rem;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--org-text);
+}
+
+.adm-dash-panel__subtitle {
+    font-size: 0.88rem;
+    color: var(--org-muted);
+    max-width: 40rem;
+}
+
+.adm-dash-panel__empty {
+    text-align: center;
+    padding: 2.25rem 1.25rem;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px dashed rgba(46, 204, 113, 0.35);
+    border-radius: 16px;
+}
+
+.adm-dash-panel__empty-icon {
+    font-size: 2.25rem;
+    color: var(--org-emerald);
+    margin-bottom: 0.65rem;
+}
+
+.adm-dash-panel__empty-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin-bottom: 0.35rem;
+    color: var(--org-text);
+}
+
+.adm-dash-panel__empty-text {
+    color: var(--org-muted);
+    font-size: 0.9rem;
+    max-width: 28rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.adm-all-events-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.adm-all-events-stats__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--org-emerald-dim);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+}
+
+.adm-all-events-stats__pill--warn {
+    color: #b45309;
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(255, 251, 235, 0.9);
+}
+
+.adm-all-events-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+
+.adm-all-events-filters .form-control,
+.adm-all-events-filters .form-select {
+    flex: 1 1 200px;
+    max-width: 100%;
+}
+
+.adm-all-events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.adm-all-events-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: #fff;
+    border: 1px solid var(--org-border);
+    border-left: 4px solid var(--org-emerald);
+    border-radius: 12px;
+    padding: 0.8rem 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.adm-all-events-card:hover {
+    border-color: rgba(46, 204, 113, 0.45);
+    box-shadow: var(--org-shadow);
+}
+
+.adm-all-events-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin-bottom: 0.4rem;
+}
+
+.adm-all-events-card__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--org-text);
+    line-height: 1.35;
+}
+
+.adm-all-events-card__title i {
+    color: var(--org-emerald);
+    margin-right: 0.25rem;
+}
+
+.adm-all-events-card__badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.adm-all-events-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    color: var(--org-muted);
+    margin-bottom: 0.35rem;
+}
+
+.adm-all-events-card__desc {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--org-muted);
+    line-height: 1.45;
+}
+
+@keyframes admDashPanelShellIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes admDashPanelItemIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes admDashPanelFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.adm-dash-panel--enter .adm-dash-panel__shell {
+    animation: admDashPanelShellIn 0.65s ease-out both;
+}
+
+.adm-dash-panel--enter .adm-all-events-card,
+.adm-dash-panel--enter .adm-dash-panel__empty {
+    animation: admDashPanelItemIn 0.55s ease-out both;
+    animation-delay: calc(0.06s + var(--panel-stagger, 0s));
+}
+
+@media (max-width: 640px) {
+    .adm-dash-panel__shell {
+        padding: 0.9rem 0.85rem 1.1rem;
+    }
+
+    .adm-dash-panel__title {
+        font-size: 1.2rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-dash-panel--enter .adm-dash-panel__shell,
+    .adm-dash-panel--enter .adm-all-events-card,
+    .adm-dash-panel--enter .adm-dash-panel__empty {
+        animation: admDashPanelFadeIn 0.15s ease both;
+        animation-delay: 0s !important;
+        transform: none !important;
+    }
+
+    .adm-dash-panel__back:hover {
+        transform: none;
+    }
+}
+
+/* All Users in-dashboard panel */
+#adminAllUsersPanel[hidden],
+#adminAllUsersPanel.d-none {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+.adm-all-users-stats {
+    margin-bottom: 1rem;
+}
+
+.adm-all-users-filters .form-control,
+.adm-all-users-filters .form-select {
+    border-radius: 10px;
+}
+
+.adm-users-table-wrap {
+    background: #fff;
+    border-color: var(--org-border, #e2e8f0) !important;
+    border-radius: var(--org-radius-md, 12px);
+    box-shadow: var(--org-shadow, 0 4px 24px rgba(15, 23, 42, 0.06));
+}
+
+.adm-all-users-panel .adm-users-table-wrap thead th {
+    background: var(--org-emerald-muted, rgba(46, 204, 113, 0.12));
+    color: var(--org-text, #1a1a2e);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--org-border, #e2e8f0);
+}
+
+.adm-dash-panel--enter .adm-user-row {
+    animation: admDashPanelFadeIn 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-dash-panel--enter .adm-user-row {
+        animation: none;
+    }
+}
+
+/* Admin messages panel (embedded staff messenger) */
+.adm-messages-panel {
+    position: relative;
+}
+
+.adm-messages-panel .adm-dash-panel__shell--flush {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.adm-messages-panel .adm-dash-panel__shell--flush::before {
+    display: none;
+}
+
+body.admin-dashboard .adm-messages-panel .msgr-app--embedded {
+    min-height: min(720px, calc(100dvh - 6.5rem));
+    height: min(720px, calc(100dvh - 6.5rem));
+    max-height: calc(100dvh - 6.5rem);
+    border-radius: var(--org-radius-md, 12px);
+    overflow: hidden;
+    box-shadow: var(--org-shadow, 0 4px 24px rgba(15, 23, 42, 0.06));
+    border: 1px solid var(--org-border, #e2e8f0);
+}
+
+.adm-dash-panel__count-pill--warn {
+    background: rgba(234, 179, 8, 0.18);
+    color: #92400e;
+    border-color: rgba(234, 179, 8, 0.35);
+}
+
+.adm-feedback-list {
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+}
+
+.adm-pending-panel__body {
+    margin-top: 0.25rem;
+}
+
+.adm-dash-panel__footer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.adm-upcoming-events-list {
+    max-height: min(65vh, 560px);
+    overflow-y: auto;
+}
+
+.adm-upcoming-events-list .list-group-item {
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+}
+
+.adm-messages-panel .msgr-detail-backdrop {
+    position: absolute;
+    z-index: 20;
+}
+
+@media (max-width: 991.98px) {
+    body.admin-dashboard .adm-messages-panel .msgr-app--embedded {
+        min-height: calc(100dvh - 5.5rem);
+        height: calc(100dvh - 5.5rem);
+        max-height: calc(100dvh - 5.5rem);
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+}

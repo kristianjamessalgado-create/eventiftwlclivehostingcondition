@@ -1,0 +1,365 @@
+/* Create event modal — school theme (forest green + gold + cream) */
+#createEventModal {
+    --ce-cream: #f7f4e7;
+    --ce-cream-2: #fffdf8;
+    --ce-forest: #1b4a1b;
+    --ce-forest-deep: #153313;
+    --ce-gold: #e6c54a;
+    --ce-gold-dim: #b88f2a;
+    --ce-green: #3d8a35;
+    --ce-border: rgba(27, 74, 27, 0.14);
+    --ce-border-gold: rgba(230, 197, 74, 0.45);
+    --ce-text: #1b4a1b;
+    --ce-muted: #4b5f4b;
+    --ce-modal-gutter: clamp(0.5rem, 2vw, 1rem);
+    --ce-modal-max-h: min(
+        calc(100dvh - var(--ce-modal-gutter) * 2),
+        calc(100vh - var(--ce-modal-gutter) * 2)
+    );
+}
+
+#createEventModal .modal-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(calc(100% - var(--ce-modal-gutter) * 2), 920px);
+    max-height: var(--ce-modal-max-h);
+    margin: var(--ce-modal-gutter) auto;
+}
+
+#createEventModal .ce-modal {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: var(--ce-modal-max-h);
+    overflow: hidden;
+    border: 2px solid var(--ce-border-gold);
+    border-radius: 18px;
+    background: var(--ce-cream);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+}
+
+#createEventModal form,
+#createEventModal #createEventModalForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#createEventModal .ce-modal__header {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #0a3d1f 0%, var(--ce-forest) 55%, #021a08 100%);
+    border-bottom: 3px solid var(--ce-gold);
+    padding: 1rem 1.15rem;
+    align-items: flex-start;
+}
+
+#createEventModal .ce-modal__eyebrow {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(247, 244, 231, 0.72);
+    margin-bottom: 0.2rem;
+}
+
+#createEventModal .ce-modal__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.3;
+}
+
+#createEventModal .ce-modal__title i {
+    color: var(--ce-gold);
+}
+
+#createEventModal .ce-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem 1.1rem 1.15rem;
+    background: var(--ce-cream);
+}
+
+#createEventModal .ce-form-section {
+    background: #fff;
+    border: 1px solid var(--ce-border);
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 8px rgba(21, 51, 19, 0.05);
+}
+
+#createEventModal .ce-form-section--schedule {
+    padding-bottom: 0.65rem;
+}
+
+#createEventModal .ce-form-section__label {
+    margin: 0 0 0.65rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ce-green);
+}
+
+#createEventModal .ce-form-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ce-text);
+    margin-bottom: 0.25rem;
+}
+
+#createEventModal .ce-required {
+    color: #b91c1c;
+}
+
+#createEventModal .ce-form-help {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--ce-muted);
+    line-height: 1.4;
+}
+
+#createEventModal .ce-form-control {
+    border-radius: 10px;
+    border-color: var(--ce-border);
+    background: var(--ce-cream-2);
+    font-size: 0.8125rem;
+}
+
+#createEventModal .ce-form-control:focus {
+    border-color: rgba(61, 138, 53, 0.55);
+    box-shadow: 0 0 0 3px rgba(61, 138, 53, 0.15);
+    background: #fff;
+}
+
+#createEventModal .ce-loc-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+#createEventModal .ce-loc-toolbar__search {
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+#createEventModal .ce-location-map,
+#createEventModal .event-location-map {
+    height: clamp(120px, 22vh, 200px);
+    min-height: 120px;
+    border-radius: 12px !important;
+    border: 1px solid var(--ce-border) !important;
+    overflow: hidden;
+}
+
+#createEventModal .ce-dept-checkbox-list {
+    max-height: clamp(100px, 24vh, 200px);
+    overflow-y: auto;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--ce-border);
+    border-radius: 12px;
+    padding: 0.55rem 0.65rem;
+    background: var(--ce-cream-2);
+}
+
+#createEventModal .form-check-input:checked {
+    background-color: var(--ce-green);
+    border-color: var(--ce-forest);
+}
+
+#createEventModal .form-check-input:focus {
+    border-color: rgba(61, 138, 53, 0.55);
+    box-shadow: 0 0 0 3px rgba(61, 138, 53, 0.15);
+}
+
+#createEventModal .form-check-label {
+    font-size: 0.8125rem;
+    color: var(--ce-text);
+}
+
+/* Schedule block inside modal */
+#createEventModal .event-schedule-block {
+    margin-bottom: 0.65rem !important;
+}
+
+#createEventModal .event-schedule-block > .form-label.fw-semibold {
+    font-size: 0.78rem;
+    font-weight: 700 !important;
+    color: var(--ce-text);
+    margin-bottom: 0.35rem;
+}
+
+#createEventModal .event-schedule-block > .text-muted.small {
+    color: var(--ce-muted) !important;
+    font-size: 0.72rem !important;
+}
+
+#createEventModal .event-schedule-block .form-check {
+    padding: 0.35rem 0.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+#createEventModal .event-schedule-block .form-check:has(.js-schedule-mode:checked) {
+    background: rgba(61, 138, 53, 0.08);
+    border-color: rgba(61, 138, 53, 0.22);
+}
+
+#createEventModal .schedule-calendar-wrap {
+    margin-top: 0.35rem;
+}
+
+#createEventModal .event-schedule-click-calendar {
+    max-width: 100%;
+    border: 1px solid var(--ce-border);
+    border-radius: 12px;
+    padding: 0.65rem;
+    background: var(--ce-cream-2);
+}
+
+#createEventModal .event-schedule-click-calendar .esc-nav {
+    color: var(--ce-forest);
+    border-radius: 8px;
+}
+
+#createEventModal .event-schedule-click-calendar .esc-nav:hover {
+    background: rgba(230, 197, 74, 0.25);
+    color: var(--ce-forest);
+}
+
+#createEventModal .event-schedule-click-calendar .esc-header {
+    color: var(--ce-text);
+    font-weight: 800;
+}
+
+#createEventModal .event-schedule-click-calendar .esc-day--selected {
+    background: var(--ce-forest);
+    color: #fff;
+}
+
+#createEventModal .event-schedule-click-calendar .esc-day--anchor {
+    box-shadow: inset 0 0 0 2px var(--ce-gold);
+}
+
+#createEventModal .event-schedule-click-calendar .esc-day:hover:not(:disabled):not(.esc-day--selected) {
+    background: rgba(230, 197, 74, 0.25);
+}
+
+#createEventModal .event-end-time-panel {
+    font-size: 0.8125rem;
+}
+
+#createEventModal .event-end-time-panel .form-control,
+#createEventModal .event-end-time-panel .form-select {
+    border-radius: 10px;
+    border-color: var(--ce-border);
+    background: var(--ce-cream-2);
+    font-size: 0.8125rem;
+}
+
+#createEventModal .ce-modal__footer {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    background: var(--ce-cream-2);
+    border-top: 1px solid var(--ce-border);
+    box-shadow: 0 -6px 16px rgba(21, 51, 19, 0.06);
+    padding: 0.75rem 1rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    gap: 0.45rem;
+}
+
+#createEventModal .ce-btn-primary {
+    background: linear-gradient(180deg, var(--ce-green) 0%, #2f6f28 100%);
+    border: 1px solid var(--ce-forest);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    border-radius: 999px;
+    padding: 0.45rem 1.15rem;
+}
+
+#createEventModal .ce-btn-primary:hover {
+    background: linear-gradient(180deg, #469a3d 0%, var(--ce-green) 100%);
+    border-color: var(--ce-forest);
+    color: #fff;
+}
+
+#createEventModal .ce-btn-outline {
+    background: #fff;
+    border: 1px solid var(--ce-border);
+    color: var(--ce-forest);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-radius: 999px;
+}
+
+#createEventModal .ce-btn-outline:hover {
+    background: var(--ce-cream-2);
+    border-color: var(--ce-border-gold);
+    color: var(--ce-forest);
+}
+
+#createEventModal .ce-btn-gold {
+    background: linear-gradient(180deg, var(--ce-gold) 0%, var(--ce-gold-dim) 100%);
+    border: 1px solid var(--ce-forest);
+    color: var(--ce-forest);
+    font-weight: 700;
+}
+
+#createEventModal .ce-btn-gold:hover {
+    filter: brightness(1.05);
+    color: var(--ce-forest);
+}
+
+#createEventModal .ce-btn-muted {
+    background: var(--ce-forest);
+    border: 1px solid var(--ce-forest-deep);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-radius: 999px;
+    padding: 0.4rem 1rem;
+}
+
+#createEventModal .ce-btn-muted:hover {
+    background: var(--ce-forest-deep);
+    color: #fff;
+}
+
+@media (max-width: 767.98px) {
+    #createEventModal .modal-dialog {
+        width: 100%;
+        max-width: none;
+        max-height: none;
+        height: 100%;
+        margin: 0;
+    }
+
+    #createEventModal .ce-modal {
+        max-height: none;
+        height: 100%;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+}

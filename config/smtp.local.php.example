@@ -1,0 +1,18 @@
+<?php
+/**
+ * Copy to config/smtp.local.php and fill in credentials.
+ * smtp.local.php is gitignored — never commit real credentials.
+ *
+ * Local XAMPP: use Gmail below.
+ * GoDaddy live hosting: use config/smtp.production.godaddy.php.example instead
+ * (Gmail SMTP is blocked on shared hosting and will time out).
+ */
+
+// --- Local development (Gmail) ---
+define('EVENTIFY_SMTP_HOST', 'smtp.gmail.com');
+define('EVENTIFY_SMTP_PORT', 587);
+define('EVENTIFY_SMTP_USERNAME', 'your_email@gmail.com');
+define('EVENTIFY_SMTP_PASSWORD', 'your_google_app_password');
+define('EVENTIFY_SMTP_FROM_EMAIL', 'your_email@gmail.com');
+define('EVENTIFY_SMTP_FROM_NAME', 'EVENTIFY');
+define('EVENTIFY_SMTP_ALLOW_INSECURE_TLS', false);

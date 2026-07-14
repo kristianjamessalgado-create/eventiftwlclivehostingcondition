@@ -1,0 +1,16 @@
+# WinSCP sync script — copy this file to sync-to-godaddy.txt and fill in your FTP details.
+# Run with: deploy\sync-to-godaddy.bat   (or WinSCP.com /script=deploy\sync-to-godaddy.txt)
+#
+# Get FTP host + username from GoDaddy cPanel → FTP Accounts.
+# Do NOT commit sync-to-godaddy.txt (it contains your password).
+
+option batch abort
+option confirm off
+
+# Replace USERNAME, PASSWORD, and HOST (often ftp.eventifywlc.com or your server hostname)
+open ftp://USERNAME:PASSWORD@HOST/
+
+# Upload only changed files; never delete remote-only files (uploads/, .env on server stay safe)
+synchronize remote -criteria=time -filemask="|.env; .git/; .gitignore; backups/; config/db.local.php; config/smtp.local.php; config/paymongo.local.php; uploads/; *.log" "C:\xamppfinal\htdocs\school_events" /public_html
+
+exit

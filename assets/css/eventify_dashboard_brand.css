@@ -1,0 +1,564 @@
+/**
+ * EVENTIFY — Unified Dashboard Brand System
+ * Forest Green + School Gold (matches landing page institutional look)
+ *
+ * HOW TO USE
+ * ----------
+ * Link this file AFTER your role-specific dashboard CSS in each view:
+ *   dashboardorganizer.php, admin/dashboard.php,
+ *   views/dashboard_student.php, views/dashboard_multimedia.php
+ *   activities_hub.php, event_activities.php, attendance_history.php
+ *
+ *   <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=1">
+ *
+ * This file remaps legacy --org-emerald / --school-gold tokens so you do NOT
+ * need to hunt neon greens (#2ecc71, #00bfff) across four stylesheets.
+ */
+
+/* =============================================================================
+   §1  BRAND DESIGN TOKENS
+   Copy these into :root if you prefer inline tokens in each dashboard file.
+============================================================================= */
+:root,
+body.organizer-dashboard,
+body.admin-dashboard,
+body.student-dashboard,
+body.multimedia-dashboard,
+body.event-activities-hub {
+    /* —— Official palette —— */
+    --efy-brand-nav:        #0A3C26;   /* Top navbar */
+    --efy-brand-sidebar:    #062618;   /* Sidebar shell */
+    --efy-brand-sidebar-up: #0A3C26;   /* Cards / elevated panels on sidebar */
+    --efy-brand-gold:       #E5B22D;   /* CTAs, active tabs, badges */
+    --efy-brand-gold-dim:   #C99A26;   /* Hover / pressed gold */
+    --efy-brand-gold-light: #F0C85A;   /* Highlights, icon accents */
+    --efy-brand-forest:     #0A3C26;   /* Structural green (events, headers) */
+    --efy-brand-forest-dim: #083220;   /* Deeper green for gradients */
+    --efy-brand-text:       #F8F9FA;   /* Primary text on dark surfaces */
+    --efy-brand-text-muted: rgba(248, 249, 250, 0.72);
+    --efy-brand-text-on-gold: #0A3C26; /* Text on gold buttons / badges */
+
+    /* —— Translucent gold (hover, focus, today tint) —— */
+    --efy-brand-gold-muted: rgba(229, 178, 45, 0.14);
+    --efy-brand-gold-glow:  rgba(229, 178, 45, 0.18);
+    --efy-brand-gold-border: rgba(229, 178, 45, 0.32);
+    --efy-brand-forest-muted: rgba(10, 60, 38, 0.10);
+
+    /* —— Surfaces (main content stays light for readability) —— */
+    --efy-brand-surface: #f8f9fa;
+    --efy-brand-card:    #ffffff;
+    --efy-brand-border:  #e2e8f0;
+    --efy-brand-text-body: #1a1a2e;
+    --efy-brand-text-sub:  #64748b;
+
+    /* —— Remap legacy dashboard variables (organizer / admin / student / MM) —— */
+    --org-navbar:           var(--efy-brand-nav);
+    --org-sidebar:          var(--efy-brand-sidebar);
+    --org-sidebar-elevated: var(--efy-brand-sidebar-up);
+    --org-sidebar-border:   rgba(255, 255, 255, 0.08);
+    --org-emerald:          var(--efy-brand-gold);
+    --org-emerald-dim:      var(--efy-brand-gold-dim);
+    --org-emerald-glow:     var(--efy-brand-gold-glow);
+    --org-emerald-muted:    var(--efy-brand-gold-muted);
+    --org-surface:          var(--efy-brand-surface);
+    --org-card:             var(--efy-brand-card);
+    --org-text:             var(--efy-brand-text-body);
+    --org-muted:            var(--efy-brand-text-sub);
+    --org-border:           var(--efy-brand-border);
+
+    --school-gold:          var(--efy-brand-gold);
+    --school-gold-dim:      var(--efy-brand-gold-dim);
+    --school-forest-card:   var(--efy-brand-sidebar);
+    --school-forest-deep:   #041910;
+    --school-forest-mid:    var(--efy-brand-forest);
+    --school-green-bright:  var(--efy-brand-forest);
+    --school-border:        var(--efy-brand-gold-border);
+    --school-soft-bg:       var(--efy-brand-forest-muted);
+    --school-text-on-dark:  var(--efy-brand-text);
+    --school-text-muted:    var(--efy-brand-text-muted);
+    --school-cream:         var(--efy-brand-surface);
+
+    --efy-gold:             var(--efy-brand-gold);
+    --efy-gold-dim:         var(--efy-brand-gold-dim);
+    --efy-green:            var(--efy-brand-forest);
+    --efy-forest:           var(--efy-brand-forest);
+    --efy-forest-deep:      var(--efy-brand-sidebar);
+    --efy-border-gold:      var(--efy-brand-gold-border);
+    --eventify-kb-focus:    var(--efy-brand-gold);
+
+    --mm-accent:            var(--efy-brand-gold);
+    --mm-accent-hover:      var(--efy-brand-gold-dim);
+    --mm-gold:              var(--efy-brand-gold);
+}
+
+/* =============================================================================
+   §2  TOP NAVBAR — Dark Forest Green header, white text, gold icon accent
+============================================================================= */
+body.organizer-dashboard .top-navbar,
+body.student-dashboard .top-navbar,
+body.multimedia-dashboard .top-navbar,
+body.admin-dashboard .adm-navbar {
+    background: var(--efy-brand-nav) !important;
+    border-bottom: 1px solid var(--efy-brand-gold-border) !important;
+    box-shadow: 0 2px 12px rgba(4, 25, 16, 0.35) !important;
+    backdrop-filter: none;
+}
+
+/* Brand wordmark + icons */
+body.organizer-dashboard .brand-logo,
+body.student-dashboard .brand-logo,
+body.multimedia-dashboard .brand-logo,
+body.admin-dashboard .adm-brand {
+    color: var(--efy-brand-text) !important;
+    text-shadow: none;
+}
+
+body.organizer-dashboard .brand-logo i,
+body.student-dashboard .brand-logo i,
+body.multimedia-dashboard .brand-logo i,
+body.admin-dashboard .adm-brand i {
+    color: var(--efy-brand-gold) !important;
+}
+
+button.brand-logo,
+button.adm-brand {
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+/* Navbar icon buttons */
+body.organizer-dashboard .nav-btn,
+body.student-dashboard .nav-btn,
+body.multimedia-dashboard .nav-btn,
+body.admin-dashboard .adm-navbar .nav-btn {
+    color: var(--efy-brand-text-muted) !important;
+}
+
+body.organizer-dashboard .nav-btn:hover,
+body.student-dashboard .nav-btn:hover,
+body.multimedia-dashboard .nav-btn:hover,
+body.admin-dashboard .adm-navbar .nav-btn:hover {
+    background: var(--efy-brand-gold-muted) !important;
+    color: var(--efy-brand-gold) !important;
+}
+
+body.admin-dashboard .adm-user-menu {
+    border-color: var(--efy-brand-gold-border) !important;
+    color: var(--efy-brand-text) !important;
+}
+
+body.admin-dashboard .adm-user-menu:hover,
+body.admin-dashboard .adm-user-menu:focus {
+    color: var(--efy-brand-gold) !important;
+    border-color: var(--efy-brand-gold) !important;
+    background: var(--efy-brand-gold-muted) !important;
+}
+
+/* =============================================================================
+   §3  SIDEBAR — Deep forest green (#062618), gold hover / active indicator
+============================================================================= */
+body.organizer-dashboard .sidebar,
+body.student-dashboard .sidebar,
+body.multimedia-dashboard .sidebar,
+body.multimedia-dashboard #mmSidebar,
+body.admin-dashboard .sidebar,
+body.admin-dashboard #adminSidebar {
+    background:
+        radial-gradient(ellipse 70% 45% at 0% 0%, var(--efy-brand-gold-glow), transparent 52%),
+        var(--efy-brand-sidebar) !important;
+    border-color: var(--org-sidebar-border) !important;
+}
+
+/* Section labels */
+body.organizer-dashboard .sidebar .section-title,
+body.student-dashboard .sidebar .section-title,
+body.multimedia-dashboard .sidebar .section-title,
+body.multimedia-dashboard .sidebar-title,
+body.admin-dashboard .sidebar .section-title {
+    color: var(--efy-brand-gold-light) !important;
+    letter-spacing: 0.1em;
+    text-shadow: none;
+}
+
+/* Sidebar quick-action links */
+body.organizer-dashboard .sidebar .action-btn,
+body.student-dashboard .sidebar .action-btn,
+body.multimedia-dashboard .sidebar .action-btn,
+body.multimedia-dashboard button.action-btn,
+body.admin-dashboard .sidebar .action-btn {
+    background: var(--efy-brand-sidebar-up) !important;
+    border: 1px solid var(--org-sidebar-border) !important;
+    color: var(--efy-brand-text) !important;
+    border-radius: 12px;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.organizer-dashboard .sidebar .action-btn i,
+body.student-dashboard .sidebar .action-btn i,
+body.multimedia-dashboard .sidebar .action-btn i,
+body.admin-dashboard .sidebar .action-btn i {
+    color: var(--efy-brand-gold) !important;
+}
+
+/* Gold hover + left-bar active indicator */
+body.organizer-dashboard .sidebar .action-btn:hover,
+body.student-dashboard .sidebar .action-btn:hover,
+body.multimedia-dashboard .sidebar .action-btn:hover,
+body.multimedia-dashboard .sidebar a.action-btn:hover,
+body.admin-dashboard .sidebar .action-btn:hover,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:hover,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:focus {
+    background: var(--efy-brand-gold-muted) !important;
+    border-color: var(--efy-brand-gold-border) !important;
+    color: var(--efy-brand-gold) !important;
+    box-shadow: inset 3px 0 0 var(--efy-brand-gold);
+}
+
+body.organizer-dashboard .sidebar .calendar-item.active,
+body.organizer-dashboard .sidebar .mini-cal-day.selected,
+body.admin-dashboard .sidebar .mini-cal-day.selected {
+    background: var(--efy-brand-gold-muted) !important;
+    color: var(--efy-brand-gold) !important;
+    box-shadow: inset 3px 0 0 var(--efy-brand-gold);
+    outline: none !important;
+}
+
+body.organizer-dashboard .sidebar .mini-cal-day.today,
+body.student-dashboard .sidebar .mini-cal-day.today,
+body.admin-dashboard .sidebar .mini-cal-day.today {
+    background: var(--efy-brand-gold) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    font-weight: 700;
+}
+
+/* Sidebar user cards */
+body.organizer-dashboard .organizer-user-card,
+body.student-dashboard .user-info-card,
+body.multimedia-dashboard .mm-user-card,
+body.admin-dashboard #adminSidebar .organizer-user-card {
+    background: var(--efy-brand-sidebar-up) !important;
+    border: 1px solid var(--efy-brand-gold-border) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+body.organizer-dashboard .organizer-user-avatar,
+body.student-dashboard .profile-avatar,
+body.multimedia-dashboard .profile-avatar,
+body.multimedia-dashboard .mm-user-avatar,
+body.admin-dashboard #adminSidebar .organizer-user-avatar,
+body.organizer-dashboard .profile-avatar {
+    background: linear-gradient(135deg, var(--efy-brand-forest) 0%, var(--efy-brand-forest-dim) 100%) !important;
+    border: 2px solid var(--efy-brand-gold-border) !important;
+    color: var(--efy-brand-text) !important;
+}
+
+/* Mini calendar widget — dark elevated panel (match organizer) */
+body.organizer-dashboard .mini-calendar-widget,
+body.admin-dashboard .mini-calendar-widget {
+    background: var(--efy-brand-sidebar-up) !important;
+    border: 1px solid var(--org-sidebar-border) !important;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+body.organizer-dashboard .sidebar .mini-cal-month,
+body.admin-dashboard .sidebar .mini-cal-month {
+    color: var(--efy-brand-text) !important;
+    font-weight: 500;
+}
+
+body.organizer-dashboard .sidebar .mini-cal-day,
+body.admin-dashboard .sidebar .mini-cal-day {
+    color: var(--efy-brand-text-muted) !important;
+    border-radius: 8px;
+}
+
+body.organizer-dashboard .sidebar .mini-cal-day-header,
+body.admin-dashboard .sidebar .mini-cal-day-header {
+    color: var(--efy-brand-text-sub) !important;
+    font-weight: 600;
+}
+
+body.organizer-dashboard .sidebar .mini-cal-day:hover,
+body.admin-dashboard .sidebar .mini-cal-day:hover {
+    background: var(--efy-brand-gold-muted) !important;
+}
+
+body.organizer-dashboard .mini-cal-nav,
+body.admin-dashboard .mini-cal-nav {
+    color: var(--efy-brand-text-muted) !important;
+}
+
+body.organizer-dashboard .mini-cal-nav:hover,
+body.admin-dashboard .mini-cal-nav:hover {
+    background: var(--efy-brand-gold-muted) !important;
+    color: var(--efy-brand-gold) !important;
+}
+
+/* Quick-action anchor links on dark sidebar */
+body.admin-dashboard .sidebar .quick-actions a.action-btn,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:link,
+body.admin-dashboard .sidebar .quick-actions a.action-btn:visited,
+body.admin-dashboard .sidebar .quick-actions a.action-btn.text-reset,
+body.admin-dashboard .sidebar .quick-actions a.action-btn.text-reset:visited {
+    color: var(--efy-brand-text) !important;
+    text-decoration: none;
+}
+
+/* Scrollbars on dark sidebar */
+body.organizer-dashboard #organizerSidebar,
+body.student-dashboard #studentSidebar,
+body.multimedia-dashboard #mmSidebar,
+body.admin-dashboard #adminSidebar {
+    scrollbar-color: var(--efy-brand-gold-border) transparent;
+}
+
+body.organizer-dashboard #organizerSidebar::-webkit-scrollbar-thumb,
+body.student-dashboard #studentSidebar::-webkit-scrollbar-thumb,
+body.multimedia-dashboard #mmSidebar::-webkit-scrollbar-thumb,
+body.admin-dashboard #adminSidebar::-webkit-scrollbar-thumb {
+    background: var(--efy-brand-gold-border);
+}
+
+/* =============================================================================
+   §4  ACTION BUTTONS & CTAs — School Gold with dark-green label text
+============================================================================= */
+body.organizer-dashboard .create-btn,
+body.organizer-dashboard .create-btn:hover,
+body.student-dashboard .btn-primary,
+body.multimedia-dashboard .btn-upload,
+body.multimedia-dashboard .modal-footer .btn-primary,
+body.admin-dashboard .adm-btn-approve,
+body.admin-dashboard .adm-btn-approve:hover {
+    background: var(--efy-brand-gold) !important;
+    border-color: var(--efy-brand-gold-dim) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+}
+
+body.organizer-dashboard .create-btn:hover,
+body.student-dashboard .btn-primary:hover,
+body.multimedia-dashboard .btn-upload:hover {
+    background: var(--efy-brand-gold-dim) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+}
+
+/* Calendar view tabs: Month / Week / etc. */
+body.organizer-dashboard .view-btn.active,
+body.admin-dashboard .eventify-dashboard-cal-controls .view-btn.active,
+body.student-dashboard .view-btn.active,
+body.organizer-dashboard .eventify-dashboard-cal-controls .view-btn.active,
+body.admin-dashboard .view-btn.active {
+    background: var(--efy-brand-gold) !important;
+    border-color: var(--efy-brand-gold-dim) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    box-shadow: 0 4px 14px rgba(229, 178, 45, 0.32) !important;
+}
+
+body.organizer-dashboard .view-btn:hover,
+body.admin-dashboard .eventify-dashboard-cal-controls .view-btn:hover,
+body.student-dashboard .view-btn:hover,
+body.organizer-dashboard .eventify-dashboard-cal-controls .view-btn:hover {
+    border-color: var(--efy-brand-gold-border) !important;
+    color: var(--efy-brand-forest) !important;
+    background: var(--efy-brand-gold-muted) !important;
+}
+
+body.organizer-dashboard .eventify-dashboard-cal-controls .control-nav:hover,
+body.admin-dashboard .eventify-dashboard-cal-controls .control-nav:hover,
+body.student-dashboard .control-nav:hover {
+    border-color: var(--efy-brand-forest) !important;
+    color: var(--efy-brand-forest) !important;
+    background: var(--efy-brand-forest-muted) !important;
+}
+
+/* Student calendar chrome bar — gold band, forest labels */
+body.student-dashboard .calendar-controls {
+    background: var(--efy-brand-gold) !important;
+    border-color: rgba(10, 60, 38, 0.18) !important;
+}
+
+body.student-dashboard .calendar-title {
+    color: var(--efy-brand-text-on-gold) !important;
+}
+
+body.student-dashboard .control-nav,
+body.student-dashboard .view-btn {
+    background: rgba(255, 255, 255, 0.65) !important;
+    border-color: var(--efy-brand-forest) !important;
+    color: var(--efy-brand-forest) !important;
+}
+
+body.student-dashboard .view-btn.active {
+    background: var(--efy-brand-forest) !important;
+    border-color: var(--efy-brand-forest) !important;
+    color: var(--efy-brand-gold) !important;
+}
+
+/* =============================================================================
+   §5  ROLE BADGES — ORGANIZER · ADMIN · STUDENT · MULTIMEDIA
+============================================================================= */
+body.organizer-dashboard .organizer-user-role {
+    background: var(--efy-brand-gold) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    border: none;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+}
+
+body.admin-dashboard #adminSidebar .organizer-user-role {
+    background: var(--efy-brand-gold) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    border: none;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+}
+
+body.student-dashboard .user-dept-badge,
+body.multimedia-dashboard .mm-user-dept {
+    background: var(--efy-brand-gold) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    border: none !important;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+/* Muted / warning variant */
+body.student-dashboard .user-dept-badge.warning,
+body.multimedia-dashboard .mm-user-dept.muted {
+    background: rgba(248, 249, 250, 0.12) !important;
+    color: var(--efy-brand-text) !important;
+    border: 1px solid var(--efy-brand-gold-border) !important;
+}
+
+body.admin-dashboard .admin-action-badge--gold {
+    background: var(--efy-brand-gold) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    border-color: var(--efy-brand-gold-dim) !important;
+}
+
+/* =============================================================================
+   §6  CALENDAR UI — Replace neon highlights with forest + gold
+============================================================================= */
+
+/* Column headers: soft forest tint (not neon) */
+body.organizer-dashboard .fc-col-header-cell,
+body.admin-dashboard .fc-col-header-cell,
+body.student-dashboard .fc-col-header-cell {
+    background: var(--efy-brand-forest-muted) !important;
+    border-bottom-color: var(--efy-brand-border) !important;
+}
+
+body.organizer-dashboard .fc-col-header-cell-cushion,
+body.admin-dashboard .fc-col-header-cell-cushion,
+body.student-dashboard .fc-col-header-cell-cushion {
+    color: var(--efy-brand-forest) !important;
+    font-weight: 600;
+}
+
+/* Today: subtle green wash + gold date pill (not a full neon cell) */
+body.organizer-dashboard .fc-day-today,
+body.admin-dashboard .fc-day-today,
+body.student-dashboard .fc-day-today {
+    background-color: var(--efy-brand-forest-muted) !important;
+}
+
+body.organizer-dashboard .fc-day-today .fc-daygrid-day-number,
+body.admin-dashboard .fc-day-today .fc-daygrid-day-number,
+body.student-dashboard .fc-day-today .fc-daygrid-day-number {
+    background: var(--efy-brand-gold) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+    border-radius: 8px;
+    font-weight: 700;
+    padding: 2px 6px;
+    min-width: 1.75rem;
+    text-align: center;
+}
+
+/* Event state colors — forest for active, gold for upcoming */
+body.organizer-dashboard .fc-event[data-event-state="active"],
+body.admin-dashboard .fc-event[data-event-state="active"],
+body.student-dashboard .fc-event[data-event-state="active"] {
+    background-color: var(--efy-brand-forest) !important;
+    border-color: var(--efy-brand-forest-dim) !important;
+    color: var(--efy-brand-text) !important;
+}
+
+body.organizer-dashboard .fc-event[data-event-state="upcoming"],
+body.admin-dashboard .fc-event[data-event-state="upcoming"],
+body.student-dashboard .fc-event[data-event-state="upcoming"] {
+    background-color: var(--efy-brand-gold) !important;
+    border-color: var(--efy-brand-gold-dim) !important;
+    color: var(--efy-brand-text-on-gold) !important;
+}
+
+body.organizer-dashboard .fc-more-link,
+body.admin-dashboard .fc-more-link,
+body.student-dashboard .fc-more-link {
+    color: var(--efy-brand-forest) !important;
+    font-weight: 600;
+}
+
+body.organizer-dashboard .fc-more-link:hover,
+body.admin-dashboard .fc-more-link:hover,
+body.student-dashboard .fc-more-link:hover {
+    background: var(--efy-brand-gold-muted) !important;
+}
+
+/* Calendar panel scrollbars */
+body.organizer-dashboard.organizer-cal--month .main-content,
+body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller {
+    scrollbar-color: var(--efy-brand-forest) var(--efy-brand-surface);
+}
+
+body.organizer-dashboard.organizer-cal--month .main-content::-webkit-scrollbar-thumb,
+body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller::-webkit-scrollbar-thumb {
+    background: var(--efy-brand-forest);
+}
+
+/* =============================================================================
+   §7  PAGE BACKGROUNDS — Neutral academic shell (no black gaming gradient)
+============================================================================= */
+html:has(body.organizer-dashboard),
+html:has(body.student-dashboard),
+html:has(body.multimedia-dashboard),
+body.organizer-dashboard,
+body.student-dashboard,
+body.multimedia-dashboard,
+body.admin-dashboard {
+    background: var(--efy-brand-surface) !important;
+    background-attachment: fixed;
+}
+
+/* Kill legacy black / olive full-page gradients from base student CSS */
+body.student-dashboard.student-dashboard--app,
+body, html:has(body.student-dashboard) {
+    background: var(--efy-brand-surface) !important;
+}
+
+/* =============================================================================
+   §8  BOOTSTRAP 5 UTILITY CHEAT-SHEET (optional inline in PHP markup)
+   Use when you need one-off accents without new CSS rules:
+   — bg:  style="background-color:#0A3C26"  →  class="bg-efy-nav" (custom)
+   — Or add to your dashboard <style> block:
+       .bg-efy-nav     { background-color: #0A3C26 !important; }
+       .bg-efy-sidebar { background-color: #062618 !important; }
+       .bg-efy-gold    { background-color: #E5B22D !important; color: #0A3C26 !important; }
+       .text-efy-gold  { color: #E5B22D !important; }
+       .border-efy-gold{ border-color: rgba(229,178,45,.32) !important; }
+============================================================================= */
+.bg-efy-nav     { background-color: var(--efy-brand-nav) !important; }
+.bg-efy-sidebar { background-color: var(--efy-brand-sidebar) !important; }
+.bg-efy-gold    { background-color: var(--efy-brand-gold) !important; color: var(--efy-brand-text-on-gold) !important; }
+.text-efy-gold  { color: var(--efy-brand-gold) !important; }
+.text-efy-light { color: var(--efy-brand-text) !important; }
+.border-efy-gold { border-color: var(--efy-brand-gold-border) !important; }

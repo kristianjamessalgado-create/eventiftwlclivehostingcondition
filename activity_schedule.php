@@ -1,0 +1,106 @@
+<?php
+session_start();
+include __DIR__ . '/config/db.php';
+include __DIR__ . '/config/config.php';
+require_once __DIR__ . '/backend/lib/event_day_sessions.php';
+require_once __DIR__ . '/backend/lib/event_calendar.php';
+
+$event_id = (int) ($_GET['event_id'] ?? 0);
+$schedule_date = substr(trim((string) ($_GET['date'] ?? '')), 0, 10);
+if ($event_id < 1 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $schedule_date)) {
+    header('Location: ' . BASE_URL . '?error=Invalid schedule');
+    exit();
+}
+
+$stmt = $conn->prepare('SELECT id, title, organizer_id, status FROM events WHERE id = ? LIMIT 1');
+$stmt->bind_param('i', $event_id);
+$stmt->execute();
+$event = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$event) {
+    header('Location: ' . BASE_URL . '?error=Event not found');
+    exit();
+}
+
+$role = $_SESSION['role'] ?? '';
+$userId = (int) ($_SESSION['user_id'] ?? 0);
+$isOrganizer = $role === 'organizer' && (int) ($event['organizer_id'] ?? 0) === $userId;
+$isStaff = in_array($role, ['admin', 'super_admin'], true);
+$isPublic = in_array($event['status'] ?? '', ['active', 'closed', 'completed'], true);
+
+if (!$isOrganizer && !$isStaff && !$isPublic) {
+    header('Location: ' . BASE_URL . '/views/login.php?error=' . urlencode('Access denied'));
+    exit();
+}
+
+eventify_event_day_sessions_ensure_enhanced($conn);
+$sessions = eventify_load_event_day_sessions($conn, $event_id, $schedule_date);
+$conn->close();
+
+$dateLabel = date('l, F j, Y', strtotime($schedule_date));
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule - <?= htmlspecialchars($event['title']) ?> | EVENTIFY</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 1.5rem; font-family: system-ui, sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; }
+        }
+        .schedule-header { border-bottom: 2px solid #047857; padding-bottom: 0.75rem; margin-bottom: 1rem; }
+        .activity-row { border-bottom: 1px solid #e2e8f0; padding: 0.75rem 0; }
+        .status-cancelled { color: #b91c1c; }
+        .status-delayed { color: #b45309; }
+    </style>
+</head>
+<body>
+    <div class="container" style="max-width: 720px;">
+        <div class="d-flex justify-content-between align-items-start mb-3 no-print">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print / Save PDF</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.close()">Close</button>
+        </div>
+        <div class="schedule-header">
+            <h1 class="h4 mb-1"><?= htmlspecialchars($event['title']) ?></h1>
+            <p class="text-muted mb-0">Activities for <?= htmlspecialchars($dateLabel) ?></p>
+        </div>
+        <?php if ($sessions === []): ?>
+            <p class="text-muted">No activities scheduled for this day.</p>
+        <?php else: ?>
+            <?php foreach ($sessions as $s): ?>
+                <?php
+                $timeStr = eventify_format_session_time_range($s['start_time'] ?? null, $s['end_time'] ?? null);
+                $status = (string) ($s['status'] ?? 'scheduled');
+                ?>
+                <div class="activity-row">
+                    <div class="d-flex justify-content-between gap-2">
+                        <strong><?= htmlspecialchars($s['title']) ?></strong>
+                        <?php if ($status !== 'scheduled'): ?>
+                            <span class="small status-<?= htmlspecialchars($status) ?>"><?= ucfirst($status) ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($s['category'])): ?>
+                        <div class="small text-muted"><?= htmlspecialchars($s['category']) ?></div>
+                    <?php endif; ?>
+                    <?php if ($timeStr !== ''): ?>
+                        <div class="small"><i class="fas fa-clock"></i> <?= htmlspecialchars($timeStr) ?></div>
+                    <?php endif; ?>
+                    <div class="small"><?= htmlspecialchars($s['location'] ?? '') ?></div>
+                    <?php if (!empty($s['contact_name']) || !empty($s['contact_phone'])): ?>
+                        <div class="small text-muted">Contact: <?= htmlspecialchars(trim(($s['contact_name'] ?? '') . ' ' . ($s['contact_phone'] ?? ''))) ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($s['notes'])): ?>
+                        <div class="small mt-1"><?= nl2br(htmlspecialchars($s['notes'])) ?></div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+        <p class="small text-muted mt-4 mb-0">Generated by EVENTIFY · <?= date('M j, Y g:i A') ?></p>
+    </div>
+</body>
+</html>

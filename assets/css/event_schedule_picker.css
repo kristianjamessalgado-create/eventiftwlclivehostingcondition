@@ -1,0 +1,211 @@
+.event-schedule-click-calendar {
+    max-width: 320px;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    background: #fff;
+    user-select: none;
+}
+
+.event-schedule-click-calendar .esc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.event-schedule-click-calendar .esc-nav {
+    border: none;
+    background: transparent;
+    color: #495057;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.35rem;
+    line-height: 1;
+}
+
+.event-schedule-click-calendar .esc-nav:hover {
+    background: #f1f3f5;
+}
+
+.event-schedule-click-calendar .esc-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-align: center;
+}
+
+.event-schedule-click-calendar .esc-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+
+.event-schedule-click-calendar .esc-day {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 0.35rem;
+    background: transparent;
+    font-size: 0.82rem;
+    color: #212529;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.event-schedule-click-calendar .esc-day:hover:not(:disabled):not(.esc-day--selected) {
+    background: #e9ecef;
+}
+
+.event-schedule-click-calendar .esc-day--selected {
+    background: #6c757d;
+    color: #fff;
+    font-weight: 600;
+}
+
+.event-schedule-click-calendar .esc-day--anchor {
+    box-shadow: inset 0 0 0 2px #6c757d;
+    font-weight: 600;
+}
+
+.event-schedule-click-calendar .esc-day--outside {
+    color: #ced4da;
+    cursor: default;
+}
+
+.event-schedule-click-calendar .esc-day--past {
+    color: #adb5bd;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.event-schedule-click-calendar .esc-day--today:not(.esc-day--selected) {
+    box-shadow: inset 0 0 0 2px #0d6efd;
+}
+
+.event-schedule-click-calendar .esc-summary {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.event-end-time-panel {
+    max-height: min(28rem, 55vh);
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.esc-times-panel__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.esc-times-panel__hint {
+    font-size: 0.8125rem;
+    color: #6c757d;
+    line-height: 1.45;
+}
+
+.esc-times-panel__head {
+    margin-bottom: 0.65rem;
+}
+
+.esc-day-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.esc-day-card {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.5rem;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.esc-day-card__date {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: linear-gradient(180deg, #f8f9fa 0%, #f1f3f5 100%);
+    border-bottom: 1px solid #e9ecef;
+    color: #343a40;
+}
+
+.esc-day-card__body {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 8.5rem) 1fr;
+    gap: 0.65rem 1rem;
+    padding: 0.65rem 0.75rem;
+    align-items: start;
+}
+
+.esc-day-card__body--solo {
+    grid-template-columns: 1fr;
+    padding-top: 0.5rem;
+}
+
+.esc-field-label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #868e96;
+    margin-bottom: 0.3rem;
+}
+
+.esc-day-card__field .form-control-sm {
+    max-width: 100%;
+}
+
+.esc-end-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.esc-end-btn-group {
+    flex-wrap: wrap;
+    max-width: 100%;
+}
+
+.esc-end-btn-group .btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.55rem;
+    line-height: 1.35;
+}
+
+.esc-end-time-input {
+    max-width: 9.5rem;
+    transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.esc-end-picker:not(.esc-end-picker--time-active) .esc-end-time-input {
+    opacity: 0.55;
+}
+
+.esc-end-picker--time-active .esc-end-time-input {
+    opacity: 1;
+    border-color: #86b7fe;
+}
+
+@media (max-width: 575.98px) {
+    .esc-day-card__body {
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+    }
+
+    .esc-end-time-input {
+        max-width: 100%;
+    }
+}

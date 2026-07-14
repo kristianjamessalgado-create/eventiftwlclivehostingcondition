@@ -1,0 +1,322 @@
+/* EVENTIFY student PWA */
+
+#pwaInstallBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+    color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(6, 78, 59, 0.25);
+}
+
+#pwaInstallBanner[hidden] {
+    display: none !important;
+}
+
+.pwa-install-banner__text {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    flex: 1;
+    min-width: 180px;
+}
+
+#pwaPushBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25);
+    position: relative;
+    z-index: 120;
+    isolation: isolate;
+    touch-action: manipulation;
+}
+
+#pwaPushBanner[hidden] {
+    display: none !important;
+}
+
+.pwa-push-banner__text {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    flex: 1;
+    min-width: 180px;
+}
+
+.pwa-push-banner__text strong {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.15rem;
+}
+
+.pwa-push-banner__desc {
+    display: block;
+    opacity: 0.95;
+}
+
+.pwa-push-banner__ios-note {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    opacity: 0.9;
+}
+
+.pwa-push-banner__ios-note[hidden] {
+    display: none !important;
+}
+
+.pwa-push-banner__actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.pwa-push-banner__btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 2.75rem;
+}
+
+.pwa-push-banner__btn--primary {
+    background: #facc15;
+    color: #1e3a8a;
+}
+
+.pwa-push-banner__btn--ghost {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    #pwaPushBanner {
+        margin-left: 1rem;
+        margin-right: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #pwaPushBanner[data-push-mode="ios-install"] .pwa-push-banner__btn--primary {
+        background: #fff;
+        color: #1e3a8a;
+    }
+
+    .pwa-push-banner__actions {
+        width: 100%;
+    }
+
+    .pwa-push-banner__btn {
+        flex: 1;
+        min-height: 2.85rem;
+    }
+}
+
+.pwa-install-banner__text strong {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.15rem;
+}
+
+.pwa-install-banner__hint {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    opacity: 0.92;
+    margin-bottom: 0.2rem;
+}
+
+.pwa-install-banner__hint[hidden] {
+    display: none !important;
+}
+
+.pwa-install-banner__desc {
+    display: block;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    opacity: 0.95;
+}
+
+@media (max-width: 768px) {
+    #pwaInstallBanner {
+        margin-left: 1rem;
+        margin-right: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.75rem 0.85rem;
+    }
+
+    #pwaInstallBanner[data-install-mode="ios"] .pwa-install-banner__desc,
+    #pwaInstallBanner[data-install-mode="android"] .pwa-install-banner__desc {
+        font-size: 0.75rem;
+    }
+
+    .pwa-install-banner__actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .pwa-install-banner__btn {
+        flex: 1;
+        min-height: 2.25rem;
+    }
+}
+
+.pwa-install-modal__lead {
+    font-size: 0.9rem;
+    color: #334155;
+    margin-bottom: 1rem;
+}
+
+.pwa-install-modal__note {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin: 0.85rem 0 0;
+    padding: 0.55rem 0.65rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.pwa-install-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pwa-install-steps__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: #1e293b;
+}
+
+.pwa-install-steps__icon {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(4, 120, 87, 0.12);
+    color: #047857;
+    font-size: 0.95rem;
+}
+
+.pwa-install-banner__actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.pwa-install-banner__btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.pwa-install-banner__btn--primary {
+    background: #facc15;
+    color: #064e3b;
+}
+
+.pwa-install-banner__btn--ghost {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.pwa-offline-notice {
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    margin-bottom: 0.75rem;
+}
+
+.pwa-offline-notice[hidden] {
+    display: none !important;
+}
+
+.eventify-offline-page {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #064e3b;
+    font-family: system-ui, -apple-system, sans-serif;
+    padding: 1rem;
+}
+
+.eventify-offline-card {
+    max-width: 360px;
+    text-align: center;
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.5rem 1.25rem;
+}
+
+.eventify-offline-card__icon {
+    border-radius: 16px;
+    margin-bottom: 0.75rem;
+}
+
+.eventify-offline-card h1 {
+    font-size: 1.15rem;
+    margin: 0 0 0.5rem;
+}
+
+.eventify-offline-card p {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0 0 1rem;
+}
+
+.eventify-offline-card__btn {
+    display: inline-block;
+    background: #047857;
+    color: #fff;
+    text-decoration: none;
+    padding: 0.55rem 1.1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.eventify-offline-card__link {
+    display: block;
+    margin-top: 0.65rem;
+    font-size: 0.8125rem;
+    color: #047857;
+}

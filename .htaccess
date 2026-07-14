@@ -1,0 +1,6 @@
+# After moving from eventifywlc.com/school_events to eventifywlc.com/
+# Old links still use /school_events/... — serve the same files from domain root.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^school_events/(.*)$ /$1 [L]
+</IfModule>

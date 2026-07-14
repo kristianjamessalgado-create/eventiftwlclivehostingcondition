@@ -1,0 +1,10 @@
+<?php
+/**
+ * Copy to config/vapid.local.php and fill in keys from: php tools/generate_vapid_keys.php
+ * Do not commit vapid.local.php — keep the private key secret.
+ */
+return [
+    'publicKey' => 'YOUR_VAPID_PUBLIC_KEY',
+    'privateKey' => 'YOUR_VAPID_PRIVATE_KEY',
+    'subject' => 'mailto:support@eventifywlc.com',
+];

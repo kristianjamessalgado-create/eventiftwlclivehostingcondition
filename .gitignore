@@ -1,0 +1,17 @@
+.env
+.env.local
+config/db.local.php
+config/smtp.local.php
+config/paymongo.local.php
+config/vapid.local.php
+deploy/sync-to-godaddy.txt
+*.log
+backend/cron/.reminder_last_run
+uploads/
+backups/
+vendor/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.cursor/

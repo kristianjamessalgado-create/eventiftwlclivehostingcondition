@@ -1,0 +1,622 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+html {
+    height: 100%;
+    width: 100%;
+    background: transparent;
+    overflow: hidden;
+}
+
+html.embed-mode {
+    height: auto;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+html.embed-mode::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+body {
+    height: 100%;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    background: #153313;
+    margin: 0;
+    padding: 0;
+}
+
+/* Embedded mode (landing modal iframe): compact card, no giant background area */
+body.embed-mode {
+    min-height: 0 !important;
+    height: auto !important;
+    display: block;
+    background: transparent;
+    overflow: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 8px 0 0;
+    position: relative;
+}
+body.embed-mode::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Keep video visible in landing modal (iframe); fills iframe behind the form */
+body.embed-mode #bgVideo {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    z-index: 0;
+    pointer-events: none;
+}
+
+body.embed-mode .container {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 360px);
+    max-width: 100%;
+    max-height: calc(100vh - 20px);
+    margin: 0 auto 0;
+    padding: 12px 16px 12px;
+    border-radius: 18px;
+    box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(0, 255, 136, 0.35);
+    backdrop-filter: blur(14px);
+    background: rgba(0, 0, 0, 0.58);
+}
+
+body.embed-mode .form-box {
+    gap: 0;
+    padding-bottom: 22px;
+}
+
+body.embed-mode .form-box.login {
+    padding: 0 4px 4px;
+}
+
+body.embed-mode .form-box h1 {
+    margin-bottom: 6px;
+    margin-top: 4px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+body.embed-mode .container.active .form-box.register h1 {
+    margin-bottom: 18px;
+}
+
+body.embed-mode .input-box {
+    margin: 6px 0;
+}
+
+body.embed-mode .input-box input,
+body.embed-mode .input-box select {
+    padding: 10px 12px;
+    padding-right: 40px;
+    border-radius: 10px;
+    font-size: 13px;
+    min-height: 40px;
+}
+
+body.embed-mode .input-box i {
+    right: 14px;
+}
+
+body.embed-mode .field-hint,
+body.embed-mode .caps-warning {
+    margin-top: 6px;
+    margin-bottom: 4px;
+}
+
+body.embed-mode .btn {
+    margin-top: 6px;
+    margin-bottom: 2px;
+    padding: 9px 12px;
+    font-size: 14px;
+    border-radius: 10px;
+}
+
+body.embed-mode .switch-btn {
+    margin-top: 6px;
+    margin-bottom: 2px;
+    padding: 2px 2px 4px;
+    font-size: 12px;
+}
+body.embed-mode .reactivate-otp-link {
+    margin-top: 2px;
+    font-size: 11px;
+}
+
+body.embed-mode .alert {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+}
+
+/* === VIDEO BACKGROUND === */
+#bgVideo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 0;
+}
+
+/* === MAIN CONTAINER === */
+.container {
+    position: relative;
+    width: 400px;
+    max-width: 90%;
+    max-height: calc(100vh - 20px);
+    padding: 32px 24px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 20px;
+    box-shadow: 0 0 30px rgba(0,255,0,0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,255,0,0.3);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    transition: 0.3s all ease-in-out;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease-out 0.3s forwards;
+    margin: auto;
+    overflow: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.container::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === FORM BOX === */
+.form-box {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.form-box.login {
+    padding: 6px 8px 10px;
+}
+
+.form-box h1 {
+    font-size: 26px;
+    margin-bottom: 18px;
+    color: white;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+.container.active .form-box.register h1 {
+    margin-bottom: 14px;
+}
+
+/* === INPUT BOXES === */
+.input-box {
+    position: relative;
+    width: 100%;
+    margin: 12px 0;
+}
+
+.input-box input,
+.input-box select {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.4);
+    color: white;
+    font-size: 14px;
+    transition: 0.3s all ease-in-out;
+    min-height: 44px;
+}
+
+.input-box select {
+    cursor: pointer;
+    appearance: auto;
+    -webkit-appearance: menulist;
+}
+
+#departmentWrapper {
+    margin-top: 4px;
+}
+
+/* Department dropdown stays within container */
+#departmentSelect {
+    max-width: 100%;
+}
+
+.input-box select option {
+    background: #1a1a2e;
+    color: #fff;
+}
+
+.input-box input::placeholder,
+.input-box select option {
+    color: rgba(255,255,255,0.7);
+}
+
+.input-box i {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,255,255,0.8);
+}
+
+/* === FOCUS NEON EFFECT === */
+.input-box input:focus,
+.input-box select:focus {
+    outline: none;
+    border-color: #00ff00;
+    box-shadow: 0 0 8px #00ff00;
+    background: rgba(0,0,0,0.6);
+    color: white;
+}
+
+/* === BUTTONS === */
+.btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #00ff00;
+    color: black;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 15px;
+    transition: 0.3s all ease-in-out;
+}
+
+.btn:hover {
+    box-shadow: 0 0 15px #00ff00;
+    transform: translateY(-2px);
+}
+
+/* === SWITCH FORM BUTTON === */
+.switch-btn {
+    background: transparent;
+    border: none;
+    color: #00ff00;
+    margin-top: 15px;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.reactivate-otp-link {
+    display: block;
+    margin-top: 4px;
+    text-align: center;
+    color: #b6ffb6;
+    font-size: 12px;
+    line-height: 1.2;
+    text-decoration: underline;
+}
+
+.reactivate-otp-link-primary {
+    margin-top: 8px !important;
+    margin-bottom: 6px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #d2ffd2 !important;
+}
+
+/* === HIDE REGISTER FORM INITIALLY === */
+.form-box.register {
+    display: none;
+}
+
+/* === SHOW REGISTER FORM WHEN ACTIVE === */
+.container.active .form-box.login {
+    display: none;
+}
+
+.container.active .form-box.register {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    flex-shrink: 0;
+}
+
+.form-box.register form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* === ALERT MESSAGES === */
+.alert {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: center;
+    animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.alert-danger {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.5);
+    color: #ff6b6b;
+}
+
+.register-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    animation: shake 0.4s ease;
+}
+
+.register-error i {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+.alert-success {
+    background: rgba(0, 255, 0, 0.2);
+    border: 1px solid rgba(0, 255, 0, 0.5);
+    color: #00ff00;
+}
+
+.field-hint {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    text-align: left;
+}
+
+.caps-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #ff6b6b;
+}
+
+.caps-warning i {
+    font-size: 11px;
+}
+
+/* === MOBILE RESPONSIVE === */
+@media (max-width: 480px) {
+    .container {
+        width: 90%;
+        max-width: 380px;
+        padding: 24px 20px;
+        max-height: 85vh;
+    }
+    .form-box h1 {
+        font-size: 22px;
+    }
+    .container.active .form-box.register h1 {
+        font-size: 22px;
+        margin-bottom: 12px;
+    }
+    .input-box {
+        margin: 10px 0;
+    }
+    .btn {
+        font-size: 14px;
+        padding: 10px;
+    }
+    .alert {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+}
+
+/* === IFRAME SPECIFIC FIXES === */
+html, body {
+    background: transparent !important;
+}
+
+body {
+    position: relative;
+}
+
+.container::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.container::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 0, 0.5);
+    border-radius: 10px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 0, 0.7);
+}
+
+/* Tablet/mobile hardening: prevent clipped forms on short screens */
+@media (max-width: 768px) {
+    html,
+    body {
+        overflow: auto;
+        height: auto;
+        min-height: 100%;
+    }
+
+    body {
+        align-items: flex-start;
+        padding: 12px;
+    }
+
+    body.embed-mode {
+        padding: 8px 0 8px;
+    }
+
+    body.embed-mode .container {
+        padding: 14px 16px 14px;
+    }
+
+    body.embed-mode .form-box {
+        padding-bottom: 8px;
+    }
+
+    body.embed-mode .form-box.login {
+        padding: 0 4px 8px;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 520px;
+        max-height: none;
+        min-height: auto;
+        padding: 22px 16px;
+        margin: 0 auto;
+        border-radius: 14px;
+    }
+}
+
+/* Short viewport / modal iframe safety: always keep actions visible */
+@media (max-height: 760px) {
+    html,
+    body {
+        overflow: auto !important;
+        height: auto !important;
+        min-height: 100% !important;
+    }
+
+    body {
+        align-items: flex-start !important;
+        padding: 10px 0 !important;
+    }
+
+    .container {
+        width: min(100%, 360px);
+        max-height: none !important;
+        min-height: 0 !important;
+        padding: 12px 14px !important;
+        margin: 0 auto !important;
+        overflow-y: auto !important;
+    }
+
+    .form-box.login {
+        padding: 0 !important;
+    }
+
+    .form-box h1 {
+        font-size: 22px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .input-box {
+        margin: 6px 0 !important;
+    }
+
+    .btn {
+        margin-top: 6px !important;
+        padding: 9px 12px !important;
+    }
+
+    .switch-btn {
+        margin-top: 6px !important;
+        margin-bottom: 2px !important;
+        font-size: 12px !important;
+        padding: 2px 2px 4px !important;
+    }
+}
+
+/* Final embed override: keep content visible (no clipping) */
+html.embed-mode,
+body.embed-mode {
+    overflow: auto !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+html.embed-mode::-webkit-scrollbar,
+body.embed-mode::-webkit-scrollbar,
+body.embed-mode .container::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+body.embed-mode .container {
+    max-height: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Keep OTP link visible under register/login switch link */
+body.embed-mode .reactivate-otp-link,
+.reactivate-otp-link {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    margin-top: 4px !important;
+    margin-bottom: 0 !important;
+    line-height: 1.35 !important;
+}
+
+body.embed-mode .reactivate-otp-link-primary {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+    font-size: 13px !important;
+}

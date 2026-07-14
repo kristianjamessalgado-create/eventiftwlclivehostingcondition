@@ -1,0 +1,284 @@
+/* Event lifecycle colors — keep in sync with eventDidMount in dashboardorganizer.js / dashboard_student.js */
+.eventify-calendar-legend {
+    margin: 0 24px 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.eventify-calendar-legend__title {
+    display: block;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.eventify-calendar-legend__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+}
+
+.eventify-calendar-legend__list li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.eventify-calendar-legend__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.eventify-calendar-legend__swatch--pending {
+    background-color: #d97706;
+}
+
+.eventify-calendar-legend__swatch--active {
+    background-color: #16a34a;
+}
+
+.eventify-calendar-legend__swatch--upcoming {
+    background-color: #f59e0b;
+}
+
+.eventify-calendar-legend__swatch--closed {
+    background-color: #6b7280;
+}
+
+.eventify-calendar-legend__swatch--rejected {
+    background-color: #dc2626;
+}
+
+.eventify-calendar-legend__label strong {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.eventify-calendar-legend__note {
+    margin: 8px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+@media (max-width: 768px) {
+    .eventify-calendar-legend {
+        margin-left: 12px;
+        margin-right: 12px;
+    }
+
+    .eventify-calendar-legend__list {
+        flex-direction: column;
+        gap: 6px;
+    }
+}
+
+/* Week / day calendar — compact readable event blocks */
+#calendar .fc-timegrid-event {
+    border-radius: 6px !important;
+    border-left: 3px solid rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+    min-height: 1.35rem;
+}
+
+#calendar .fc-timegrid-event .fc-event-main {
+    padding: 1px 5px !important;
+    overflow: hidden;
+}
+
+#calendar .eventify-fc-compact {
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+
+#calendar .fc-timegrid-col-events {
+    margin: 0 1px;
+}
+
+#calendar .fc-timegrid-all-day .fc-daygrid-event {
+    margin: 1px 2px !important;
+    font-size: 0.68rem !important;
+}
+
+#calendar .fc-timegrid-all-day .fc-event-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#calendar .fc-timegrid-slot-label {
+    font-size: 0.68rem;
+    color: #64748b;
+}
+
+#calendar .fc-col-header-cell-cushion {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Connected multi-day bars (FullCalendar block span) */
+#calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event,
+#student-calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event,
+#saCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event,
+#publicCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event {
+    border-radius: 0 !important;
+    min-height: 1.35rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+#calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start,
+#student-calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start,
+#saCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start,
+#publicCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start {
+    border-top-left-radius: 6px !important;
+    border-bottom-left-radius: 6px !important;
+    margin-left: 3px;
+}
+
+#calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-end,
+#student-calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-end,
+#saCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-end,
+#publicCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-end {
+    border-top-right-radius: 6px !important;
+    border-bottom-right-radius: 6px !important;
+    margin-right: 3px;
+}
+
+#calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start.fc-event-end,
+#student-calendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start.fc-event-end,
+#saCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start.fc-event-end,
+#publicCalendar .fc-daygrid-block-event .fc-daygrid-event.eventify-fc-range-event.fc-event-start.fc-event-end {
+    border-radius: 6px !important;
+    margin-left: 3px;
+    margin-right: 3px;
+}
+
+/* Per-day colors on one connected bar (gradient); do not override with solid state rules */
+#calendar .fc-event[data-eventify-range-gradient="1"],
+#student-calendar .fc-event[data-eventify-range-gradient="1"],
+#saCalendar .fc-event[data-eventify-range-gradient="1"],
+#publicCalendar .fc-event[data-eventify-range-gradient="1"] {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+}
+
+/* Lifecycle colors — match legend; override department / theme defaults */
+#calendar .fc-event[data-event-state="pending"],
+#student-calendar .fc-event[data-event-state="pending"],
+#saCalendar .fc-event[data-event-state="pending"],
+#publicCalendar .fc-event[data-event-state="pending"] {
+    background-color: #d97706 !important;
+    border-color: #d97706 !important;
+    color: #ffffff !important;
+}
+
+#calendar .fc-event[data-event-state="active"],
+#student-calendar .fc-event[data-event-state="active"],
+#saCalendar .fc-event[data-event-state="active"],
+#publicCalendar .fc-event[data-event-state="active"] {
+    background-color: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #ffffff !important;
+}
+
+#calendar .fc-event[data-event-state="upcoming"],
+#student-calendar .fc-event[data-event-state="upcoming"],
+#saCalendar .fc-event[data-event-state="upcoming"],
+#publicCalendar .fc-event[data-event-state="upcoming"] {
+    background-color: #f59e0b !important;
+    border-color: #f59e0b !important;
+    color: #ffffff !important;
+}
+
+#calendar .fc-event[data-event-state="closed"],
+#student-calendar .fc-event[data-event-state="closed"],
+#saCalendar .fc-event[data-event-state="closed"],
+#publicCalendar .fc-event[data-event-state="closed"] {
+    background-color: #6b7280 !important;
+    border-color: #6b7280 !important;
+    color: #ffffff !important;
+}
+
+#calendar .fc-event[data-event-state="rejected"],
+#student-calendar .fc-event[data-event-state="rejected"],
+#saCalendar .fc-event[data-event-state="rejected"],
+#publicCalendar .fc-event[data-event-state="rejected"] {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+/* Multi-day bars: reinforce per-segment colors using FullCalendar segment classes */
+#calendar .fc-daygrid-event.fc-event-today[data-event-state="active"],
+#student-calendar .fc-daygrid-event.fc-event-today[data-event-state="active"],
+#saCalendar .fc-daygrid-event.fc-event-today[data-event-state="active"],
+#publicCalendar .fc-daygrid-event.fc-event-today[data-event-state="active"],
+#calendar .fc-event.eventify-fc-range-event.fc-event-today[data-event-state="active"],
+#student-calendar .fc-event.eventify-fc-range-event.fc-event-today[data-event-state="active"],
+#saCalendar .fc-event.eventify-fc-range-event.fc-event-today[data-event-state="active"],
+#publicCalendar .fc-event.eventify-fc-range-event.fc-event-today[data-event-state="active"] {
+    background-color: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #ffffff !important;
+}
+
+#calendar .fc-event.eventify-fc-range-event.fc-event-future[data-event-state="upcoming"],
+#student-calendar .fc-event.eventify-fc-range-event.fc-event-future[data-event-state="upcoming"],
+#saCalendar .fc-event.eventify-fc-range-event.fc-event-future[data-event-state="upcoming"],
+#publicCalendar .fc-event.eventify-fc-range-event.fc-event-future[data-event-state="upcoming"] {
+    background-color: #f59e0b !important;
+    border-color: #f59e0b !important;
+    color: #ffffff !important;
+}
+
+#calendar .fc-event.eventify-fc-range-event.fc-event-past[data-event-state="closed"],
+#student-calendar .fc-event.eventify-fc-range-event.fc-event-past[data-event-state="closed"],
+#saCalendar .fc-event.eventify-fc-range-event.fc-event-past[data-event-state="closed"],
+#publicCalendar .fc-event.eventify-fc-range-event.fc-event-past[data-event-state="closed"] {
+    background-color: #6b7280 !important;
+    border-color: #6b7280 !important;
+    color: #ffffff !important;
+}
+
+/* Single-day events stack in their own row; connected multi-day bars keep FC layout */
+#calendar .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+#student-calendar .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+#saCalendar .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+#publicCalendar .fc-daygrid-event-harness-abs:not(:has(.fc-daygrid-block-event)),
+#calendar .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)),
+#student-calendar .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)),
+#saCalendar .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)),
+#publicCalendar .fc-daygrid-event-harness:not(:has(.fc-daygrid-block-event)) {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    margin: 0 2px 2px !important;
+}

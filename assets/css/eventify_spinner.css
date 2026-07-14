@@ -1,0 +1,86 @@
+/**
+ * EVENTIFY — reusable filter / loading spinner overlay.
+ */
+.eventify-filter-loading-host {
+    position: relative;
+}
+
+.eventify-filter-loading-host.is-loading {
+    pointer-events: none;
+}
+
+.eventify-filter-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: rgba(2, 28, 22, 0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 16px;
+    animation: eventify-filter-loading-in 0.18s ease;
+}
+
+.eventify-filter-loading[hidden] {
+    display: none !important;
+}
+
+.eventify-filter-loading__text {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: rgba(236, 253, 245, 0.88);
+    letter-spacing: 0.02em;
+}
+
+.eventify-spinner {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 4px solid rgba(45, 212, 191, 0.18);
+    border-top-color: #2dd4bf;
+    border-right-color: #2dd4bf;
+    animation: eventify-spinner-rotate 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+.eventify-spinner__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@keyframes eventify-spinner-rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes eventify-filter-loading-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .eventify-spinner {
+        animation-duration: 1.4s;
+    }
+
+    .eventify-filter-loading {
+        animation: none;
+    }
+}

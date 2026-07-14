@@ -1,0 +1,20 @@
+<?php
+/**
+ * GoDaddy / cPanel production SMTP (copy to config/smtp.local.php on your live server).
+ * GoDaddy blocks outbound Gmail SMTP — use their relay instead.
+ *
+ * 1. Create an email on your domain in cPanel (e.g. noreply@eventifywlc.com).
+ * 2. Add SPF in DNS: v=spf1 include:secureserver.net -all
+ * 3. Upload this file as config/smtp.local.php on GoDaddy (do not commit credentials).
+ */
+define('EVENTIFY_SMTP_HOST', 'relay-hosting.secureserver.net');
+define('EVENTIFY_SMTP_PORT', 25);
+define('EVENTIFY_SMTP_USERNAME', '');
+define('EVENTIFY_SMTP_PASSWORD', '');
+define('EVENTIFY_SMTP_FROM_EMAIL', 'noreply@eventifywlc.com');
+define('EVENTIFY_SMTP_FROM_NAME', 'EVENTIFY');
+define('EVENTIFY_SMTP_NO_AUTH', true);
+define('EVENTIFY_SMTP_DISABLE_TLS', true);
+define('EVENTIFY_SMTP_EHLO_HOST', 'eventifywlc.com');
+define('EVENTIFY_SMTP_ALLOW_INSECURE_TLS', false);
+define('EVENTIFY_SMTP_FALLBACK_MAIL', true);

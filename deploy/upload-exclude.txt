@@ -1,0 +1,12 @@
+# Files and folders WinSCP should NOT upload (server keeps its own copies).
+# Used in the sync script filemask — one pattern per line (for reference only).
+#
+.env
+.git/
+.gitignore
+backups/
+config/db.local.php
+config/smtp.local.php
+config/paymongo.local.php
+uploads/
+*.log

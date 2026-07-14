@@ -1,0 +1,858 @@
+.event-day-sessions-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+}
+
+.event-day-sessions-panel .eds-empty-day,
+#eventDetailsModal .eds-empty-day,
+.student-day-sessions-preview .eds-empty-day {
+    font-size: 0.8125rem;
+    color: #64748b;
+    padding: 0.75rem 0.85rem;
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+}
+
+.student-day-sessions-preview {
+    min-height: 3rem;
+}
+
+.event-day-sessions-list .list-group-item {
+    background: transparent;
+    border-color: #e5e7eb;
+}
+
+.event-day-sessions-list .list-group-item:last-child {
+    border-bottom: none;
+}
+
+/* —— Today's Activities (horizontal cards) —— */
+.today-activities-section {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0 0 0.5rem;
+}
+
+.today-activities-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.today-activities-section .section-heading {
+    font-size: 1.15rem;
+    margin-bottom: 0;
+}
+
+.today-activities-scroll {
+    display: flex;
+    gap: 0.85rem;
+    overflow-x: auto;
+    padding: 0.25rem 0.15rem 0.65rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.today-activities-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.today-activities-scroll::-webkit-scrollbar-thumb {
+    background: rgba(1, 50, 32, 0.25);
+    border-radius: 999px;
+}
+
+.today-act-card {
+    position: relative;
+    flex: 0 0 auto;
+    width: min(168px, 42vw);
+    min-height: 168px;
+    padding: 1rem 1rem 1.1rem;
+    background: #ffffff;
+    border: 1px solid rgba(1, 50, 32, 0.1);
+    border-radius: 18px;
+    box-shadow: 0 8px 22px rgba(1, 50, 32, 0.08);
+    overflow: hidden;
+    scroll-snap-align: start;
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.today-act-card.js-student-open-event {
+    cursor: pointer;
+}
+
+.today-act-card.js-student-open-event:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(1, 50, 32, 0.14);
+}
+
+.today-act-card:focus-visible {
+    outline: 2px solid #e6c54a;
+    outline-offset: 2px;
+}
+
+.today-act-card--cancelled {
+    opacity: 0.72;
+}
+
+.today-act-card__blob {
+    position: absolute;
+    top: -28px;
+    right: -28px;
+    width: 96px;
+    height: 96px;
+    border-radius: 42% 58% 48% 52% / 48% 42% 58% 52%;
+    pointer-events: none;
+}
+
+.today-act-card--warm .today-act-card__blob {
+    background: linear-gradient(145deg, #f5d76e 0%, #e6c54a 45%, #d4a017 100%);
+}
+
+.today-act-card--cool .today-act-card__blob {
+    background: linear-gradient(145deg, #7cb8e8 0%, #4a9ad4 50%, #2d6a9f 100%);
+}
+
+.today-act-card__icon {
+    position: relative;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    color: #1b4a1b;
+}
+
+.today-act-card__menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    transition: background 0.15s ease;
+}
+
+.today-act-card__menu:hover {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+.today-act-card__content {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 0;
+    padding-top: 0.35rem;
+}
+
+.today-act-card__title {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: #0f172a;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.today-act-card__event {
+    margin: 0 0 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.today-act-card__meta {
+    margin: 0;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    color: #64748b;
+}
+
+.today-act-card__meta + .today-act-card__meta {
+    margin-top: 0.15rem;
+}
+
+.today-act-card__meta i {
+    width: 0.85rem;
+    color: #94a3b8;
+}
+
+.today-act-card__meta--loc {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.today-act-card__live,
+.today-act-card__status {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 3;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+}
+
+.today-act-card__live {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.today-act-card__status {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.today-act-card--cancelled .today-act-card__status {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.event-day-sessions-list .badge {
+    font-size: 0.65rem;
+    vertical-align: middle;
+}
+
+#eventDaySessionsModal .event-location-map {
+    height: 200px;
+    min-height: 160px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+/* —— School-themed manage activities modal —— */
+#eventDaySessionsModal {
+    --eds-cream: #f7f4e7;
+    --eds-cream-2: #fffdf8;
+    --eds-forest: #1b4a1b;
+    --eds-forest-deep: #153313;
+    --eds-gold: #e6c54a;
+    --eds-gold-dim: #b88f2a;
+    --eds-green: #3d8a35;
+    --eds-border: rgba(27, 74, 27, 0.14);
+    --eds-border-gold: rgba(230, 197, 74, 0.45);
+    --eds-text: #1b4a1b;
+    --eds-muted: #4b5f4b;
+}
+
+#eventDaySessionsModal .eds-modal {
+    border: 2px solid var(--eds-border-gold);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--eds-cream);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+}
+
+#eventDaySessionsModal .eds-modal__header {
+    background: linear-gradient(135deg, #0a3d1f 0%, var(--eds-forest) 55%, #021a08 100%);
+    border-bottom: 3px solid var(--eds-gold);
+    padding: 1rem 1.15rem;
+    align-items: flex-start;
+}
+
+#eventDaySessionsModal .eds-modal__eyebrow {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(247, 244, 231, 0.72);
+    margin-bottom: 0.2rem;
+}
+
+#eventDaySessionsModal .eds-modal__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.3;
+}
+
+#eventDaySessionsModal .eds-modal__title i {
+    color: var(--eds-gold);
+    font-size: 0.95rem;
+}
+
+#eventDaySessionsModal .eds-modal__body {
+    padding: 1rem 1.1rem 1.15rem;
+    background: var(--eds-cream);
+}
+
+#eventDaySessionsModal .eds-modal__section-title {
+    margin: 0 0 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--eds-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+#eventDaySessionsModal .eds-modal__section-title i {
+    color: var(--eds-green);
+}
+
+#eventDaySessionsModal .eds-modal__list-section {
+    margin-bottom: 1rem;
+}
+
+#eventDaySessionsModal .eds-empty-day {
+    font-size: 0.8125rem;
+    color: var(--eds-muted);
+    padding: 0.75rem 0.85rem;
+    background: var(--eds-cream-2);
+    border: 1px dashed var(--eds-border);
+    border-radius: 12px;
+}
+
+#eventDaySessionsModal .eds-session-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#eventDaySessionsModal .eds-session-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+    border: 1px solid var(--eds-border);
+    border-left: 3px solid var(--eds-green);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(21, 51, 19, 0.06);
+}
+
+#eventDaySessionsModal .eds-session-card.is-cancelled {
+    opacity: 0.72;
+    border-left-color: #9ca3af;
+}
+
+#eventDaySessionsModal .eds-session-card__main {
+    min-width: 0;
+    flex: 1;
+}
+
+#eventDaySessionsModal .eds-session-card__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.2rem;
+}
+
+#eventDaySessionsModal .eds-session-card__title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--eds-text);
+}
+
+#eventDaySessionsModal .eds-session-card__ticket {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    background: rgba(230, 197, 74, 0.25);
+    color: #92400e;
+}
+
+#eventDaySessionsModal .eds-session-card__open {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.14);
+    color: #1d4ed8;
+}
+
+#eventDaySessionsModal .eds-session-card__open-entry {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1d4ed8;
+    white-space: nowrap;
+}
+
+#eventDaySessionsModal .eds-session-card__meta {
+    font-size: 0.75rem;
+    color: var(--eds-muted);
+    line-height: 1.4;
+    margin-top: 0.12rem;
+}
+
+#eventDaySessionsModal .eds-session-card__meta i {
+    width: 0.85rem;
+    color: var(--eds-green);
+}
+
+#eventDaySessionsModal .eds-session-card__notes {
+    font-size: 0.75rem;
+    color: var(--eds-muted);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+#eventDaySessionsModal .eds-session-card__map-link {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+}
+
+#eventDaySessionsModal .eds-session-card__map-link a {
+    color: var(--eds-green);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+#eventDaySessionsModal .eds-session-card__map-link a:hover {
+    text-decoration: underline;
+}
+
+#eventDaySessionsModal .eds-session-card__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+#eventDaySessionsModal .eds-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+    border: 1px solid var(--eds-border);
+    background: var(--eds-cream-2);
+    color: var(--eds-forest);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#eventDaySessionsModal .eds-icon-btn:hover {
+    background: #fff;
+    border-color: var(--eds-border-gold);
+    color: var(--eds-forest);
+}
+
+#eventDaySessionsModal .eds-icon-btn--danger {
+    color: #b91c1c;
+    border-color: rgba(185, 28, 28, 0.2);
+}
+
+#eventDaySessionsModal .eds-icon-btn--danger:hover {
+    background: #fef2f2;
+    border-color: rgba(185, 28, 28, 0.35);
+}
+
+#eventDaySessionsModal .eds-icon-btn--qr {
+    background: rgba(61, 138, 53, 0.1);
+    border-color: rgba(61, 138, 53, 0.25);
+    color: var(--eds-green);
+}
+
+#eventDaySessionsModal .eds-form-panel {
+    background: #fff;
+    border: 1px solid var(--eds-border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(21, 51, 19, 0.07);
+}
+
+#eventDaySessionsModal .eds-form-panel__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, rgba(61, 138, 53, 0.12) 0%, rgba(61, 138, 53, 0.04) 100%);
+    border-bottom: 1px solid var(--eds-border);
+}
+
+#eventDaySessionsModal .eds-form-panel__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--eds-gold) 0%, var(--eds-gold-dim) 100%);
+    color: var(--eds-forest);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+#eventDaySessionsModal .eds-form-panel__title {
+    margin: 0 0 0.15rem;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--eds-text);
+}
+
+#eventDaySessionsModal .eds-form-panel__hint {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--eds-muted);
+    line-height: 1.35;
+}
+
+#eventDaySessionsModal .eds-form-panel__form {
+    padding: 0.85rem 1rem 1rem;
+}
+
+#eventDaySessionsModal .eds-form-section + .eds-form-section {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--eds-border);
+}
+
+#eventDaySessionsModal .eds-form-section__label {
+    margin: 0 0 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--eds-green);
+}
+
+#eventDaySessionsModal .eds-form-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--eds-text);
+    margin-bottom: 0.25rem;
+}
+
+#eventDaySessionsModal .eds-required {
+    color: #b91c1c;
+}
+
+#eventDaySessionsModal .eds-optional {
+    font-weight: 500;
+    color: var(--eds-muted);
+    font-size: 0.72rem;
+}
+
+#eventDaySessionsModal .eds-form-help {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--eds-muted);
+}
+
+#eventDaySessionsModal .eds-tt-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    border: 1px solid var(--eds-border);
+    border-radius: 10px;
+    background: var(--eds-cream-2);
+    min-height: 2.4rem;
+}
+
+#eventDaySessionsModal .eds-tt-checks__empty {
+    margin: 0.2rem 0.1rem;
+    font-size: 0.72rem;
+    color: var(--eds-muted);
+}
+
+#eventDaySessionsModal .eds-tt-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.3rem 0.6rem;
+    background: #fff;
+    border: 1px solid var(--eds-border);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--eds-forest);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+#eventDaySessionsModal .eds-tt-check:hover {
+    border-color: var(--eds-border-gold, #cfa94d);
+}
+
+#eventDaySessionsModal .eds-tt-check input {
+    margin: 0;
+    cursor: pointer;
+}
+
+#eventDaySessionsModal .eds-tt-check:has(input:checked) {
+    background: rgba(61, 138, 53, 0.12);
+    border-color: rgba(61, 138, 53, 0.55);
+}
+
+#eventDaySessionsModal .eds-tt-help {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+#eventDaySessionsModal .eds-tt-add-toggle {
+    flex: 0 0 auto;
+    background: #fff;
+    border: 1px dashed var(--eds-border-gold, #cfa94d);
+    color: var(--eds-forest);
+    font-weight: 700;
+    font-size: 0.72rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+#eventDaySessionsModal .eds-tt-add-toggle:hover {
+    background: var(--eds-cream-2);
+    border-style: solid;
+}
+
+#eventDaySessionsModal .eds-tt-inline {
+    margin-top: 0.5rem;
+    padding: 0.65rem;
+    border: 1px solid var(--eds-border);
+    border-radius: 12px;
+    background: var(--eds-cream-2);
+}
+
+#eventDaySessionsModal .eds-tt-inline__error {
+    color: #b3261e;
+    font-size: 0.72rem;
+    margin-top: 0.35rem;
+}
+
+#eventDaySessionsModal .eds-tt-inline__actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.55rem;
+}
+
+#eventDaySessionsModal .eds-form-control {
+    border-radius: 10px;
+    border-color: var(--eds-border);
+    background: var(--eds-cream-2);
+    font-size: 0.8125rem;
+}
+
+#eventDaySessionsModal .eds-form-control:focus {
+    border-color: rgba(61, 138, 53, 0.55);
+    box-shadow: 0 0 0 3px rgba(61, 138, 53, 0.15);
+    background: #fff;
+}
+
+#eventDaySessionsModal .eds-loc-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+#eventDaySessionsModal .eds-loc-toolbar__search {
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+#eventDaySessionsModal .eds-location-map {
+    border-radius: 12px !important;
+    border: 1px solid var(--eds-border) !important;
+}
+
+#eventDaySessionsModal .eds-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--eds-border);
+}
+
+#eventDaySessionsModal .eds-btn-primary {
+    background: linear-gradient(180deg, var(--eds-green) 0%, #2f6f28 100%);
+    border: 1px solid var(--eds-forest);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    border-radius: 999px;
+    padding: 0.45rem 1.1rem;
+}
+
+#eventDaySessionsModal .eds-btn-primary:hover {
+    background: linear-gradient(180deg, #469a3d 0%, var(--eds-green) 100%);
+    border-color: var(--eds-forest);
+    color: #fff;
+}
+
+#eventDaySessionsModal .eds-btn-outline {
+    background: #fff;
+    border: 1px solid var(--eds-border);
+    color: var(--eds-forest);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-radius: 999px;
+    padding: 0.4rem 0.95rem;
+}
+
+#eventDaySessionsModal .eds-btn-outline:hover {
+    background: var(--eds-cream-2);
+    border-color: var(--eds-border-gold);
+    color: var(--eds-forest);
+}
+
+#eventDaySessionsModal .eds-btn-gold {
+    background: linear-gradient(180deg, var(--eds-gold) 0%, var(--eds-gold-dim) 100%);
+    border: 1px solid var(--eds-forest);
+    color: var(--eds-forest);
+    font-weight: 700;
+}
+
+#eventDaySessionsModal .eds-btn-gold:hover {
+    filter: brightness(1.05);
+    color: var(--eds-forest);
+}
+
+#eventDaySessionsModal .eds-btn-muted {
+    background: var(--eds-forest);
+    border: 1px solid var(--eds-forest-deep);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-radius: 999px;
+    padding: 0.4rem 1rem;
+}
+
+#eventDaySessionsModal .eds-btn-muted:hover {
+    background: var(--eds-forest-deep);
+    color: #fff;
+}
+
+#eventDaySessionsModal .eds-modal__footer {
+    background: var(--eds-cream-2);
+    border-top: 1px solid var(--eds-border);
+    padding: 0.75rem 1rem;
+    gap: 0.45rem;
+}
+
+#eventDaySessionsModal .badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.15rem 0.4rem;
+}
+
+#eventDaySessionsModal .eds-status-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.42rem;
+    border-radius: 999px;
+}
+
+#eventDaySessionsModal .eds-status-badge--delayed {
+    background: rgba(230, 197, 74, 0.35);
+    color: #92400e;
+}
+
+#eventDaySessionsModal .eds-status-badge--cancelled {
+    background: rgba(185, 28, 28, 0.12);
+    color: #b91c1c;
+}
+
+@media (max-width: 575.98px) {
+    #eventDaySessionsModal .eds-modal-dialog {
+        margin: 0.5rem;
+    }
+
+    #eventDaySessionsModal .eds-session-card {
+        flex-direction: column;
+    }
+
+    #eventDaySessionsModal .eds-session-card__actions {
+        flex-direction: row;
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+@media (min-width: 640px) {
+    .today-act-card {
+        width: 172px;
+    }
+}
+
+@media (max-width: 480px) {
+    .today-act-card {
+        width: min(156px, 72vw);
+        min-height: 158px;
+    }
+}
+
+.eds-schedule-lock-notice {
+    margin-bottom: 0.85rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #92400e;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.eds-schedule-lock-notice::before {
+    content: '\f023';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    margin-right: 0.45rem;
+}

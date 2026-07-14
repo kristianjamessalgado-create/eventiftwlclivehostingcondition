@@ -36,7 +36,7 @@ git add .
 git commit -m "Initial commit — EVENTIFY school events app"
 
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/eventifywlc.git
+git remote add origin https://github.com/kristianjamessalgado-create/eventiftwlclivehostingcondition.git
 git push -u origin main
 ```
 
@@ -48,7 +48,7 @@ Replace `YOUR_USERNAME` and repo name with yours.
 
 ```bash
 cd C:\xampp\htdocs
-git clone https://github.com/YOUR_USERNAME/eventifywlc.git school_events
+git clone https://github.com/kristianjamessalgado-create/eventiftwlclivehostingcondition.git school_events
 cd school_events
 composer install
 copy .env.example .env

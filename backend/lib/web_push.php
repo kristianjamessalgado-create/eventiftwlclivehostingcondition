@@ -235,6 +235,27 @@ function eventify_web_push_remove_subscription(mysqli $conn, int $userId, string
     return (bool) $ok;
 }
 
+/**
+ * Remove this browser/device endpoint for any account.
+ * Used on logout so the phone stops receiving pushes until someone logs in again.
+ */
+function eventify_web_push_remove_endpoint(mysqli $conn, string $endpoint): bool
+{
+    if (trim($endpoint) === '') {
+        return false;
+    }
+    eventify_web_push_ensure_tables($conn);
+    $hash = eventify_web_push_endpoint_hash($endpoint);
+    $stmt = $conn->prepare('DELETE FROM push_subscriptions WHERE endpoint_hash = ?');
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('s', $hash);
+    $ok = $stmt->execute();
+    $stmt->close();
+    return (bool) $ok;
+}
+
 function eventify_web_push_load_student_settings(mysqli $conn, int $userId): array
 {
     $defaults = [
@@ -279,6 +300,9 @@ function eventify_push_type_allowed_for_student(array $settings, string $notifTy
         'staff_message',
         'activity_update',
         'event_admin_corrected',
+        'event_published',
+        'event_assigned_published',
+        'admin_announcement',
     ];
     $reminderTypes = ['event_reminder', 'activity_reminder'];
     if (in_array($type, $rsvpTypes, true)) {

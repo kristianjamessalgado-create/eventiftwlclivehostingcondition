@@ -25,7 +25,7 @@ if (!$event) {
 
 $role = $_SESSION['role'] ?? '';
 $userId = (int) ($_SESSION['user_id'] ?? 0);
-$isOrganizer = $role === 'organizer' && (int) ($event['organizer_id'] ?? 0) === $userId;
+$isOrganizer = eventify_user_can_manage_owned_event($role, $userId, $event);
 $isStaff = in_array($role, ['admin', 'super_admin'], true);
 $isPublic = in_array($event['status'] ?? '', ['active', 'closed', 'completed'], true);
 

@@ -5,6 +5,9 @@ include __DIR__ . '/config/config.php';
 include __DIR__ . '/config/csrf.php';
 require_once __DIR__ . '/backend/lib/event_calendar.php';
 require_once __DIR__ . '/backend/lib/event_checkin_security.php';
+if (is_file(__DIR__ . '/config/student_sections.php')) {
+    require_once __DIR__ . '/config/student_sections.php';
+}
 
 $token = trim($_GET['t'] ?? '');
 $confirmed = false;
@@ -38,9 +41,17 @@ if ($token === '') {
         $eventHasGeo = false;
     }
 
-    $eventSelect = 'id, title, organizer_id, date, end_date, start_time, end_time, end_time_na, location, status, registration_mode, checkin_token';
+    $eventSelect = 'id, title, organizer_id, date, end_date, start_time, end_time, end_time_na, location, status, registration_mode, checkin_token, department';
     if ($eventHasGeo) {
         $eventSelect .= ', latitude, longitude';
+    }
+    try {
+        $tsCol = $conn->query("SHOW COLUMNS FROM events LIKE 'target_sections'");
+        if ($tsCol && $tsCol->num_rows > 0) {
+            $eventSelect .= ', target_sections';
+        }
+    } catch (Throwable $e) {
+        /* ignore */
     }
     $stmt = $conn->prepare("SELECT {$eventSelect} FROM events WHERE checkin_token = ?");
     $stmt->bind_param("s", $token);
@@ -96,26 +107,35 @@ if (!$error && $event && $_SERVER['REQUEST_METHOD'] !== 'POST') {
         // Check if this student already confirmed attendance for this event
         $uid = (int) $_SESSION['user_id'];
         $eid = (int) $event['id'];
-        $chk = $conn->prepare("SELECT 1 FROM registrations WHERE user_id = ? AND event_id = ? AND status = 'present' LIMIT 1");
-        $chk->bind_param("ii", $uid, $eid);
-        $chk->execute();
-        $chk->store_result();
-        $already_done = $chk->num_rows > 0;
-        $chk->close();
-        $signupGap = eventify_checkin_main_signup_gap($conn, $event, $uid);
-        if (!$already_done && !empty($signupGap['needed'])) {
-            $needs_rsvp_first = true;
-            $checkin_signup_action = (string) ($signupGap['action'] ?? 'rsvp');
-            $checkin_signup_message = (string) ($signupGap['message'] ?? '');
-            if ($checkin_signup_action === 'ticket') {
-                $checkin_signup_cta_url = BASE_URL . '/event_tickets.php?event_id=' . $eid;
-                $checkin_signup_cta_label = 'Buy tickets';
-            } else {
-                $checkin_signup_cta_url = BASE_URL . '/backend/auth/dashboard_student.php?event_id=' . $eid;
-                $checkin_signup_cta_label = 'Go to dashboard & RSVP';
+        if (function_exists('eventify_student_event_audience_gate')) {
+            $aud = eventify_student_event_audience_gate($conn, $uid, $event);
+            if (!$aud['ok']) {
+                $error = $aud['error'] ?? 'This event is not available for your account.';
+                $event = null;
             }
         }
-        $focus_confirm_mobile = !$already_done && !$needs_rsvp_first;
+        if (!$error && $event) {
+            $chk = $conn->prepare("SELECT 1 FROM registrations WHERE user_id = ? AND event_id = ? AND status = 'present' LIMIT 1");
+            $chk->bind_param("ii", $uid, $eid);
+            $chk->execute();
+            $chk->store_result();
+            $already_done = $chk->num_rows > 0;
+            $chk->close();
+            $signupGap = eventify_checkin_main_signup_gap($conn, $event, $uid);
+            if (!$already_done && !empty($signupGap['needed'])) {
+                $needs_rsvp_first = true;
+                $checkin_signup_action = (string) ($signupGap['action'] ?? 'rsvp');
+                $checkin_signup_message = (string) ($signupGap['message'] ?? '');
+                if ($checkin_signup_action === 'ticket') {
+                    $checkin_signup_cta_url = BASE_URL . '/event_tickets.php?event_id=' . $eid;
+                    $checkin_signup_cta_label = 'Buy tickets';
+                } else {
+                    $checkin_signup_cta_url = BASE_URL . '/backend/auth/dashboard_student.php?event_id=' . $eid;
+                    $checkin_signup_cta_label = 'Go to dashboard & RSVP';
+                }
+            }
+            $focus_confirm_mobile = !$already_done && !$needs_rsvp_first;
+        }
     }
 }
 

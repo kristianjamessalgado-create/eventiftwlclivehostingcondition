@@ -1616,6 +1616,14 @@ p {
     color: rgba(247, 244, 231, 0.65);
 }
 
+.auth-password-guide.met {
+    color: #86efac;
+}
+
+.auth-password-guide.unmet {
+    color: #fca5a5;
+}
+
 .auth-password-match {
     margin-top: 0.45rem;
     font-size: 0.75rem;
@@ -3536,6 +3544,26 @@ body.auth-modal-open .spline-wrap {
     background: rgba(255, 253, 248, 0.1);
 }
 
+.auth-reactivate-otp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+    width: 100%;
+    color: var(--school-gold-light) !important;
+    border-color: rgba(230, 197, 74, 0.55);
+    text-decoration: none;
+}
+
+.auth-reactivate-otp-btn:hover {
+    background: rgba(230, 197, 74, 0.16);
+    border-color: var(--school-gold-light);
+    color: #fef9c3 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(234, 179, 8, 0.22);
+}
+
 .auth-card__footer {
     margin: 0;
     padding: 0.95rem 1.2rem 1.15rem;
@@ -4136,5 +4164,69 @@ body.guide-modal-open {
     .guide-flashcard.is-exit-left,
     .guide-flashcard.is-exit-right {
         opacity: 0;
+    }
+}
+
+/* Verify OTP — per-digit boxes */
+.auth-otp-wrap {
+    margin-bottom: 0.35rem;
+}
+
+.auth-otp-boxes {
+    display: flex;
+    justify-content: space-between;
+    gap: clamp(0.35rem, 2.2vw, 0.65rem);
+    margin-top: 0.35rem;
+}
+
+.auth-otp-box {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 3.15rem;
+    aspect-ratio: 1 / 1.05;
+    height: auto;
+    min-height: 3rem;
+    border-radius: 12px;
+    border: 1.5px solid rgba(230, 197, 74, 0.38);
+    background: rgba(255, 253, 248, 0.1);
+    color: #fffdf8;
+    font-size: clamp(1.15rem, 4.5vw, 1.45rem);
+    font-weight: 700;
+    text-align: center;
+    caret-color: #e6c54a;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.auth-otp-box::-webkit-outer-spin-button,
+.auth-otp-box::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.auth-otp-box:focus {
+    border-color: #e6c54a;
+    background: rgba(255, 253, 248, 0.16);
+    box-shadow: 0 0 0 3px rgba(230, 197, 74, 0.22);
+}
+
+.auth-otp-box.is-filled {
+    border-color: rgba(230, 197, 74, 0.65);
+    background: rgba(61, 138, 53, 0.22);
+}
+
+.auth-otp-hint {
+    margin: 0.55rem 0 0;
+    font-size: 0.72rem;
+    color: rgba(247, 244, 231, 0.62);
+}
+
+@media (max-width: 380px) {
+    .auth-otp-box {
+        min-height: 2.65rem;
+        border-radius: 10px;
+        font-size: 1.1rem;
     }
 }

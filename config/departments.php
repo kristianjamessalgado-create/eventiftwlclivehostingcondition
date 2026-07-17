@@ -158,7 +158,10 @@ if (!function_exists('eventify_organizer_department_form_checkbox_state')) {
                 }
             }
             $parts = array_values(array_unique($parts));
-            if ($parts === [] || in_array('ALL', $parts, true)) {
+            if ($parts === []) {
+                return ['all' => false, 'specific' => []];
+            }
+            if (in_array('ALL', $parts, true)) {
                 return ['all' => true, 'specific' => []];
             }
 

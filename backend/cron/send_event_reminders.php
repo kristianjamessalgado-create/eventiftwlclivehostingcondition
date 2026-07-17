@@ -1,8 +1,9 @@
 <?php
 /**
- * Send RSVP event-start reminders (push + in-app).
+ * Send event-start reminders (push + in-app).
+ * Covers RSVP attendees and open-entry calendar audiences.
  *
- * GoDaddy cron (every 5 minutes):
+ * GoDaddy cron (every 5 minutes recommended):
  *   curl -s "https://eventifywlc.com/backend/cron/send_event_reminders.php?key=YOUR_EVENTIFY_CRON_KEY"
  *
  * CLI: php backend/cron/send_event_reminders.php

@@ -1,5 +1,7 @@
 /**
  * Confirm before navigating to logout.php (unless Bootstrap modal already handles it).
+ * Also clears this device's push subscription before logout (students) so the phone
+ * stops receiving alerts for the logged-out account. Login can silently re-link later.
  */
 (function () {
     'use strict';
@@ -7,6 +9,61 @@
     function logoutUrl() {
         var base = (window.BASE_URL || '').replace(/\/$/, '');
         return base + '/backend/auth/logout.php';
+    }
+
+    function pushApiUrl() {
+        var base = (window.BASE_URL || '').replace(/\/$/, '');
+        return base + '/backend/auth/push_subscription_api.php';
+    }
+
+    function clearDevicePushBeforeLogout() {
+        if (window.eventifyPwa && typeof window.eventifyPwa.clearDevicePush === 'function') {
+            return window.eventifyPwa.clearDevicePush();
+        }
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return Promise.resolve({ ok: true, skipped: true });
+        }
+        return navigator.serviceWorker.ready.then(function (reg) {
+            return reg.pushManager.getSubscription();
+        }).then(function (sub) {
+            if (!sub || !sub.endpoint) {
+                return { ok: true, skipped: true };
+            }
+            return fetch(pushApiUrl(), {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'unsubscribe_device',
+                    csrf_token: window.csrfToken || '',
+                    endpoint: sub.endpoint
+                })
+            }).then(function (r) {
+                return r.json().catch(function () { return { ok: false }; });
+            }).catch(function () {
+                return { ok: false };
+            });
+        }).catch(function () {
+            return { ok: true, skipped: true };
+        });
+    }
+
+    function proceedLogout(targetHref) {
+        var url = targetHref || logoutUrl();
+        var settled = false;
+        function go() {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            window.location.href = url;
+        }
+        var clearPromise = clearDevicePushBeforeLogout().catch(function () { return null; });
+        var timeout = new Promise(function (resolve) {
+            setTimeout(resolve, 2500);
+        });
+        Promise.race([clearPromise, timeout]).then(go).catch(go);
     }
 
     function ensureLogoutModal() {
@@ -65,16 +122,20 @@
             return;
         }
         if (window.confirm('Are you sure you want to log out?')) {
-            window.location.href = targetHref || logoutUrl();
+            proceedLogout(targetHref || logoutUrl());
         }
     }
 
     document.addEventListener('click', function (e) {
-        var link = e.target.closest('a[href*="logout.php"]');
-        if (!link) {
+        var confirmLink = e.target.closest('a.js-logout-confirm');
+        if (confirmLink) {
+            e.preventDefault();
+            proceedLogout(confirmLink.getAttribute('href') || logoutUrl());
             return;
         }
-        if (link.classList.contains('js-logout-confirm') || link.closest('#logoutModal .modal-footer')) {
+
+        var link = e.target.closest('a[href*="logout.php"]');
+        if (!link) {
             return;
         }
         if (link.getAttribute('data-bs-toggle') === 'modal' || link.getAttribute('data-bs-target') === '#logoutModal') {
@@ -89,7 +150,7 @@
         if (!trigger || trigger.getAttribute('href') === '#') {
             return;
         }
-        if (trigger.matches('a[href*="logout.php"]')) {
+        if (trigger.matches('a[href*="logout.php"]') || trigger.classList.contains('js-logout-confirm')) {
             return;
         }
         e.preventDefault();

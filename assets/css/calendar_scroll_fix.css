@@ -38,8 +38,20 @@ body:not(.admin-dashboard):not(.organizer-dashboard):not(.multimedia-dashboard) 
         min-height: 360px;
     }
 
+    /* Admin + organizer phones: expand the month grid and scroll the main page, not a nested FC scroller */
+    body.admin-dashboard .eventify-dashboard-cal-container,
+    body.organizer-dashboard .eventify-dashboard-cal-container {
+        overflow: visible !important;
+        height: auto !important;
+    }
+
     body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller,
-    body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller {
+    body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller-liquid-absolute,
+    body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller,
+    body.organizer-dashboard .eventify-dashboard-cal-container .fc-scroller-liquid-absolute {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
         overscroll-behavior-y: auto;
     }
 }

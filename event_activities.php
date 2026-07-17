@@ -176,7 +176,7 @@ $todaySessions = array_values(array_filter($allSessions, static function ($s) us
 
 $hubUrl = BASE_URL . '/event_activities.php?id=' . $eventId;
 
-$isOrganizer = $role === 'organizer' && (int) ($event['organizer_id'] ?? 0) === $userId;
+$isOrganizer = eventify_user_can_manage_owned_event($role, $userId, $event);
 
 $isStudent = $role === 'student';
 
@@ -850,12 +850,12 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
 
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=48">
     <?php if ($isStudent || $isOrganizer): ?>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=2">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
     <?php endif; ?>
     <?php if ($isOrganizer): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_day_sessions.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/create_event_modal.css?v=1">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <?php endif; ?>
 
 </head>
@@ -880,11 +880,11 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                 <i class="fas fa-plus me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Add activity</span>
             </button>
             <?php endif; ?>
-            <a class="eah-topbar__action" href="<?= eah_h($activitiesHubListUrl) ?>" aria-label="Activities hub — browse all events">
-                <i class="fas fa-th-large me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Activities hub</span>
+            <a class="eah-topbar__action" href="<?= eah_h($activitiesHubListUrl) ?>" aria-label="<?= $isStudent ? 'My registrations — browse all events' : 'Activities hub — browse all events' ?>">
+                <i class="fas fa-th-large me-1" aria-hidden="true"></i><span class="d-none d-sm-inline"><?= $isStudent ? 'My registrations' : 'Activities hub' ?></span>
             </a>
-            <a class="eah-topbar__action<?= $mainHubActive ? ' is-active' : '' ?>" href="<?= eah_h($mainHubUrl) ?>"<?= $mainHubActive ? ' aria-current="page"' : '' ?> aria-label="Main hub — this event's activities">
-                <i class="fas fa-calendar-day me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Main hub</span>
+            <a class="eah-topbar__action<?= $mainHubActive ? ' is-active' : '' ?>" href="<?= eah_h($mainHubUrl) ?>"<?= $mainHubActive ? ' aria-current="page"' : '' ?> aria-label="<?= $isStudent ? 'This event — day activities & check-in' : 'Main hub — this event\'s activities' ?>">
+                <i class="fas fa-calendar-day me-1" aria-hidden="true"></i><span class="d-none d-sm-inline"><?= $isStudent ? 'This event' : 'Main hub' ?></span>
             </a>
             <a class="eah-topbar__action" href="<?= eah_h($backUrl) ?>">
                 <i class="fas fa-gauge-high me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Dashboard</span>
@@ -906,7 +906,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <p class="eah-nav-drawer__event"><span class="eah-nav-drawer__event-label">Main hub ·</span> <?= eah_h($event['title'] ?? 'Event') ?></p>
+            <p class="eah-nav-drawer__event"><span class="eah-nav-drawer__event-label"><?= $isStudent ? 'This event ·' : 'Main hub ·' ?></span> <?= eah_h($event['title'] ?? 'Event') ?></p>
             <ul class="eah-nav-drawer__list">
                 <?php if ($isStudent): ?>
                     <?php
@@ -915,7 +915,9 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                         $studentNavHubUrl = $activitiesHubListUrl;
                         $studentNavHubCount = $activities_hub_active_count;
                         $studentNavShowMainHub = true;
+                        $studentNavInEventContext = true;
                         $studentNavMainHubUrl = $mainHubUrl;
+                        $studentNavMainHubLabel = 'This event';
                         $studentNavMainHubHint = 'Day activities & check-in';
                         $studentNavScheduleUrl = count($allSessions) > 0
                             ? eah_hub_link($eventId, ['view' => 'mine'])
@@ -925,6 +927,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                             ? eah_hub_link($eventId, ['view' => 'tickets'])
                             : '';
                         $studentNavTicketsCount = count($studentEventTickets);
+                        $studentNavTicketsHint = 'Passes for this event';
                         include __DIR__ . '/views/partials/student_hub_nav_list_items.php';
                     ?>
                 <?php else: ?>
@@ -1158,14 +1161,14 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <?php if ($view !== 'hub' && $view !== 'activity'): ?>
         <?php if ($isStudent): ?>
             <div class="eah-student-hub-subhead">
-                <a href="<?= eah_h($hubUrl) ?>" class="eah-student-hub-subhead__back" aria-label="Back to main hub">
+                <a href="<?= eah_h($hubUrl) ?>" class="eah-student-hub-subhead__back" aria-label="Back to this event">
                     <i class="fas fa-arrow-left" aria-hidden="true"></i>
                 </a>
                 <div class="eah-student-hub-subhead__copy">
                     <p class="eah-student-hub-subhead__eyebrow"><?= eah_h($event['title'] ?? 'Event') ?></p>
                     <h1 class="eah-student-hub-subhead__title"><?= eah_h($listTitle !== '' ? $listTitle : ($event['title'] ?? 'Event')) ?></h1>
                     <?php if ($view === 'mine'): ?>
-                    <p class="eah-student-hub-subhead__hint">Day activities you RSVP to — not the main event time</p>
+                    <p class="eah-student-hub-subhead__hint">Only activities you RSVP’d to — open-entry stays on This event</p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1183,7 +1186,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <?php if ($view === 'activity' && $detailSession): ?>
         <?php if ($isStudent || $isOrganizer): ?>
             <div class="eah-student-hub-subhead">
-                <a href="<?= eah_h($hubUrl) ?>" class="eah-student-hub-subhead__back" aria-label="Back to main hub">
+                <a href="<?= eah_h($hubUrl) ?>" class="eah-student-hub-subhead__back" aria-label="Back to this event">
                     <i class="fas fa-arrow-left" aria-hidden="true"></i>
                 </a>
                 <div class="eah-student-hub-subhead__copy">
@@ -1615,8 +1618,8 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
             <?php else: ?>
             <div class="eah-empty">
                 <div class="eah-empty-icon"><i class="fas fa-bookmark"></i></div>
-                <div class="eah-empty-title">Nothing on your schedule yet</div>
-                <p class="eah-empty-text">RSVP to activities from the hub and they will show up here with times and venues.</p>
+                <div class="eah-empty-title">Nothing on your personal schedule yet</div>
+                <p class="eah-empty-text">My schedule only shows activities you RSVP to. Browse open-entry and other activities on This event.</p>
                 <a class="eah-btn eah-btn-primary" href="<?= eah_h($hubUrl) ?>">Browse activities</a>
             </div>
             <?php endif; ?>
@@ -1830,7 +1833,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                            data-search="my schedule bookmark">
                             <span class="eah-quick-tile__icon"><i class="fas fa-bookmark"></i></span>
                             <span class="eah-quick-tile__label">My schedule</span>
-                            <span class="eah-quick-tile__meta"><?= $mySessions === [] ? 'RSVP to save' : count($mySessions) . ' saved' ?></span>
+                            <span class="eah-quick-tile__meta"><?= $mySessions === [] ? 'RSVP’d only' : count($mySessions) . ' RSVP’d' ?></span>
                         </a>
                         <a class="eah-quick-tile eah-quick-tile--tickets<?= $studentEventTickets === [] ? ' is-empty' : '' ?>"
                            id="eah-sp-tickets"
@@ -2149,7 +2152,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
 window.BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eah_photo_lightbox.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=3"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
 <?php if ($isStudent): ?>
@@ -2177,8 +2180,13 @@ window.__eahScheduleEditable = <?= $eventScheduleEditable ? 'true' : 'false' ?>;
 window.__eahHasEditableScheduleDay = <?= $eventHasEditableScheduleDay ? 'true' : 'false' ?>;
 window.__eahScheduleLockMessage = <?= json_encode($scheduleLockMessage) ?>;
 </script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+if (typeof window.L === 'undefined') {
+    document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
+}
+</script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=15"></script>
 <script>
 (function () {
@@ -2387,7 +2395,8 @@ window.__eahScheduleLockMessage = <?= json_encode($scheduleLockMessage) ?>;
 window.csrfToken = <?= json_encode($csrfToken) ?>;
 window.__eahMainEventId = <?= (int) $eventId ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=15"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_main_rsvp.js"></script>
 

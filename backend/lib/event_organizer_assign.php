@@ -153,3 +153,104 @@ function eventify_fetch_assignable_organizers(mysqli $conn): array
     }
     return $rows;
 }
+
+/**
+ * Organizer options for admin/super_admin create-event (active organizers + current admin as "me").
+ *
+ * @return list<array{id:int,name:string,email:string,role:string,is_self:bool}>
+ */
+function eventify_fetch_admin_create_organizer_options(mysqli $conn, int $adminUserId): array
+{
+    $rows = [];
+    $seen = [];
+    $adminUserId = (int) $adminUserId;
+
+    if ($adminUserId > 0) {
+        $selfStmt = $conn->prepare(
+            "SELECT id, name, email, role FROM users WHERE id = ? AND status = 'active' LIMIT 1"
+        );
+        if ($selfStmt) {
+            $selfStmt->bind_param('i', $adminUserId);
+            $selfStmt->execute();
+            $self = $selfStmt->get_result()->fetch_assoc();
+            $selfStmt->close();
+            if ($self) {
+                $id = (int) ($self['id'] ?? 0);
+                if ($id > 0) {
+                    $seen[$id] = true;
+                    $rows[] = [
+                        'id' => $id,
+                        'name' => (string) ($self['name'] ?? 'Admin'),
+                        'email' => (string) ($self['email'] ?? ''),
+                        'role' => (string) ($self['role'] ?? 'admin'),
+                        'is_self' => true,
+                    ];
+                }
+            }
+        }
+    }
+
+    foreach (eventify_fetch_assignable_organizers($conn) as $org) {
+        $id = (int) ($org['id'] ?? 0);
+        if ($id < 1 || isset($seen[$id])) {
+            continue;
+        }
+        $seen[$id] = true;
+        $rows[] = [
+            'id' => $id,
+            'name' => (string) ($org['name'] ?? 'Organizer'),
+            'email' => (string) ($org['email'] ?? ''),
+            'role' => 'organizer',
+            'is_self' => false,
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * Validate organizer selected when an admin/super_admin creates an event.
+ * Allows active organizers, or the creating admin (self).
+ *
+ * @return array{ok:bool,error?:string,user?:array{id:int,name:string,email:string,role:string}}
+ */
+function eventify_validate_admin_create_organizer(mysqli $conn, int $organizerId, int $adminUserId): array
+{
+    if ($organizerId < 1) {
+        return ['ok' => false, 'error' => 'Please choose who will organize this event.'];
+    }
+
+    $stmt = $conn->prepare(
+        "SELECT id, name, email, role FROM users WHERE id = ? AND status = 'active' LIMIT 1"
+    );
+    if (!$stmt) {
+        return ['ok' => false, 'error' => 'Could not validate organizer.'];
+    }
+    $stmt->bind_param('i', $organizerId);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$user) {
+        return ['ok' => false, 'error' => 'Selected organizer was not found or is inactive.'];
+    }
+
+    $role = (string) ($user['role'] ?? '');
+    $id = (int) ($user['id'] ?? 0);
+    $isSelf = $id === (int) $adminUserId && in_array($role, ['admin', 'super_admin'], true);
+    $isOrganizer = $role === 'organizer';
+
+    if (!$isSelf && !$isOrganizer) {
+        return ['ok' => false, 'error' => 'Choose yourself or an active organizer.'];
+    }
+
+    return [
+        'ok' => true,
+        'user' => [
+            'id' => $id,
+            'name' => (string) ($user['name'] ?? ''),
+            'email' => (string) ($user['email'] ?? ''),
+            'role' => $role,
+        ],
+    ];
+}

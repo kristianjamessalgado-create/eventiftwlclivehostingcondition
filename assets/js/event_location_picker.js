@@ -1,12 +1,59 @@
 /**
- * Leaflet + OSM map: pick GPS point, search (via backend Nominatim proxy), use device location.
- * Expects Leaflet CSS/JS loaded on the page.
+ * Leaflet map: pick GPS point, search (via backend Nominatim proxy), use device location.
+ * Expects Leaflet CSS/JS on the page (L global).
  */
 (function (window) {
     'use strict';
 
     function $(id) {
         return document.getElementById(id);
+    }
+
+    function clearLeafletContainer(mapEl) {
+        if (!mapEl) {
+            return;
+        }
+        if (mapEl._leaflet_id) {
+            try {
+                var existing = mapEl._leaflet_id;
+                if (window.L && L.DomUtil && L.Map && mapEl._leaflet) {
+                    // Prefer remove() when we still have an instance reference
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                delete mapEl._leaflet_id;
+            } catch (e2) {
+                mapEl._leaflet_id = undefined;
+            }
+        }
+        mapEl.innerHTML = '';
+        mapEl.classList.remove('is-map-error', 'is-map-ready');
+    }
+
+    function addBaseTiles(map) {
+        // Primary: Carto (usually more reliable on shared hosting/CDNs than raw OSM tiles).
+        var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        });
+
+        var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        });
+
+        var tileErrors = 0;
+        carto.on('tileerror', function () {
+            tileErrors++;
+            if (tileErrors >= 3 && !map._eventifyOsmFallback) {
+                map._eventifyOsmFallback = true;
+                map.removeLayer(carto);
+                osm.addTo(map);
+            }
+        });
+        carto.addTo(map);
+        return carto;
     }
 
     function initEventLocationPicker(options) {
@@ -22,11 +69,28 @@
         var searchBtn = options.searchBtnId ? $(options.searchBtnId) : null;
         var useLocBtn = options.useLocationBtnId ? $(options.useLocationBtnId) : null;
         var resultsEl = options.resultsElId ? $(options.resultsElId) : null;
-        var base = (options.geocodeBase || '').replace(/\/$/, '');
 
-        if (!mapEl || !latIn || !lngIn || !addrIn || !base) {
+        function resolveGeocodeBase() {
+            var fromOpt = (options.geocodeBase || '').replace(/\/$/, '');
+            if (fromOpt) {
+                return fromOpt;
+            }
+            if (window.EVENTIFY_GEOCODE_URL) {
+                return String(window.EVENTIFY_GEOCODE_URL).replace(/\/$/, '');
+            }
+            if (window.BASE_URL) {
+                return String(window.BASE_URL).replace(/\/$/, '') + '/backend/auth/geocode_proxy.php';
+            }
+            return '';
+        }
+
+        if (!mapEl || !latIn || !lngIn || !addrIn) {
             return null;
         }
+
+        clearLeafletContainer(mapEl);
+        mapEl.style.minHeight = mapEl.style.minHeight || '180px';
+        mapEl.style.width = '100%';
 
         var defaultLat = typeof options.defaultLat === 'number' ? options.defaultLat : 11.244;
         var defaultLng = typeof options.defaultLng === 'number' ? options.defaultLng : 125.004;
@@ -38,17 +102,21 @@
             defaultLng = lng0;
         }
 
-        var map = L.map(mapEl, {
-            zoomControl: true,
-            attributionControl: true
-        }).setView([defaultLat, defaultLng], 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
+        var map;
+        try {
+            map = L.map(mapEl, {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([defaultLat, defaultLng], 13);
+            addBaseTiles(map);
+        } catch (err) {
+            mapEl.classList.add('is-map-error');
+            mapEl.innerHTML = '<div class="eventify-map-fallback">Map could not load. Use search or enter the venue address below.</div>';
+            return null;
+        }
 
         var marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+        mapEl.classList.add('is-map-ready');
 
         function setCoords(lat, lng, skipReverse) {
             lat = Math.round(lat * 1e7) / 1e7;
@@ -63,6 +131,10 @@
         }
 
         function reverseLabel(lat, lng) {
+            var base = resolveGeocodeBase();
+            if (!base) {
+                return;
+            }
             var url = base + '?action=reverse&lat=' + encodeURIComponent(String(lat)) + '&lon=' + encodeURIComponent(String(lng));
             fetch(url, { credentials: 'same-origin' })
                 .then(function (r) { return r.json(); })
@@ -89,12 +161,42 @@
             resultsEl.innerHTML = '';
             resultsEl.style.display = 'none';
             if (q.length < 2) return;
+            var base = resolveGeocodeBase();
+            if (!base) {
+                resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search is not configured. Tap the map or use GPS.</div>';
+                resultsEl.style.display = 'block';
+                return;
+            }
             var url = base + '?action=search&q=' + encodeURIComponent(q);
+            resultsEl.innerHTML = '<div class="list-group-item small text-muted">Searching…</div>';
+            resultsEl.style.display = 'block';
             fetch(url, { credentials: 'same-origin' })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (!data || !data.ok || !data.results || !data.results.length) {
-                        resultsEl.innerHTML = '<div class="list-group-item small text-muted">No results</div>';
+                .then(function (r) {
+                    return r.text().then(function (text) {
+                        var data = null;
+                        try {
+                            data = text ? JSON.parse(text) : null;
+                        } catch (e) {
+                            data = null;
+                        }
+                        return { http: r.status, data: data, text: text };
+                    });
+                })
+                .then(function (res) {
+                    var data = res.data;
+                    if (!data) {
+                        resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search failed. Tap the map or use GPS.</div>';
+                        resultsEl.style.display = 'block';
+                        return;
+                    }
+                    if (!data.ok) {
+                        var errMsg = data.error || 'Search failed. Tap the map or use GPS.';
+                        resultsEl.innerHTML = '<div class="list-group-item small text-danger">' + errMsg + '</div>';
+                        resultsEl.style.display = 'block';
+                        return;
+                    }
+                    if (!data.results || !data.results.length) {
+                        resultsEl.innerHTML = '<div class="list-group-item small text-muted">No results. Try another name, or tap the map.</div>';
                         resultsEl.style.display = 'block';
                         return;
                     }
@@ -107,6 +209,7 @@
                         div.addEventListener('click', function () {
                             addrIn.value = item.label.length > 255 ? item.label.slice(0, 252) + '...' : item.label;
                             setCoords(item.lat, item.lon, true);
+                            map.setView([item.lat, item.lon], 16);
                             resultsEl.style.display = 'none';
                             resultsEl.innerHTML = '';
                         });
@@ -115,7 +218,7 @@
                     resultsEl.style.display = 'block';
                 })
                 .catch(function () {
-                    resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search failed</div>';
+                    resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search failed. Tap the map or use GPS.</div>';
                     resultsEl.style.display = 'block';
                 });
         }
@@ -153,11 +256,28 @@
             });
         }
 
-        setTimeout(function () {
-            map.invalidateSize(true);
-        }, 200);
+        function refreshSize() {
+            try {
+                map.invalidateSize(true);
+            } catch (e) { /* ignore */ }
+        }
 
-        return { map: map, marker: marker, setCoords: setCoords };
+        [50, 150, 350, 700].forEach(function (ms) {
+            setTimeout(refreshSize, ms);
+        });
+
+        return {
+            map: map,
+            marker: marker,
+            setCoords: setCoords,
+            refresh: refreshSize,
+            destroy: function () {
+                try {
+                    map.remove();
+                } catch (e) { /* ignore */ }
+                clearLeafletContainer(mapEl);
+            }
+        };
     }
 
     window.initEventLocationPicker = initEventLocationPicker;

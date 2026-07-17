@@ -101,6 +101,7 @@ $conn->close();
     'qr_url' => $qrApi,
     'status' => $status,
 ], JSON_UNESCAPED_UNICODE) ?>;</script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
 </body>
 </html>

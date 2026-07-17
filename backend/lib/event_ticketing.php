@@ -79,7 +79,7 @@ function eventify_event_registration_mode(array $event): string
 /** @return 'rsvp'|'paid_ticket'|'open' */
 function eventify_parse_registration_mode_from_request(array $post): string
 {
-    return eventify_event_registration_mode(['registration_mode' => $post['registration_mode'] ?? 'rsvp']);
+    return eventify_event_registration_mode(['registration_mode' => $post['registration_mode'] ?? 'open']);
 }
 
 /**
@@ -531,9 +531,18 @@ function eventify_create_ticket_order(mysqli $conn, int $userId, int $eventId, a
     }
 
     // Need date/end fields (not just status) so eventify_event_is_live() works correctly.
+    if (!is_file(__DIR__ . '/../../config/student_sections.php')) {
+        return ['ok' => false, 'error' => 'Server configuration error.'];
+    }
+    require_once __DIR__ . '/../../config/student_sections.php';
+    if (!function_exists('eventify_sections_schema_ensure')) {
+        return ['ok' => false, 'error' => 'Server configuration error.'];
+    }
+    eventify_sections_schema_ensure($conn);
+    $tsCol = eventify_events_has_target_sections($conn) ? ', target_sections' : '';
     $evStmt = $conn->prepare(
-        'SELECT id, title, status, registration_mode, date, end_date, start_time, end_time, end_time_na
-         FROM events WHERE id = ? LIMIT 1'
+        "SELECT id, title, status, registration_mode, date, end_date, start_time, end_time, end_time_na, department{$tsCol}
+         FROM events WHERE id = ? LIMIT 1"
     );
     if (!$evStmt) {
         return ['ok' => false, 'error' => 'Server error.'];
@@ -548,6 +557,17 @@ function eventify_create_ticket_order(mysqli $conn, int $userId, int $eventId, a
     }
     if (!eventify_event_allows_ticket_shop($conn, $event)) {
         return ['ok' => false, 'error' => 'This event does not use paid ticketing.'];
+    }
+
+    $stuStmt = $conn->prepare('SELECT department, student_section FROM users WHERE id = ? LIMIT 1');
+    if ($stuStmt) {
+        $stuStmt->bind_param('i', $userId);
+        $stuStmt->execute();
+        $stu = $stuStmt->get_result()->fetch_assoc() ?: [];
+        $stuStmt->close();
+        if (!eventify_student_may_access_event($event, $stu)) {
+            return ['ok' => false, 'error' => 'This event is not available for your department or class section.'];
+        }
     }
 
     $types = eventify_load_ticket_types_for_event($conn, $eventId, true);

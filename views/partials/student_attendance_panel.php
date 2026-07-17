@@ -22,7 +22,7 @@ foreach ($attendance_records as $rec) {
 <section
     class="student-dash-panel student-attendance-panel<?= $panelEnterClass ?><?= $student_attendance_panel_open ? '' : ' d-none' ?>"
     id="studentAttendancePanel"
-    aria-label="My attendance"
+    aria-label="Check-in history"
     <?= $student_attendance_panel_open ? '' : ' hidden' ?>
 >
     <div class="student-dash-panel__shell">
@@ -42,9 +42,9 @@ foreach ($attendance_records as $rec) {
         <header class="student-dash-panel__hero">
             <div class="student-dash-panel__hero-icon" aria-hidden="true"><i class="fas fa-clipboard-check"></i></div>
             <div class="student-dash-panel__hero-text">
-                <h2 class="student-dash-panel__title">My attendance</h2>
+                <h2 class="student-dash-panel__title">Check-in history</h2>
                 <p class="student-dash-panel__subtitle mb-0">
-                    Quick view on your dashboard — events and activities you checked into via QR.
+                    Events and activities you checked into via QR.
                 </p>
             </div>
         </header>
@@ -139,7 +139,7 @@ foreach ($attendance_records as $rec) {
 
             <div class="student-attendance-panel__footer">
                 <a class="student-attendance-panel__history-link" href="<?= BASE_URL ?>/attendance_history.php">
-                    <i class="fas fa-history me-1"></i> Open full attendance list
+                    <i class="fas fa-history me-1"></i> Open full check-in history
                 </a>
             </div>
         <?php endif; ?>

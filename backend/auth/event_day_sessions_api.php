@@ -40,7 +40,7 @@ $role = $_SESSION['role'] ?? '';
 
 $userId = (int) $_SESSION['user_id'];
 
-$canEdit = $role === 'organizer';
+$mayManageOwned = eventify_role_can_edit_owned_event_activities($role);
 
 $isStudent = $role === 'student';
 
@@ -66,7 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     }
 
-    if ($canEdit && !eventify_organizer_owns_event($conn, $eventId, $userId)) {
+    $ownsEvent = eventify_organizer_owns_event($conn, $eventId, $userId);
+    $canEdit = $mayManageOwned && $ownsEvent;
+
+    if ($role === 'organizer' && !$ownsEvent) {
 
         http_response_code(403);
 
@@ -252,7 +255,7 @@ if ($action === 'cancel_rsvp' && $isStudent) {
 
 
 
-if (!$canEdit) {
+if (!$mayManageOwned) {
 
     http_response_code(403);
 
@@ -279,6 +282,8 @@ if ($eventId < 1 || !eventify_organizer_owns_event($conn, $eventId, $userId)) {
     exit;
 
 }
+
+$canEdit = true;
 
 
 

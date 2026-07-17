@@ -157,4 +157,11 @@ try {
     eventify_organizer_otp_redirect('Failed to verify OTP. Please try again.');
 }
 
+try {
+    require_once __DIR__ . '/../lib/notifications_service.php';
+    eventify_notify_students_event_published($conn, $eventId, 'otp');
+} catch (Throwable $e) {
+    // ignore notify failures
+}
+
 eventify_organizer_otp_redirect('OTP verified successfully. Your event is now approved and visible on the calendar.', true);

@@ -25,10 +25,10 @@ if (!function_exists('student_mine_empty_h')) {
 <div class="eah-student-hub-empty<?= $mineEmptyHasDayActivities ? '' : ' eah-student-hub-empty--mine-main' ?>">
     <div class="eah-student-hub-empty__icon" aria-hidden="true"><i class="fas fa-bookmark"></i></div>
     <?php if (!$mineEmptyHasDayActivities): ?>
-        <h3 class="eah-student-hub-empty__title">No day activities to save</h3>
+        <h3 class="eah-student-hub-empty__title">No day activities to RSVP</h3>
         <p class="eah-student-hub-empty__text">
-            <strong>My schedule</strong> lists day activities you RSVP to (workshops, sessions, and similar).
-            This event uses the <strong>main meeting time only</strong> — follow the schedule on the Main hub.
+            <strong>My schedule</strong> is only for day activities you RSVP to (workshops, sessions, and similar).
+            This event uses the <strong>main meeting time only</strong> — follow that on <strong>This event</strong>.
         </p>
         <?php if ($mineEmptySchedule !== '' || $mineEmptyLocation !== ''): ?>
         <div class="eah-mine-main-summary">
@@ -45,7 +45,7 @@ if (!function_exists('student_mine_empty_h')) {
         <?php endif; ?>
         <div class="eah-student-hub-empty__actions">
             <a class="eah-student-hub-empty__cta" href="<?= student_mine_empty_h($mineEmptyHubUrl) ?>">
-                <i class="fas fa-calendar-day" aria-hidden="true"></i> Back to Main hub
+                <i class="fas fa-calendar-day" aria-hidden="true"></i> Back to this event
             </a>
             <?php if ($mineEmptyIsOpen): ?>
             <button type="button" class="eah-student-hub-empty__cta eah-student-hub-empty__cta--ghost" data-bs-toggle="modal" data-bs-target="#scanQRModal">
@@ -54,8 +54,11 @@ if (!function_exists('student_mine_empty_h')) {
             <?php endif; ?>
         </div>
     <?php else: ?>
-        <h3 class="eah-student-hub-empty__title">Nothing saved yet</h3>
-        <p class="eah-student-hub-empty__text">RSVP to activities on the Main hub and they will show up here with times and venues.</p>
+        <h3 class="eah-student-hub-empty__title">Nothing on your personal schedule yet</h3>
+        <p class="eah-student-hub-empty__text">
+            <strong>My schedule</strong> only lists day activities <strong>you RSVP to</strong>.
+            Open-entry activities stay on <strong>This event</strong> — browse them there, then scan QR at the venue.
+        </p>
         <div class="eah-student-hub-empty__actions">
             <a class="eah-student-hub-empty__cta" href="<?= student_mine_empty_h($mineEmptyHubUrl) ?>">
                 <i class="fas fa-layer-group" aria-hidden="true"></i> Browse activities

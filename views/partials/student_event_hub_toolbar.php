@@ -21,8 +21,8 @@ if (!function_exists('student_hub_tb_h')) {
     <div class="eah-toolbar__filters">
         <a class="eah-tb-btn<?= $studentHubToolbarHasMine ? '' : ' eah-tb-btn--disabled' ?>"
            href="<?= student_hub_tb_h(eah_hub_link($studentHubToolbarEventId, ['view' => 'mine'])) ?>"
-           title="<?= $studentHubToolbarHasMine ? 'My schedule — activities you RSVP\'d to' : 'My schedule — RSVP to activities first' ?>"
-           aria-label="<?= $studentHubToolbarHasMine ? 'My schedule' : 'My schedule unavailable until you RSVP to activities' ?>"
+           title="<?= $studentHubToolbarHasMine ? 'My schedule — only activities you RSVP’d to' : 'My schedule — RSVP to activities first (open-entry stays on This event)' ?>"
+           aria-label="<?= $studentHubToolbarHasMine ? 'My schedule — RSVP’d activities' : 'My schedule unavailable until you RSVP to activities' ?>"
            <?= $studentHubToolbarHasMine ? '' : ' aria-disabled="true" tabindex="-1"' ?>>
             <i class="fas fa-bookmark" aria-hidden="true"></i>
         </a>
@@ -37,9 +37,9 @@ if (!function_exists('student_hub_tb_h')) {
         <button type="button"
             class="eah-tb-btn eah-tb-btn--toggle<?= $studentHubToolbarHasMine ? '' : ' eah-tb-btn--disabled' ?>"
             id="eahMyOnlyToggle"
-            title="<?= $studentHubToolbarHasMine ? 'Show my activities only' : 'RSVP to activities first — nothing on your schedule yet' ?>"
+            title="<?= $studentHubToolbarHasMine ? 'Show only activities you RSVP’d to' : 'RSVP first — My schedule does not include open-entry activities' ?>"
             aria-pressed="false"
-            aria-label="<?= $studentHubToolbarHasMine ? 'Show my activities only' : 'Mine filter unavailable until you RSVP to activities' ?>"
+            aria-label="<?= $studentHubToolbarHasMine ? 'Show only my RSVP’d activities' : 'Mine filter unavailable until you RSVP to activities' ?>"
             <?= $studentHubToolbarHasMine ? '' : ' disabled' ?>>
             <i class="fas fa-user-check" aria-hidden="true"></i><span class="eah-tb-btn__label">Mine</span>
         </button>

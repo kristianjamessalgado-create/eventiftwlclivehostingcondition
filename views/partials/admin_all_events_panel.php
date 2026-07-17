@@ -40,6 +40,14 @@ $activeCount = (int) ($eventStats['active'] ?? 0);
                     All events in the system. Tap an event to open it on the calendar.
                 </p>
             </div>
+            <button
+                type="button"
+                class="btn adm-pending-btn adm-pending-btn--primary"
+                data-bs-toggle="modal"
+                data-bs-target="#createEventModal"
+            >
+                <i class="fas fa-plus me-1" aria-hidden="true"></i> Create event
+            </button>
         </header>
 
         <?php if ($eventCount > 0): ?>

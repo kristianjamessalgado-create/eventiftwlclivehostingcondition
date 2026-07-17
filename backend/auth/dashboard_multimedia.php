@@ -11,7 +11,7 @@ require_once __DIR__ . '/../lib/event_photos.php';
 require_once __DIR__ . '/../lib/multimedia_moderator.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'multimedia') {
-    header("Location: " . BASE_URL . "/views/login.php?error=" . urlencode("Access denied"));
+    header("Location: " . BASE_URL . "/index.php?auth_modal=login");
     exit();
 }
 

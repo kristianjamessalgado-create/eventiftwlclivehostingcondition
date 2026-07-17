@@ -1597,6 +1597,14 @@ function eventify_load_student_activities_hub_list(mysqli $conn, int $userId, ?s
     }
 
     require_once __DIR__ . '/../../config/departments.php';
+    if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+        require_once __DIR__ . '/../../config/student_sections.php';
+    }
+    if (function_exists('eventify_sections_schema_ensure')) {
+        eventify_sections_schema_ensure($conn);
+    } else {
+        return [];
+    }
 
     $hasRegMode = false;
     try {
@@ -1606,13 +1614,24 @@ function eventify_load_student_activities_hub_list(mysqli $conn, int $userId, ?s
         $hasRegMode = false;
     }
     $regCol = $hasRegMode ? ', registration_mode' : '';
+    $tsCol = eventify_events_has_target_sections($conn) ? ', target_sections' : '';
+
+    $studentSection = null;
+    $uSec = $conn->prepare('SELECT student_section FROM users WHERE id = ? LIMIT 1');
+    if ($uSec) {
+        $uSec->bind_param('i', $userId);
+        $uSec->execute();
+        $ur = $uSec->get_result()->fetch_assoc();
+        $uSec->close();
+        $studentSection = $ur['student_section'] ?? null;
+    }
 
     $dept = trim((string) $studentDepartment);
     $rows = [];
 
     if ($dept !== '') {
         $deptSql = eventify_department_match_sql('department');
-        $sql = "SELECT id, title, date, end_date, location, department, status{$regCol}
+        $sql = "SELECT id, title, date, end_date, location, department{$tsCol}, status{$regCol}
                 FROM events
                 WHERE status = 'active'
                   AND title NOT LIKE 'sample%'
@@ -1631,7 +1650,7 @@ function eventify_load_student_activities_hub_list(mysqli $conn, int $userId, ?s
         }
     } else {
         $res = $conn->query(
-            "SELECT id, title, date, end_date, location, department, status{$regCol}
+            "SELECT id, title, date, end_date, location, department{$tsCol}, status{$regCol}
              FROM events
              WHERE status = 'active' AND title NOT LIKE 'sample%'
              ORDER BY date ASC, id ASC
@@ -1646,7 +1665,10 @@ function eventify_load_student_activities_hub_list(mysqli $conn, int $userId, ?s
 
     $out = [];
     foreach ($rows as $row) {
-        if (!eventify_student_sees_event_department((string) ($row['department'] ?? 'ALL'), $studentDepartment)) {
+        if (!eventify_student_may_access_event($row, [
+            'department' => $studentDepartment,
+            'student_section' => $studentSection,
+        ])) {
             continue;
         }
         $row['activity_count'] = eventify_event_hub_activity_count($conn, (int) ($row['id'] ?? 0));
@@ -1654,7 +1676,7 @@ function eventify_load_student_activities_hub_list(mysqli $conn, int $userId, ?s
     }
 
     // RSVP'd active events (even when department SQL above missed them)
-    $regSql = "SELECT e.id, e.title, e.date, e.end_date, e.location, e.department, e.status{$regCol}
+    $regSql = "SELECT e.id, e.title, e.date, e.end_date, e.location, e.department{$tsCol}, e.status{$regCol}
                FROM events e
                INNER JOIN registrations r ON r.event_id = e.id AND r.user_id = ?
                WHERE e.status = 'active'
@@ -1666,7 +1688,10 @@ function eventify_load_student_activities_hub_list(mysqli $conn, int $userId, ?s
         $regStmt->execute();
         $regRes = $regStmt->get_result();
         while ($row = $regRes->fetch_assoc()) {
-            if (!eventify_student_sees_event_department((string) ($row['department'] ?? 'ALL'), $studentDepartment)) {
+            if (!eventify_student_may_access_event($row, [
+                'department' => $studentDepartment,
+                'student_section' => $studentSection,
+            ])) {
                 continue;
             }
             $row['activity_count'] = eventify_event_hub_activity_count($conn, (int) ($row['id'] ?? 0));

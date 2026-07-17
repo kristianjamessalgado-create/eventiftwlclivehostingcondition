@@ -3,12 +3,17 @@
 require_once __DIR__ . '/event_calendar.php';
 require_once __DIR__ . '/notifications_service.php';
 require_once __DIR__ . '/event_day_sessions.php';
+require_once __DIR__ . '/event_ticketing.php';
 
 /** Default start time when an event day has no start_time (all-day). */
 const EVENTIFY_REMINDER_ALL_DAY_START = '09:00:00';
 
 /** Minutes after the ideal remind moment we still send (cron interval tolerance). */
-const EVENTIFY_REMINDER_GRACE_MINUTES = 12;
+const EVENTIFY_REMINDER_GRACE_MINUTES = 25;
+
+/** "Starting now" window: a few minutes before through shortly after start. */
+const EVENTIFY_REMINDER_AT_START_BEFORE_MINUTES = 2;
+const EVENTIFY_REMINDER_AT_START_AFTER_MINUTES = 12;
 
 /**
  * @return array<string, int> reminder_timing => seconds before start
@@ -19,6 +24,7 @@ function eventify_reminder_timing_offsets(): array
         '30_min' => 30 * 60,
         '1_hour' => 60 * 60,
         '1_day' => 24 * 60 * 60,
+        'at_start' => 0,
     ];
 }
 
@@ -82,7 +88,60 @@ function eventify_schedule_day_start_datetime(array $day, array $eventFallback, 
 }
 
 /**
- * Upcoming occurrence start times for an event (each schedule day in the future).
+ * Upcoming (or just-started) occurrence start times for reminders.
+ * Includes a short look-back so "starting now" can still fire after start.
+ *
+ * @return list<array{schedule_date: string, starts_at: DateTimeImmutable}>
+ */
+function eventify_event_reminder_occurrence_starts(array $event, ?DateTimeInterface $now = null): array
+{
+    $tz = eventify_calendar_app_timezone();
+    $nowDt = $now instanceof DateTimeInterface
+        ? DateTimeImmutable::createFromInterface($now)->setTimezone($tz)
+        : new DateTimeImmutable('now', $tz);
+    $lookBack = $nowDt->modify('-' . EVENTIFY_REMINDER_AT_START_AFTER_MINUTES . ' minutes');
+
+    $out = [];
+    $scheduleDays = $event['schedule_days'] ?? [];
+    if (is_array($scheduleDays) && $scheduleDays !== []) {
+        foreach ($scheduleDays as $day) {
+            if (!is_array($day)) {
+                continue;
+            }
+            $ymd = substr(trim((string) ($day['schedule_date'] ?? '')), 0, 10);
+            $startsAt = eventify_schedule_day_start_datetime($day, $event, $tz);
+            if ($startsAt !== null && $startsAt >= $lookBack) {
+                $out[] = [
+                    'schedule_date' => $ymd,
+                    'starts_at' => $startsAt,
+                ];
+            }
+        }
+    } else {
+        foreach (eventify_event_calendar_display_dates($event) as $ymd) {
+            $day = [
+                'schedule_date' => $ymd,
+                'start_time' => trim((string) ($event['start_time'] ?? '')),
+            ];
+            $startsAt = eventify_schedule_day_start_datetime($day, $event, $tz);
+            if ($startsAt !== null && $startsAt >= $lookBack) {
+                $out[] = [
+                    'schedule_date' => $ymd,
+                    'starts_at' => $startsAt,
+                ];
+            }
+        }
+    }
+
+    usort($out, static function ($a, $b) {
+        return $a['starts_at'] <=> $b['starts_at'];
+    });
+
+    return $out;
+}
+
+/**
+ * Keep legacy helper for tools; prefer reminder-aware occurrence list.
  *
  * @return list<array{schedule_date: string, starts_at: DateTimeImmutable}>
  */
@@ -94,45 +153,11 @@ function eventify_event_upcoming_occurrence_starts(array $event, ?DateTimeInterf
         : new DateTimeImmutable('now', $tz);
 
     $out = [];
-    $scheduleDays = $event['schedule_days'] ?? [];
-    if (is_array($scheduleDays) && $scheduleDays !== []) {
-        foreach ($scheduleDays as $day) {
-            if (!is_array($day)) {
-                continue;
-            }
-            $ymd = substr(trim((string) ($day['schedule_date'] ?? '')), 0, 10);
-            $startsAt = eventify_schedule_day_start_datetime($day, $event, $tz);
-            if ($startsAt !== null && $startsAt > $nowDt) {
-                $out[] = [
-                    'schedule_date' => $ymd,
-                    'starts_at' => $startsAt,
-                ];
-            }
-        }
-        usort($out, static function ($a, $b) {
-            return $a['starts_at'] <=> $b['starts_at'];
-        });
-        return $out;
-    }
-
-    foreach (eventify_event_calendar_display_dates($event) as $ymd) {
-        $day = [
-            'schedule_date' => $ymd,
-            'start_time' => trim((string) ($event['start_time'] ?? '')),
-        ];
-        $startsAt = eventify_schedule_day_start_datetime($day, $event, $tz);
-        if ($startsAt !== null && $startsAt > $nowDt) {
-            $out[] = [
-                'schedule_date' => $ymd,
-                'starts_at' => $startsAt,
-            ];
+    foreach (eventify_event_reminder_occurrence_starts($event, $nowDt) as $occ) {
+        if ($occ['starts_at'] > $nowDt) {
+            $out[] = $occ;
         }
     }
-
-    usort($out, static function ($a, $b) {
-        return $a['starts_at'] <=> $b['starts_at'];
-    });
-
     return $out;
 }
 
@@ -177,17 +202,34 @@ function eventify_reminder_human_lead(string $timing): string
         '30_min' => '30 minutes',
         '1_hour' => '1 hour',
         '1_day' => '1 day',
+        'at_start' => 'now',
         default => 'soon',
     };
 }
 
-function eventify_build_event_reminder_message(string $eventTitle, DateTimeImmutable $startsAt, string $timing): string
-{
-    $title = trim($eventTitle) !== '' ? trim($eventTitle) : 'Your event';
+function eventify_build_event_reminder_message(
+    string $eventTitle,
+    DateTimeImmutable $startsAt,
+    string $timing,
+    string $registrationMode = 'rsvp'
+): string {
+    $title = trim($eventTitle) !== '' ? trim($eventTitle) : 'your event';
     $when = $startsAt->format('M j, Y \a\t g:i A');
+    $isOpen = strtolower(trim($registrationMode)) === 'open';
+    $prefix = $isOpen
+        ? 'Event "' . $title . '"'
+        : 'The event you confirmed ("' . $title . '")';
+
+    if ($timing === 'at_start') {
+        return $prefix . ' is starting now (' . $when . ').';
+    }
+    if ($timing === '30_min') {
+        return $prefix . ' will be starting in 30 minutes (' . $when . ').';
+    }
+
     $lead = eventify_reminder_human_lead($timing);
 
-    return $title . ' starts in ' . $lead . ' (' . $when . ').';
+    return $prefix . ' will be starting in ' . $lead . ' (' . $when . ').';
 }
 
 function eventify_build_activity_reminder_message(
@@ -379,7 +421,7 @@ function eventify_run_activity_reminders(mysqli $conn, DateTimeImmutable $nowDt,
 
         $recipients = $recipientsBySession[$sessionId] ?? [];
         foreach ($recipients as $userId) {
-            $settings = $settingsMap[$userId] ?? ['event_reminders' => 1, 'reminder_timing' => '1_day'];
+            $settings = $settingsMap[$userId] ?? ['event_reminders' => 1, 'reminder_timing' => '30_min'];
 
             foreach ($offsets as $timing => $offsetSeconds) {
                 $result['checked']++;
@@ -435,13 +477,82 @@ function eventify_student_wants_event_reminder(array $settings, string $timing):
     if (empty($settings['event_reminders'])) {
         return false;
     }
-    $pref = trim((string) ($settings['reminder_timing'] ?? '1_day'));
-    $allowed = array_keys(eventify_reminder_timing_offsets());
+    // Always fire the "starting now" ping when reminders are enabled.
+    if ($timing === 'at_start') {
+        return true;
+    }
+    $pref = trim((string) ($settings['reminder_timing'] ?? '30_min'));
+    $allowed = ['30_min', '1_hour', '1_day'];
     if (!in_array($pref, $allowed, true)) {
-        $pref = '1_day';
+        $pref = '30_min';
     }
 
     return $pref === $timing;
+}
+
+/**
+ * Students who should get start reminders for this event.
+ *
+ * @param array<string, mixed> $event
+ * @return list<int>
+ */
+function eventify_event_reminder_recipient_ids(mysqli $conn, array $event): array
+{
+    $eventId = (int) ($event['id'] ?? 0);
+    if ($eventId < 1) {
+        return [];
+    }
+
+    $ids = [];
+    $mode = eventify_event_registration_mode($event);
+
+    // RSVP / paid: remind students who registered (or bought).
+    $stmt = $conn->prepare("
+        SELECT DISTINCT r.user_id
+        FROM registrations r
+        INNER JOIN users u ON u.id = r.user_id AND u.role = 'student' AND u.status = 'active'
+        WHERE r.event_id = ?
+    ");
+    if ($stmt) {
+        $stmt->bind_param('i', $eventId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $ids[] = (int) ($row['user_id'] ?? 0);
+        }
+        $stmt->close();
+    }
+
+    // Open entry: also remind the calendar audience (students who can see it).
+    if ($mode === 'open') {
+        foreach (eventify_student_ids_for_event_audience($conn, $event) as $uid) {
+            $ids[] = (int) $uid;
+        }
+    }
+
+    return array_values(array_unique(array_filter($ids, static fn ($id) => $id > 0)));
+}
+
+function eventify_reminder_window_hit(
+    DateTimeImmutable $startsAt,
+    DateTimeImmutable $nowDt,
+    string $timing,
+    int $offsetSeconds,
+    int $graceSeconds
+): bool {
+    $nowTs = $nowDt->getTimestamp();
+    $startTs = $startsAt->getTimestamp();
+
+    if ($timing === 'at_start') {
+        $windowStart = $startTs - (EVENTIFY_REMINDER_AT_START_BEFORE_MINUTES * 60);
+        $windowEnd = $startTs + (EVENTIFY_REMINDER_AT_START_AFTER_MINUTES * 60);
+        return $nowTs >= $windowStart && $nowTs < $windowEnd;
+    }
+
+    $remindAt = $startTs - $offsetSeconds;
+    $windowEnd = $remindAt + $graceSeconds;
+
+    return $nowTs >= $remindAt && $nowTs < $windowEnd;
 }
 
 /**
@@ -451,7 +562,7 @@ function eventify_load_student_reminder_settings_map(mysqli $conn, array $userId
 {
     $defaults = [
         'event_reminders' => 1,
-        'reminder_timing' => '1_day',
+        'reminder_timing' => '30_min',
     ];
     $userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), static fn ($id) => $id > 0)));
     if ($userIds === []) {
@@ -486,7 +597,7 @@ function eventify_load_student_reminder_settings_map(mysqli $conn, array $userId
             }
             $map[$uid] = [
                 'event_reminders' => (int) ($row['event_reminders'] ?? 1),
-                'reminder_timing' => trim((string) ($row['reminder_timing'] ?? '1_day')),
+                'reminder_timing' => trim((string) ($row['reminder_timing'] ?? '30_min')),
             ];
         }
         $stmt->close();
@@ -516,115 +627,147 @@ function eventify_run_event_reminders(mysqli $conn, ?DateTimeInterface $now = nu
         : new DateTimeImmutable('now', $tz);
     $graceSeconds = EVENTIFY_REMINDER_GRACE_MINUTES * 60;
     $offsets = eventify_reminder_timing_offsets();
-    $maxOffset = max($offsets);
+    $leadOffsets = [];
+    foreach ($offsets as $timingKey => $seconds) {
+        if ($timingKey !== 'at_start') {
+            $leadOffsets[] = (int) $seconds;
+        }
+    }
+    $maxOffset = $leadOffsets !== [] ? max($leadOffsets) : (30 * 60);
 
     try {
         eventify_event_reminders_ensure_tables($conn);
+        eventify_ticketing_ensure_registration_mode_column($conn);
 
-        $sql = "
-            SELECT r.user_id, r.event_id, e.id, e.title, e.status, e.date, e.end_date,
-                   e.start_time, e.end_time, e.end_time_na
-            FROM registrations r
-            INNER JOIN users u ON u.id = r.user_id AND u.role = 'student'
-            INNER JOIN events e ON e.id = r.event_id AND e.status = 'active'
-        ";
+        $hasEndDate = false;
+        $hasEndTimeNa = false;
+        $hasDept = false;
+        try {
+            $c1 = $conn->query("SHOW COLUMNS FROM events LIKE 'end_date'");
+            $hasEndDate = $c1 && $c1->num_rows > 0;
+            $c2 = $conn->query("SHOW COLUMNS FROM events LIKE 'end_time_na'");
+            $hasEndTimeNa = $c2 && $c2->num_rows > 0;
+            $c3 = $conn->query("SHOW COLUMNS FROM events LIKE 'department'");
+            $hasDept = $c3 && $c3->num_rows > 0;
+        } catch (Throwable $e) {
+            // ignore
+        }
+
+        $cols = 'id, title, status, date, start_time, end_time, registration_mode';
+        if ($hasEndDate) {
+            $cols .= ', end_date';
+        }
+        if ($hasEndTimeNa) {
+            $cols .= ', end_time_na';
+        }
+        if ($hasDept) {
+            $cols .= ', department';
+        }
+
+        // Active events — include ones whose primary date is slightly in the past
+        // (multi-day / schedule_days may still have upcoming starts).
+        $sql = "SELECT {$cols} FROM events WHERE status = 'active' ORDER BY date ASC, id ASC LIMIT 500";
         $res = $conn->query($sql);
         if (!$res) {
             $result['ok'] = false;
-            $result['errors'][] = 'registration_query_failed';
+            $result['errors'][] = 'events_query_failed';
+            eventify_run_activity_reminders($conn, $nowDt, $result);
             return $result;
         }
+        $eventList = $res->fetch_all(MYSQLI_ASSOC);
 
-        $rows = [];
-        $userIds = [];
-        $eventIds = [];
-        while ($row = $res->fetch_assoc()) {
-            $rows[] = $row;
-            $userIds[] = (int) ($row['user_id'] ?? 0);
-            $eventIds[] = (int) ($row['event_id'] ?? 0);
-        }
-
-        if ($rows === []) {
+        if ($eventList === []) {
             eventify_run_activity_reminders($conn, $nowDt, $result);
             return $result;
         }
 
-        $eventsById = [];
-        foreach ($rows as $row) {
-            $eid = (int) ($row['event_id'] ?? 0);
-            if ($eid > 0 && !isset($eventsById[$eid])) {
-                $eventsById[$eid] = $row;
-            }
-        }
-        $eventList = array_values($eventsById);
         eventify_events_attach_schedule_dates($conn, $eventList);
-        $eventsById = [];
-        foreach ($eventList as $ev) {
-            $eventsById[(int) ($ev['id'] ?? 0)] = $ev;
+
+        $recipientsByEvent = [];
+        $allUserIds = [];
+        foreach ($eventList as $event) {
+            $eid = (int) ($event['id'] ?? 0);
+            if ($eid < 1) {
+                continue;
+            }
+            $recipients = eventify_event_reminder_recipient_ids($conn, $event);
+            $recipientsByEvent[$eid] = $recipients;
+            foreach ($recipients as $uid) {
+                $allUserIds[] = $uid;
+            }
         }
 
-        $settingsMap = eventify_load_student_reminder_settings_map($conn, $userIds);
+        $settingsMap = eventify_load_student_reminder_settings_map($conn, $allUserIds);
 
-        foreach ($rows as $row) {
-            $userId = (int) ($row['user_id'] ?? 0);
-            $eventId = (int) ($row['event_id'] ?? 0);
-            if ($userId < 1 || $eventId < 1 || !isset($eventsById[$eventId])) {
+        foreach ($eventList as $event) {
+            $eventId = (int) ($event['id'] ?? 0);
+            if ($eventId < 1) {
+                continue;
+            }
+            if (!eventify_event_is_upcoming($event, $nowDt) && eventify_event_reminder_occurrence_starts($event, $nowDt) === []) {
                 continue;
             }
 
-            $event = $eventsById[$eventId];
-            if (!eventify_event_is_upcoming($event, $nowDt)) {
+            $recipients = $recipientsByEvent[$eventId] ?? [];
+            if ($recipients === []) {
                 continue;
             }
 
-            $settings = $settingsMap[$userId] ?? ['event_reminders' => 1, 'reminder_timing' => '1_day'];
-            $occurrences = eventify_event_upcoming_occurrence_starts($event, $nowDt);
+            $mode = eventify_event_registration_mode($event);
+            $occurrences = eventify_event_reminder_occurrence_starts($event, $nowDt);
 
             foreach ($occurrences as $occ) {
                 /** @var DateTimeImmutable $startsAt */
                 $startsAt = $occ['starts_at'];
                 $scheduleDate = (string) $occ['schedule_date'];
-
                 $secondsUntilStart = $startsAt->getTimestamp() - $nowDt->getTimestamp();
+
+                // Far from any remind window — skip early.
                 if ($secondsUntilStart > $maxOffset + $graceSeconds) {
                     continue;
                 }
 
                 foreach ($offsets as $timing => $offsetSeconds) {
-                    $result['checked']++;
-                    if (!eventify_student_wants_event_reminder($settings, $timing)) {
-                        $result['skipped']++;
-                        continue;
-                    }
+                    foreach ($recipients as $userId) {
+                        $result['checked']++;
+                        $settings = $settingsMap[$userId] ?? ['event_reminders' => 1, 'reminder_timing' => '30_min'];
 
-                    $remindAt = $startsAt->getTimestamp() - $offsetSeconds;
-                    $windowEnd = $remindAt + $graceSeconds;
-                    $nowTs = $nowDt->getTimestamp();
-                    if ($nowTs < $remindAt || $nowTs >= $windowEnd) {
-                        $result['skipped']++;
-                        continue;
-                    }
+                        if (!eventify_student_wants_event_reminder($settings, $timing)) {
+                            $result['skipped']++;
+                            continue;
+                        }
 
-                    if (eventify_reminder_was_sent($conn, $userId, $eventId, $scheduleDate, $timing)) {
-                        $result['skipped']++;
-                        continue;
-                    }
+                        if (!eventify_reminder_window_hit($startsAt, $nowDt, $timing, (int) $offsetSeconds, $graceSeconds)) {
+                            $result['skipped']++;
+                            continue;
+                        }
 
-                    $title = 'Event reminder';
-                    $message = eventify_build_event_reminder_message((string) ($event['title'] ?? 'Event'), $startsAt, $timing);
-                    $ok = eventify_insert_user_notification(
-                        $conn,
-                        $userId,
-                        'event_reminder',
-                        $title,
-                        $message,
-                        $eventId
-                    );
-                    if ($ok) {
-                        eventify_mark_reminder_sent($conn, $userId, $eventId, $scheduleDate, $timing);
-                        $result['sent']++;
-                    } else {
-                        $result['errors'][] = 'notify_failed:user_' . $userId . ':event_' . $eventId;
+                        if (eventify_reminder_was_sent($conn, $userId, $eventId, $scheduleDate, $timing)) {
+                            $result['skipped']++;
+                            continue;
+                        }
+
+                        $title = $timing === 'at_start' ? 'Event starting' : 'Event reminder';
+                        $message = eventify_build_event_reminder_message(
+                            (string) ($event['title'] ?? 'Event'),
+                            $startsAt,
+                            $timing,
+                            $mode
+                        );
+                        $ok = eventify_insert_user_notification(
+                            $conn,
+                            $userId,
+                            'event_reminder',
+                            $title,
+                            $message,
+                            $eventId
+                        );
+                        if ($ok) {
+                            eventify_mark_reminder_sent($conn, $userId, $eventId, $scheduleDate, $timing);
+                            $result['sent']++;
+                        } else {
+                            $result['errors'][] = 'notify_failed:user_' . $userId . ':event_' . $eventId;
+                        }
                     }
                 }
             }
@@ -647,13 +790,16 @@ function eventify_run_event_reminders(mysqli $conn, ?DateTimeInterface $now = nu
  */
 function eventify_parse_reminder_timing_from_message(string $message): ?string
 {
-    if (preg_match('/starts in 30 minutes/i', $message)) {
+    if (preg_match('/is starting now/i', $message)) {
+        return 'at_start';
+    }
+    if (preg_match('/starting in 30 minutes|starts in 30 minutes|in 30 mins/i', $message)) {
         return '30_min';
     }
-    if (preg_match('/starts in 1 hour/i', $message)) {
+    if (preg_match('/starting in 1 hour|starts in 1 hour/i', $message)) {
         return '1_hour';
     }
-    if (preg_match('/starts in 1 day/i', $message)) {
+    if (preg_match('/starting in 1 day|starts in 1 day/i', $message)) {
         return '1_day';
     }
 
@@ -750,9 +896,9 @@ function eventify_maybe_run_event_reminders(mysqli $conn): void
     }
     $ran = true;
 
-    $minInterval = 300;
+    $minInterval = 120;
     if (function_exists('eventify_env')) {
-        $cfg = (int) (eventify_env('EVENTIFY_REMINDER_MIN_INTERVAL', '300') ?? '300');
+        $cfg = (int) (eventify_env('EVENTIFY_REMINDER_MIN_INTERVAL', '120') ?? '120');
         if ($cfg >= 60) {
             $minInterval = $cfg;
         }

@@ -12,7 +12,8 @@ var ADMIN_DASH_PANEL_MAP = {
     audit: 'adminAuditLogPanel',
     revenue: 'adminRevenuePanel',
     analytics: 'adminAnalyticsPanel',
-    upcoming: 'adminUpcomingEventsPanel'
+    upcoming: 'adminUpcomingEventsPanel',
+    announcements: 'adminAnnouncementsPanel'
 };
 
 var ADMIN_DASH_PANEL_NAMES = Object.keys(ADMIN_DASH_PANEL_MAP);
@@ -1082,6 +1083,79 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // All Users panel: open the "edit student section" dialog prefilled.
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.js-edit-student-section');
+        if (!btn) return;
+        var idEl = document.getElementById('admEditSectionUserId');
+        var nameEl = document.getElementById('admEditSectionUserName');
+        var sel = document.getElementById('admEditSectionSelect');
+        var neu = document.getElementById('admEditSectionNew');
+        var current = btn.getAttribute('data-current-section') || '';
+        if (idEl) idEl.value = btn.getAttribute('data-user-id') || '';
+        if (nameEl) nameEl.textContent = btn.getAttribute('data-user-name') || 'this student';
+        if (neu) neu.value = '';
+
+        // Rebuild dropdown from PHP list + visible chips (fixes empty select after add).
+        if (sel) {
+            var labels = [];
+            var seen = {};
+            function pushLabel(lab) {
+                lab = String(lab || '').trim();
+                if (!lab) return;
+                var key = lab.toLowerCase();
+                if (seen[key]) return;
+                seen[key] = true;
+                labels.push(lab);
+            }
+            if (Array.isArray(window.__adminClassSections)) {
+                window.__adminClassSections.forEach(function (s) {
+                    pushLabel(s && s.label);
+                });
+            }
+            var chipList = document.getElementById('admClassSectionsList');
+            if (chipList) {
+                Array.prototype.forEach.call(chipList.querySelectorAll('[data-section-label]'), function (el) {
+                    pushLabel(el.getAttribute('data-section-label'));
+                });
+            }
+            // Keep any existing option labels already in the select.
+            Array.prototype.forEach.call(sel.options, function (opt) {
+                if (opt.value) pushLabel(opt.value);
+            });
+            labels.sort(function (a, b) {
+                return a.localeCompare(b, undefined, { sensitivity: 'base' });
+            });
+            sel.innerHTML = '';
+            var none = document.createElement('option');
+            none.value = '';
+            none.textContent = '— None / clear —';
+            sel.appendChild(none);
+            labels.forEach(function (lab) {
+                var opt = document.createElement('option');
+                opt.value = lab;
+                opt.textContent = lab;
+                if (lab.toLowerCase() === current.toLowerCase()) {
+                    opt.selected = true;
+                }
+                sel.appendChild(opt);
+            });
+            if (!sel.value && current) {
+                var orphan = document.createElement('option');
+                orphan.value = current;
+                orphan.textContent = current + ' (current)';
+                orphan.selected = true;
+                sel.appendChild(orphan);
+            }
+        }
+
+        if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+        var editModalEl = document.getElementById('adminEditStudentSectionModal');
+        if (editModalEl) {
+            bootstrap.Modal.getOrCreateInstance(editModalEl).show();
+        }
+    });
+
     // All Users panel: live search + role/status filtering.
     (function () {
         var search = document.getElementById('admUserSearch');
@@ -1121,5 +1195,121 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 200);
         }
     });
+
+    (function initAdminAnnouncementForm() {
+        var form = document.getElementById('adminAnnouncementForm');
+        if (!form) return;
+        var filterError = document.getElementById('announceFilterError');
+        var deptAll = form.querySelector('[data-announce-dept-all]');
+        var deptSpecific = form.querySelectorAll('[data-announce-dept-specific]');
+
+        function syncDeptCheckboxes(source) {
+            if (!deptAll) return;
+            if (source === deptAll && deptAll.checked) {
+                deptSpecific.forEach(function (cb) { cb.checked = false; });
+            } else if (source !== deptAll) {
+                var anySpecific = false;
+                deptSpecific.forEach(function (cb) {
+                    if (cb.checked) anySpecific = true;
+                });
+                if (anySpecific) deptAll.checked = false;
+            }
+        }
+
+        if (deptAll) {
+            deptAll.addEventListener('change', function () { syncDeptCheckboxes(deptAll); });
+        }
+        deptSpecific.forEach(function (cb) {
+            cb.addEventListener('change', function () { syncDeptCheckboxes(cb); });
+        });
+
+        function hasAudienceFilter() {
+            var checked = form.querySelectorAll(
+                'input[name="department[]"]:checked, input[name="section[]"]:checked, input[name="course[]"]:checked'
+            );
+            if (checked.length > 0) return true;
+            var newSection = form.querySelector('input[name="new_section"]');
+            return !!(newSection && newSection.value && newSection.value.trim());
+        }
+
+        form.addEventListener('submit', function (e) {
+            if (!hasAudienceFilter()) {
+                e.preventDefault();
+                if (filterError) filterError.classList.remove('d-none');
+                var audience = document.getElementById('announceAudienceFilters');
+                if (audience && typeof audience.scrollIntoView === 'function') {
+                    audience.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                return false;
+            }
+            if (filterError) filterError.classList.add('d-none');
+            return true;
+        });
+    })();
+
+    (function initAdminAnnouncementModals() {
+        function openModal(id) {
+            if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+            var el = document.getElementById(id);
+            if (!el) return;
+            bootstrap.Modal.getOrCreateInstance(el).show();
+        }
+
+        document.addEventListener('click', function (e) {
+            var editBtn = e.target.closest('.js-edit-announcement');
+            if (editBtn) {
+                e.preventDefault();
+                var idInput = document.getElementById('editAnnounceId');
+                var titleInput = document.getElementById('editAnnounceTitle');
+                var bodyInput = document.getElementById('editAnnounceBody');
+                if (idInput) idInput.value = editBtn.getAttribute('data-announce-id') || '';
+                if (titleInput) {
+                    titleInput.value = editBtn.getAttribute('data-announce-title') || '';
+                    titleInput.removeAttribute('readonly');
+                    titleInput.removeAttribute('disabled');
+                }
+                if (bodyInput) {
+                    bodyInput.value = editBtn.getAttribute('data-announce-body') || '';
+                    bodyInput.removeAttribute('readonly');
+                    bodyInput.removeAttribute('disabled');
+                }
+                openModal('editAnnouncementModal');
+                setTimeout(function () {
+                    if (titleInput) titleInput.focus();
+                }, 250);
+                return;
+            }
+
+            var deleteBtn = e.target.closest('.js-delete-announcement');
+            if (deleteBtn) {
+                e.preventDefault();
+                var delId = document.getElementById('deleteAnnounceId');
+                var delMsg = document.getElementById('deleteAnnounceMessage');
+                var title = deleteBtn.getAttribute('data-announce-title') || 'this announcement';
+                if (delId) delId.value = deleteBtn.getAttribute('data-announce-id') || '';
+                if (delMsg) {
+                    delMsg.textContent = 'Delete “' + title + '”? Students will also lose this bell notification.';
+                }
+                openModal('deleteAnnouncementModal');
+            }
+        });
+
+        var editModal = document.getElementById('editAnnouncementModal');
+        if (editModal) {
+            editModal.addEventListener('shown.bs.modal', function () {
+                var titleInput = document.getElementById('editAnnounceTitle');
+                if (titleInput) {
+                    titleInput.removeAttribute('readonly');
+                    titleInput.removeAttribute('disabled');
+                    titleInput.focus();
+                }
+                var bodyInput = document.getElementById('editAnnounceBody');
+                if (bodyInput) {
+                    bodyInput.removeAttribute('readonly');
+                    bodyInput.removeAttribute('disabled');
+                }
+            });
+        }
+    })();
 
 });

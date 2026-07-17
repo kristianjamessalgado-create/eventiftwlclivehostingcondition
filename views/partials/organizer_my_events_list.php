@@ -3,8 +3,9 @@
 
 $eventsSorted = is_array($events ?? null) ? $events : [];
 if ($eventsSorted !== []) {
+    // Newest created first so organizers don't scroll for the latest event.
     usort($eventsSorted, static function ($a, $b) {
-        return strtotime($a['date'] ?? '') <=> strtotime($b['date'] ?? '');
+        return ((int) ($b['id'] ?? 0)) <=> ((int) ($a['id'] ?? 0));
     });
 }
 ?>

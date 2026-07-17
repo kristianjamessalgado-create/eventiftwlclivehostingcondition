@@ -9,6 +9,13 @@ $auth_modal = trim((string)($_GET['auth_modal'] ?? ''));
 $auth_error = trim((string)($_GET['auth_error'] ?? ''));
 $auth_success = trim((string)($_GET['auth_success'] ?? ''));
 $auth_redirect = trim((string)($_GET['redirect'] ?? ''));
+// Session expired / not logged in should open sign-in quietly (no scary "Access denied").
+if ($auth_error !== '' && stripos($auth_error, 'access denied') !== false) {
+    $auth_error = '';
+    if ($auth_modal === '') {
+        $auth_modal = 'login';
+    }
+}
 $verify_purpose = (($_GET['verify_purpose'] ?? $_GET['purpose'] ?? 'register') === 'reactivate') ? 'reactivate' : 'register';
 $verify_email = strtolower(trim((string)($_GET['verify_email'] ?? $_GET['email'] ?? '')));
 if ($auth_modal === 'verify' && $verify_email !== '') {
@@ -281,7 +288,7 @@ $landing_past_n = count($publicPastList);
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EVENTIFY</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=28">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=31">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 <style>
@@ -741,7 +748,14 @@ html.eventify-splash-pending body { overflow: hidden; }
         </form>
         <div class="auth-card__footer">
             <p>Don&rsquo;t have an account? <button type="button" class="auth-link-btn" onclick="openRegisterModal()">Register</button></p>
-            <p><button type="button" class="auth-link-btn auth-link-btn--muted" onclick="openVerifyModal({ purpose: 'reactivate' })">Verify reactivation OTP</button></p>
+            <button
+                type="button"
+                class="auth-btn-secondary auth-reactivate-otp-btn"
+                onclick="openVerifyModal({ purpose: 'reactivate' })"
+            >
+                <i class="fas fa-key" aria-hidden="true"></i>
+                Verify reactivation OTP
+            </button>
         </div>
     </div>
     <?php include __DIR__ . '/views/partials/auth_page_layout_end.php'; ?>
@@ -790,7 +804,7 @@ html.eventify-splash-pending body { overflow: hidden; }
                     <i class="fas fa-envelope auth-field-icon__lead" aria-hidden="true"></i>
                     <input type="email" name="email" id="registerModalEmail" class="auth-input" placeholder="Email address" required autocomplete="email">
                 </div>
-                <p class="auth-field-hint">Use this email to sign in — it is your username.</p>
+                <p class="auth-field-hint">Use your school account email to sign in — it is your username.</p>
             </div>
             <div class="auth-input-wrap auth-password-wrap">
                 <label class="auth-label" for="registerModalPassword">Password</label>
@@ -955,12 +969,25 @@ html.eventify-splash-pending body { overflow: hidden; }
                         <input type="email" name="email" id="verifyModalEmail" class="auth-input" placeholder="Email address" required value="<?= htmlspecialchars($verify_email) ?>" autocomplete="email"<?= ($verify_purpose === 'register' && $verify_email !== '') ? ' readonly' : '' ?>>
                     </div>
                 </div>
-                <div class="auth-input-wrap">
-                    <label class="auth-label" for="verifyOtpCode">6-digit OTP</label>
-                    <div class="auth-field-icon">
-                        <i class="fas fa-shield-halved auth-field-icon__lead" aria-hidden="true"></i>
-                        <input type="text" name="otp_code" id="verifyOtpCode" class="auth-input" placeholder="Enter 6-digit code" required maxlength="6" pattern="\d{6}" inputmode="numeric" autocomplete="one-time-code">
+                <div class="auth-input-wrap auth-otp-wrap">
+                    <label class="auth-label" id="verifyOtpLabel" for="verifyOtpDigit0">6-digit OTP</label>
+                    <input type="hidden" name="otp_code" id="verifyOtpCode" value="" required pattern="\d{6}">
+                    <div class="auth-otp-boxes" role="group" aria-labelledby="verifyOtpLabel">
+                        <?php for ($otpDigit = 0; $otpDigit < 6; $otpDigit++): ?>
+                        <input
+                            type="text"
+                            id="verifyOtpDigit<?= $otpDigit ?>"
+                            class="auth-otp-box"
+                            inputmode="numeric"
+                            pattern="\d*"
+                            maxlength="1"
+                            autocomplete="<?= $otpDigit === 0 ? 'one-time-code' : 'off' ?>"
+                            aria-label="Digit <?= $otpDigit + 1 ?> of 6"
+                            data-otp-index="<?= $otpDigit ?>"
+                        >
+                        <?php endfor; ?>
                     </div>
+                    <p class="auth-field-hint auth-otp-hint">Type each digit in its box, or paste the full code.</p>
                 </div>
                 <button type="submit" class="auth-btn-primary auth-submit-btn btn-shimmer">Verify</button>
             </form>
@@ -1102,6 +1129,6 @@ html.eventify-splash-pending body { overflow: hidden; }
 <!-- JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/index.js?v=22"></script>
+<script src="<?= BASE_URL ?>/assets/js/index.js?v=24"></script>
 </body>
 </html>

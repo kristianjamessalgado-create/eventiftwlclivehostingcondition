@@ -76,10 +76,14 @@ if ($action === 'subscribe') {
     exit;
 }
 
-if ($action === 'unsubscribe') {
+if ($action === 'unsubscribe' || $action === 'unsubscribe_device') {
     $endpoint = trim((string) ($data['endpoint'] ?? ''));
-    $ok = eventify_web_push_remove_subscription($conn, $userId, $endpoint);
-    echo json_encode(['ok' => $ok]);
+    // Drop this device endpoint entirely so a logged-out account cannot keep receiving.
+    $ok = eventify_web_push_remove_endpoint($conn, $endpoint);
+    if (!$ok) {
+        $ok = eventify_web_push_remove_subscription($conn, $userId, $endpoint);
+    }
+    echo json_encode(['ok' => (bool) $ok]);
     exit;
 }
 

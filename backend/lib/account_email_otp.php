@@ -162,6 +162,34 @@ function eventify_send_account_otp_email(string $email, string $purpose, string 
     return eventify_send_email($email, $subject, $body);
 }
 
+/**
+ * Notify a user that their account was approved / activated and they can log in.
+ *
+ * @return array{ok:bool, error?:string, via?:string}
+ */
+function eventify_send_account_approved_email(string $email, string $name = ''): array
+{
+    $email = trim($email);
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'error' => 'Invalid email'];
+    }
+
+    $name = trim($name);
+    $greeting = $name !== '' ? "Hi {$name}," : 'Hi,';
+    $loginUrl = (defined('BASE_URL') ? rtrim((string) BASE_URL, '/') : '') . '/views/login.php';
+    if ($loginUrl === '/views/login.php') {
+        $loginUrl = 'the EVENTIFY login page';
+    }
+
+    $subject = '[EVENTIFY] Your account has been approved';
+    $body = "{$greeting}\n\n"
+        . "Your EVENTIFY account has been approved and is now active.\n\n"
+        . "You can sign in here:\n{$loginUrl}\n\n"
+        . "If you did not register for EVENTIFY, please ignore this email.\n";
+
+    return eventify_send_email($email, $subject, $body);
+}
+
 /** One-time flash after register/resend/verify errors — avoids stale "OTP sent" on page refresh. */
 function eventify_set_verify_otp_flash(string $purpose, string $email, ?string $success = null, ?string $error = null): void
 {

@@ -813,8 +813,25 @@ $error = $error ?? '';
                                                         <input type="hidden" name="open_modal" value="events">
                                                         <button type="button" class="btn btn-sm btn-outline-secondary js-confirm-submit" data-confirm-message="Close this event?"><i class="fas fa-archive"></i> Close</button>
                                                     </form>
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#saDeleteEventModal"
+                                                        data-event-id="<?= $eid ?>"
+                                                        data-event-title="<?= htmlspecialchars((string) ($ev['title'] ?? 'Event'), ENT_QUOTES, 'UTF-8') ?>"
+                                                        data-is-paid="<?= strtolower((string) ($ev['registration_mode'] ?? '')) === 'paid_ticket' ? '1' : '0' ?>"
+                                                    ><i class="fas fa-trash-alt"></i> Delete</button>
                                                 <?php else: ?>
-                                                    <span class="text-muted small">—</span>
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#saDeleteEventModal"
+                                                        data-event-id="<?= $eid ?>"
+                                                        data-event-title="<?= htmlspecialchars((string) ($ev['title'] ?? 'Event'), ENT_QUOTES, 'UTF-8') ?>"
+                                                        data-is-paid="<?= strtolower((string) ($ev['registration_mode'] ?? '')) === 'paid_ticket' ? '1' : '0' ?>"
+                                                    ><i class="fas fa-trash-alt"></i> Delete</button>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -879,6 +896,36 @@ $error = $error ?? '';
             <div class="modal-body p-3">
                 <div id="saCalendar" style="min-height: 420px; width: 100%;"></div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Super Admin permanent delete -->
+<div class="modal fade" id="saDeleteEventModal" tabindex="-1" aria-labelledby="saDeleteEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="<?= BASE_URL ?>/backend/admin/delete_event.php" id="saDeleteEventForm">
+                <?= csrf_field() ?>
+                <input type="hidden" name="event_id" id="saDeleteEventId" value="">
+                <input type="hidden" name="return_to" value="dashboard">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="saDeleteEventModalLabel"><i class="fas fa-trash-alt me-2 text-danger"></i>Delete event?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2" id="saDeleteEventMessage">This permanently removes the event. Prefer Close if you only want it off the live calendar.</p>
+                    <label class="form-label small" for="saDeleteConfirmInput">Type <strong>DELETE</strong> to confirm</label>
+                    <input type="text" class="form-control" name="confirm_delete" id="saDeleteConfirmInput" autocomplete="off" placeholder="DELETE" required>
+                    <div class="form-check mt-3" id="saDeleteForceWrap" style="display:none;">
+                        <input class="form-check-input" type="checkbox" value="1" name="force_revenue_delete" id="saDeleteForceRevenue">
+                        <label class="form-check-label small" for="saDeleteForceRevenue">I understand this also removes paid ticket order records</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="saDeleteEventSubmit" disabled>Permanently delete</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -964,6 +1011,39 @@ document.addEventListener('DOMContentLoaded', function () {
     if (typeof eventifyInitSuperAdminDashboard === 'function') {
         eventifyInitSuperAdminDashboard();
     }
+
+    var saModal = document.getElementById('saDeleteEventModal');
+    var saId = document.getElementById('saDeleteEventId');
+    var saMsg = document.getElementById('saDeleteEventMessage');
+    var saInput = document.getElementById('saDeleteConfirmInput');
+    var saSubmit = document.getElementById('saDeleteEventSubmit');
+    var saForceWrap = document.getElementById('saDeleteForceWrap');
+    var saForce = document.getElementById('saDeleteForceRevenue');
+    if (saModal) {
+        saModal.addEventListener('show.bs.modal', function (e) {
+            var btn = e.relatedTarget;
+            if (!btn || !saId) return;
+            saId.value = btn.getAttribute('data-event-id') || '';
+            var title = btn.getAttribute('data-event-title') || 'this event';
+            if (saMsg) {
+                saMsg.textContent = 'Permanently delete "' + title + '"? Prefer Close if you only want it off the live calendar.';
+            }
+            if (saInput) saInput.value = '';
+            var isPaid = btn.getAttribute('data-is-paid') === '1';
+            if (saForceWrap) saForceWrap.style.display = isPaid ? 'block' : 'none';
+            if (saForce) saForce.checked = false;
+            if (saSubmit) saSubmit.disabled = true;
+        });
+    }
+    function refreshSaDeleteGate() {
+        if (!saInput || !saSubmit) return;
+        var typedOk = String(saInput.value || '').trim() === 'DELETE';
+        var forceNeeded = saForceWrap && saForceWrap.style.display !== 'none';
+        var forceOk = !forceNeeded || (saForce && saForce.checked);
+        saSubmit.disabled = !(typedOk && forceOk);
+    }
+    if (saInput) saInput.addEventListener('input', refreshSaDeleteGate);
+    if (saForce) saForce.addEventListener('change', refreshSaDeleteGate);
 });
 </script>
 </body>

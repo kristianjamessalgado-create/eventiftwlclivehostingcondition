@@ -590,3 +590,13 @@
 .eventify-toast--info > i:first-child {
     color: var(--efy-forest);
 }
+
+/* Alert modal — stacks above Settings / other open modals */
+.eventify-alert-modal.eventify-alert-modal--stacked {
+    z-index: 2000 !important;
+}
+
+.eventify-alert-modal.eventify-alert-modal--stacked .modal-dialog,
+.eventify-alert-modal.eventify-alert-modal--stacked .modal-content {
+    pointer-events: auto;
+}

@@ -7,10 +7,15 @@ include __DIR__ . '/../../config/db.php';
 include __DIR__ . '/../../config/config.php';
 include __DIR__ . '/../../config/csrf.php';
 include __DIR__ . '/../../config/departments.php';
+if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+    require_once __DIR__ . '/../../config/student_sections.php';
+}
 require_once __DIR__ . '/student_rsvp_ajax.php';
 require_once __DIR__ . '/../lib/event_calendar.php';
 require_once __DIR__ . '/../lib/event_ticketing.php';
 require_once __DIR__ . '/../lib/web_push.php';
+
+eventify_sections_schema_ensure($conn);
 
 $wantsAjax = student_rsvp_wants_ajax();
 
@@ -43,10 +48,12 @@ try {
 }
 
 if ($event_id > 0) {
+    $hasTargetSec = eventify_events_has_target_sections($conn);
+    $tsCol = $hasTargetSec ? ', e.target_sections' : '';
     if ($eventsHasMaxCapacity) {
-        $stmt = $conn->prepare("SELECT e.id, e.title, e.organizer_id, e.status, e.registration_mode, e.max_capacity, e.department, e.date, e.end_date, e.start_time, e.end_time, e.end_time_na, u.department AS student_department FROM events e JOIN users u ON u.id = ? WHERE e.id = ?");
+        $stmt = $conn->prepare("SELECT e.id, e.title, e.organizer_id, e.status, e.registration_mode, e.max_capacity, e.department{$tsCol}, e.date, e.end_date, e.start_time, e.end_time, e.end_time_na, u.department AS student_department, u.student_section FROM events e JOIN users u ON u.id = ? WHERE e.id = ?");
     } else {
-        $stmt = $conn->prepare("SELECT e.id, e.title, e.organizer_id, e.status, e.registration_mode, e.department, e.date, e.end_date, e.start_time, e.end_time, e.end_time_na, u.department AS student_department FROM events e JOIN users u ON u.id = ? WHERE e.id = ?");
+        $stmt = $conn->prepare("SELECT e.id, e.title, e.organizer_id, e.status, e.registration_mode, e.department{$tsCol}, e.date, e.end_date, e.start_time, e.end_time, e.end_time_na, u.department AS student_department, u.student_section FROM events e JOIN users u ON u.id = ? WHERE e.id = ?");
     }
     if (!$stmt) {
         if ($wantsAjax) {
@@ -78,8 +85,11 @@ if ($event_id > 0) {
         $msg = 'This event does not use RSVP. Just attend or check in with QR when available.';
     } elseif (!eventify_event_is_upcoming($ev)) {
         $msg = 'This event has ended. RSVP is no longer available.';
-    } elseif (!eventify_student_sees_event_department((string)($ev['department'] ?? 'ALL'), $ev['student_department'] ?? null)) {
-        $msg = 'This event is not available for your department.';
+    } elseif (!eventify_student_may_access_event($ev, [
+        'department' => $ev['student_department'] ?? null,
+        'student_section' => $ev['student_section'] ?? null,
+    ])) {
+        $msg = 'This event is not available for your department or class section.';
     } else {
         $stmt = $conn->prepare("SELECT id FROM registrations WHERE user_id = ? AND event_id = ?");
         $stmt->bind_param("ii", $user_id, $event_id);

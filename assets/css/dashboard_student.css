@@ -465,6 +465,19 @@ body.student-sidebar-collapsed .dashboard-layout {
     gap: 8px;
 }
 
+.sidebar-account {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(230, 197, 74, 0.18);
+}
+
+.sidebar-account .section-title {
+    margin-bottom: 4px;
+}
+
 .section-title {
     font-size: 12px;
     font-weight: 600;
@@ -513,7 +526,7 @@ body.student-sidebar-collapsed .dashboard-layout {
 
 /* Department Info */
 .department-info {
-    margin-top: auto;
+    margin-top: 1rem;
 }
 
 .department-badge-large {
@@ -2302,6 +2315,14 @@ body.student-dashboard .action-btn.logout-btn:hover {
     background: rgba(127, 29, 29, 0.25);
     border-color: #f87171;
     color: #fecaca;
+}
+
+body.student-dashboard .sidebar-account {
+    border-top-color: rgba(230, 197, 74, 0.22);
+}
+
+body.student-dashboard .sidebar-account .section-title {
+    color: rgba(230, 197, 74, 0.72);
 }
 
 body.student-dashboard .main-content {

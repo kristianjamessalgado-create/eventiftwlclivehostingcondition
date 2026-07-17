@@ -519,14 +519,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (registerPasswordGuide) {
             if (p.length === 0) {
                 registerPasswordGuide.textContent = 'Password guide: at least 8 characters, with 1 uppercase letter and 1 special character.';
+                registerPasswordGuide.classList.remove('met', 'unmet');
             } else if (longEnough && hasUpper && hasSpecial) {
                 registerPasswordGuide.textContent = 'Password strength requirement met.';
+                registerPasswordGuide.classList.remove('unmet');
+                registerPasswordGuide.classList.add('met');
             } else {
                 var missing = [];
                 if (!longEnough) missing.push('8+ characters');
                 if (!hasUpper) missing.push('1 uppercase');
                 if (!hasSpecial) missing.push('1 special character');
                 registerPasswordGuide.textContent = 'Missing: ' + missing.join(', ') + '.';
+                registerPasswordGuide.classList.remove('met');
+                registerPasswordGuide.classList.add('unmet');
             }
         }
 
@@ -690,11 +695,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // Hard reliability fix for OTP verify too: do normal submit (same as login/register).
     // AJAX fetch + redirect parsing was dropping errors and breaking CSRF on some browsers.
     if (verifyModalForm) {
-        verifyModalForm.addEventListener('submit', function () {
+        verifyModalForm.addEventListener('submit', function (e) {
+            if (typeof window.eventifySyncVerifyOtp === 'function') {
+                window.eventifySyncVerifyOtp();
+            }
+            var hiddenOtp = document.getElementById('verifyOtpCode');
+            var code = hiddenOtp ? String(hiddenOtp.value || '') : '';
+            if (!/^\d{6}$/.test(code)) {
+                e.preventDefault();
+                var topAlert = document.getElementById('verifyModalTopAlert');
+                if (topAlert) {
+                    topAlert.textContent = 'Please enter all 6 digits of the OTP.';
+                    topAlert.classList.remove('success');
+                    topAlert.classList.add('error');
+                    topAlert.style.display = 'block';
+                }
+                var firstEmpty = document.querySelector('.auth-otp-box:not(.is-filled)') || document.getElementById('verifyOtpDigit0');
+                if (firstEmpty) firstEmpty.focus();
+                return;
+            }
             clearAllModalMessages();
             setFormSubmitting(verifyModalForm, true, 'Verifying...');
         });
     }
+
+    initVerifyOtpBoxes();
 
     // Re-open specific auth modal after backend redirect — wait until splash finishes.
     function openAuthModalAfterSplash(fn) {
@@ -968,6 +993,130 @@ function closeRegisterModal() {
     setAuthModalBodyLock(false);
 }
 
+function syncVerifyOtpHidden() {
+    var hidden = document.getElementById('verifyOtpCode');
+    var boxes = document.querySelectorAll('.auth-otp-box');
+    if (!hidden || !boxes.length) return '';
+    var code = '';
+    boxes.forEach(function (box) {
+        var d = String(box.value || '').replace(/\D/g, '').slice(0, 1);
+        box.value = d;
+        box.classList.toggle('is-filled', d !== '');
+        code += d;
+    });
+    hidden.value = code;
+    return code;
+}
+
+function clearVerifyOtpBoxes(focusFirst) {
+    var boxes = document.querySelectorAll('.auth-otp-box');
+    boxes.forEach(function (box) {
+        box.value = '';
+        box.classList.remove('is-filled');
+    });
+    syncVerifyOtpHidden();
+    if (focusFirst && boxes[0]) {
+        boxes[0].focus();
+    }
+}
+
+function fillVerifyOtpBoxes(digits) {
+    var boxes = document.querySelectorAll('.auth-otp-box');
+    var clean = String(digits || '').replace(/\D/g, '').slice(0, boxes.length);
+    boxes.forEach(function (box, i) {
+        box.value = clean.charAt(i) || '';
+        box.classList.toggle('is-filled', box.value !== '');
+    });
+    syncVerifyOtpHidden();
+    var nextIdx = Math.min(clean.length, boxes.length - 1);
+    if (boxes[nextIdx]) {
+        boxes[nextIdx].focus();
+        if (typeof boxes[nextIdx].select === 'function' && boxes[nextIdx].value) {
+            boxes[nextIdx].select();
+        }
+    }
+}
+
+function initVerifyOtpBoxes() {
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('.auth-otp-box'));
+    if (!boxes.length) return;
+
+    window.eventifySyncVerifyOtp = syncVerifyOtpHidden;
+    window.eventifyClearVerifyOtp = function () {
+        clearVerifyOtpBoxes(false);
+    };
+
+    boxes.forEach(function (box, index) {
+        box.addEventListener('input', function () {
+            var raw = String(box.value || '').replace(/\D/g, '');
+            if (raw.length > 1) {
+                var prefix = boxes.slice(0, index).map(function (b) {
+                    return String(b.value || '').replace(/\D/g, '').slice(0, 1);
+                }).join('');
+                fillVerifyOtpBoxes(prefix + raw);
+                return;
+            }
+            box.value = raw.slice(0, 1);
+            box.classList.toggle('is-filled', box.value !== '');
+            syncVerifyOtpHidden();
+            if (box.value && boxes[index + 1]) {
+                boxes[index + 1].focus();
+            }
+        });
+
+        box.addEventListener('keydown', function (e) {
+            if (e.key === 'Backspace') {
+                if (box.value) {
+                    box.value = '';
+                    box.classList.remove('is-filled');
+                    syncVerifyOtpHidden();
+                    e.preventDefault();
+                    return;
+                }
+                if (boxes[index - 1]) {
+                    boxes[index - 1].focus();
+                    boxes[index - 1].value = '';
+                    boxes[index - 1].classList.remove('is-filled');
+                    syncVerifyOtpHidden();
+                    e.preventDefault();
+                }
+                return;
+            }
+            if (e.key === 'ArrowLeft' && boxes[index - 1]) {
+                boxes[index - 1].focus();
+                e.preventDefault();
+                return;
+            }
+            if (e.key === 'ArrowRight' && boxes[index + 1]) {
+                boxes[index + 1].focus();
+                e.preventDefault();
+                return;
+            }
+        });
+
+        box.addEventListener('paste', function (e) {
+            var pasted = '';
+            if (e.clipboardData) {
+                pasted = e.clipboardData.getData('text') || '';
+            } else if (window.clipboardData) {
+                pasted = window.clipboardData.getData('Text') || '';
+            }
+            pasted = String(pasted).replace(/\D/g, '');
+            if (!pasted) return;
+            e.preventDefault();
+            fillVerifyOtpBoxes(pasted);
+        });
+
+        box.addEventListener('focus', function () {
+            if (typeof box.select === 'function') {
+                box.select();
+            }
+        });
+    });
+
+    syncVerifyOtpHidden();
+}
+
 function openVerifyModal(opts) {
     opts = opts || {};
     var modal = document.getElementById('loginModal');
@@ -1008,6 +1157,9 @@ function openVerifyModal(opts) {
     }
     if (otpInput && !opts.keepOtp) {
         otpInput.value = '';
+        if (typeof window.eventifyClearVerifyOtp === 'function') {
+            window.eventifyClearVerifyOtp();
+        }
     }
     if (topAlert) {
         var existingMsg = (topAlert.textContent || '').trim();
@@ -1030,6 +1182,13 @@ function openVerifyModal(opts) {
     if (verifyModal) verifyModal.style.display = 'flex';
     setAuthModalBodyLock(true);
     resetAuthModalScroll();
+    window.setTimeout(function () {
+        var firstDigit = document.getElementById('verifyOtpDigit0');
+        var vm = document.getElementById('verifyModal');
+        if (firstDigit && vm && vm.style.display !== 'none') {
+            firstDigit.focus();
+        }
+    }, 80);
 }
 
 function closeVerifyModal() {

@@ -11,7 +11,7 @@ $panelEnterClass = $student_upcoming_panel_open ? ' student-dash-panel--enter' :
 <section
     class="student-dash-panel student-upcoming-panel<?= $panelEnterClass ?><?= $student_upcoming_panel_open ? '' : ' d-none' ?>"
     id="studentUpcomingPanel"
-    aria-label="Upcoming events"
+    aria-label="Browse events"
     <?= $student_upcoming_panel_open ? '' : ' hidden' ?>
 >
     <div class="student-dash-panel__shell">
@@ -31,9 +31,9 @@ $panelEnterClass = $student_upcoming_panel_open ? ' student-dash-panel--enter' :
         <header class="student-dash-panel__hero">
             <div class="student-dash-panel__hero-icon" aria-hidden="true"><i class="fas fa-calendar-check"></i></div>
             <div class="student-dash-panel__hero-text">
-                <h2 class="student-dash-panel__title">Upcoming events</h2>
+                <h2 class="student-dash-panel__title">Browse events</h2>
                 <p class="student-dash-panel__subtitle mb-0">
-                    Tap an event to view details and RSVP.
+                    Find upcoming events you can join. Tap one to view details and RSVP.
                 </p>
             </div>
         </header>
@@ -80,6 +80,14 @@ $panelEnterClass = $student_upcoming_panel_open ? ' student-dash-panel--enter' :
                                     <?php endif; ?>
                                     <?php if (!empty($event['department'])): ?>
                                         <span class="student-upcoming-card__dept"><?= htmlspecialchars(eventify_format_department_label((string) $event['department'])) ?></span>
+                                    <?php endif; ?>
+                                    <?php
+                                      $secLabel = function_exists('eventify_format_target_sections_label')
+                                          ? eventify_format_target_sections_label($event['target_sections'] ?? null)
+                                          : '';
+                                    ?>
+                                    <?php if ($secLabel !== ''): ?>
+                                        <span class="student-upcoming-card__dept"><i class="fas fa-layer-group" aria-hidden="true"></i> <?= htmlspecialchars($secLabel) ?></span>
                                     <?php endif; ?>
                                 </p>
                             <?php endif; ?>

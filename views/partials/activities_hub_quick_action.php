@@ -12,7 +12,7 @@ if (!isset($activities_hub_visible_count) && !empty($activities_hub_badge_active
 $activities_hub_btn_class = $activities_hub_btn_class ?? 'w-100 text-start border-0 bg-transparent';
 $activities_hub_show_chevron = !empty($activities_hub_show_chevron);
 $activities_hub_sa_style = !empty($activities_hub_sa_style);
-$activities_hub_student_label = (string) ($activities_hub_student_label ?? 'My Activities and Events');
+$activities_hub_student_label = (string) ($activities_hub_student_label ?? 'My registrations');
 $activities_hub_btn_classes = $activities_hub_sa_style
     ? trim($activities_hub_btn_class)
     : trim('action-btn ' . $activities_hub_btn_class);

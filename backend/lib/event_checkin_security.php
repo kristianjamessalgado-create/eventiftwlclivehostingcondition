@@ -447,6 +447,16 @@ function eventify_process_main_event_checkin(mysqli $conn, array $event, int $us
         return ['ok' => false, 'error' => 'Invalid event.'];
     }
 
+    if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+        require_once __DIR__ . '/../../config/student_sections.php';
+    }
+    if (function_exists('eventify_student_event_audience_gate')) {
+        $aud = eventify_student_event_audience_gate($conn, $userId, $event);
+        if (!$aud['ok']) {
+            return ['ok' => false, 'error' => $aud['error'] ?? 'This event is not available for your account.'];
+        }
+    }
+
     $signupGap = eventify_checkin_main_signup_gap($conn, $event, $userId);
     if ($signupGap['needed']) {
         return ['ok' => false, 'error' => $signupGap['message']];
@@ -513,6 +523,21 @@ function eventify_process_activity_checkin(mysqli $conn, array $session, int $us
     $eventId = (int) ($session['event_id'] ?? 0);
     if ($sessionId < 1 || $eventId < 1) {
         return ['ok' => false, 'error' => 'Invalid activity.'];
+    }
+
+    if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+        require_once __DIR__ . '/../../config/student_sections.php';
+    }
+    if (function_exists('eventify_student_event_audience_gate')) {
+        $audEvent = [
+            'id' => $eventId,
+            'department' => $session['event_department'] ?? $session['department'] ?? null,
+            'target_sections' => $session['event_target_sections'] ?? $session['target_sections'] ?? null,
+        ];
+        $aud = eventify_student_event_audience_gate($conn, $userId, $audEvent);
+        if (!$aud['ok']) {
+            return ['ok' => false, 'error' => $aud['error'] ?? 'This event is not available for your account.'];
+        }
     }
 
     if (!eventify_student_has_main_event_access($conn, $userId, $eventId)) {

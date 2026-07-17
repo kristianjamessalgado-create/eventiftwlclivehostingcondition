@@ -161,11 +161,40 @@
 
 #createEventModal .ce-location-map,
 #createEventModal .event-location-map {
-    height: clamp(120px, 22vh, 200px);
-    min-height: 120px;
+    height: clamp(180px, 28vh, 240px);
+    min-height: 180px;
+    width: 100%;
     border-radius: 12px !important;
     border: 1px solid var(--ce-border) !important;
     overflow: hidden;
+    background: #dfead8;
+    position: relative;
+    z-index: 1;
+}
+
+#createEventModal .ce-location-map .leaflet-container,
+#createEventModal .event-location-map .leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1;
+    background: #dfead8;
+}
+
+#createEventModal .ce-location-map.is-map-error,
+#createEventModal .event-location-map.is-map-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.85rem;
+    background: #f4f1e4;
+}
+
+#createEventModal .eventify-map-fallback {
+    font-size: 0.8125rem;
+    color: #355235;
+    text-align: center;
+    line-height: 1.4;
+    max-width: 22rem;
 }
 
 #createEventModal .ce-dept-checkbox-list {
@@ -344,6 +373,38 @@
 #createEventModal .ce-btn-muted:hover {
     background: var(--ce-forest-deep);
     color: #fff;
+}
+
+#createEventModal .ce-admin-publish-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(230, 197, 74, 0.55);
+    background: linear-gradient(135deg, rgba(230, 197, 74, 0.22) 0%, rgba(61, 138, 53, 0.12) 100%);
+    color: var(--ce-text);
+}
+
+#createEventModal .ce-admin-publish-note > i {
+    margin-top: 0.15rem;
+    color: var(--ce-gold-dim);
+    font-size: 1.1rem;
+}
+
+#createEventModal .ce-admin-publish-note strong {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 800;
+    margin-bottom: 0.15rem;
+}
+
+#createEventModal .ce-admin-publish-note span {
+    display: block;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--ce-muted);
 }
 
 @media (max-width: 767.98px) {

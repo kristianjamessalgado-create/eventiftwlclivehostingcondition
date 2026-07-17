@@ -5,6 +5,9 @@
  */
 
 require_once __DIR__ . '/../../config/departments.php';
+if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+    require_once __DIR__ . '/../../config/student_sections.php';
+}
 require_once __DIR__ . '/web_push.php';
 
 function eventify_event_day_sessions_table_exists(mysqli $conn): bool
@@ -747,6 +750,29 @@ function eventify_organizer_owns_event(mysqli $conn, int $eventId, int $organize
 }
 
 /**
+ * True when the user is the assigned organizer_id and may manage the event
+ * (organizer role, or admin/super_admin who assigned the event to themselves).
+ */
+function eventify_user_can_manage_owned_event(string $role, int $userId, array $event): bool
+{
+    if ($userId < 1) {
+        return false;
+    }
+    if ((int) ($event['organizer_id'] ?? 0) !== $userId) {
+        return false;
+    }
+    return in_array($role, ['organizer', 'admin', 'super_admin'], true);
+}
+
+/**
+ * Whether a role is allowed to edit day activities when they own the event.
+ */
+function eventify_role_can_edit_owned_event_activities(string $role): bool
+{
+    return in_array($role, ['organizer', 'admin', 'super_admin'], true);
+}
+
+/**
  * Whether an organizer may add/edit/delete activities (optionally for one schedule day).
  *
  * @return array{ok: bool, error: string, locked: bool}
@@ -1388,9 +1414,28 @@ function eventify_register_session_rsvp(mysqli $conn, int $sessionId, int $userI
     $accessCols = eventify_day_sessions_have_access_columns($conn)
         ? 's.access_mode, s.ticket_type_id,'
         : '';
+    if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+        require_once __DIR__ . '/../../config/student_sections.php';
+    }
+    if (function_exists('eventify_sections_schema_ensure')) {
+        eventify_sections_schema_ensure($conn);
+    }
+    $tsCol = (function_exists('eventify_events_has_target_sections') && eventify_events_has_target_sections($conn))
+        ? 'e.target_sections,'
+        : '';
+    $stuSecCol = 'u.department AS student_department';
+    try {
+        $sc = $conn->query("SHOW COLUMNS FROM users LIKE 'student_section'");
+        if ($sc && $sc->num_rows > 0) {
+            $stuSecCol .= ', u.student_section';
+        }
+    } catch (Throwable $e) {
+        /* ignore */
+    }
     $stmt = $conn->prepare(
         "SELECT s.id, s.event_id, s.title, s.status, {$accessCols} s.max_capacity, s.schedule_date, s.start_time, s.end_time,
-                e.status AS event_status, e.department, u.department AS student_department
+                e.status AS event_status, e.department, {$tsCol}
+                {$stuSecCol}
          FROM event_day_sessions s
          JOIN events e ON e.id = s.event_id
          JOIN users u ON u.id = ?
@@ -1412,8 +1457,20 @@ function eventify_register_session_rsvp(mysqli $conn, int $sessionId, int $userI
     if (($row['status'] ?? '') === 'cancelled') {
         return ['ok' => false, 'error' => 'This activity has been cancelled.'];
     }
-    if (!eventify_student_sees_event_department((string) ($row['department'] ?? 'ALL'), $row['student_department'] ?? null)) {
-        return ['ok' => false, 'error' => 'This activity is not available for your department.'];
+    $mayAccess = true;
+    if (function_exists('eventify_student_may_access_event')) {
+        $mayAccess = eventify_student_may_access_event($row, [
+            'department' => $row['student_department'] ?? null,
+            'student_section' => $row['student_section'] ?? null,
+        ]);
+    } elseif (function_exists('eventify_student_sees_event_department')) {
+        $mayAccess = eventify_student_sees_event_department(
+            (string) ($row['department'] ?? 'ALL'),
+            $row['student_department'] ?? null
+        );
+    }
+    if (!$mayAccess) {
+        return ['ok' => false, 'error' => 'This activity is not available for your department or class section.'];
     }
     if (!eventify_session_allows_rsvp($row)) {
         return ['ok' => false, 'error' => 'This activity has ended. RSVP is no longer available.'];
@@ -1566,12 +1623,23 @@ function eventify_load_student_today_activities(mysqli $conn, int $userId, ?stri
         return [];
     }
     eventify_event_day_sessions_ensure_enhanced($conn);
+    eventify_sections_schema_ensure($conn);
+    $studentSection = null;
+    $u = $conn->prepare('SELECT student_section FROM users WHERE id = ? LIMIT 1');
+    if ($u) {
+        $u->bind_param('i', $userId);
+        $u->execute();
+        $ur = $u->get_result()->fetch_assoc();
+        $u->close();
+        $studentSection = $ur['student_section'] ?? null;
+    }
     $todayYmd = substr(trim($todayYmd), 0, 10);
     $rawCols = explode(', ', eventify_day_sessions_select_columns($conn));
     $colList = implode(', ', array_map(static function ($c) {
         return 's.' . trim($c);
     }, $rawCols));
-    $sql = "SELECT {$colList}, e.title AS event_title, e.department AS event_department, e.status AS event_status
+    $tsCol = eventify_events_has_target_sections($conn) ? ', e.target_sections' : '';
+    $sql = "SELECT {$colList}, e.title AS event_title, e.department AS event_department{$tsCol}, e.status AS event_status
             FROM event_day_sessions s
             INNER JOIN events e ON e.id = s.event_id
             WHERE s.schedule_date = ? AND e.status = 'active'
@@ -1585,7 +1653,14 @@ function eventify_load_student_today_activities(mysqli $conn, int $userId, ?stri
     $res = $stmt->get_result();
     $out = [];
     while ($row = $res->fetch_assoc()) {
-        if (!eventify_student_sees_event_department((string) ($row['event_department'] ?? 'ALL'), $studentDepartment)) {
+        $evGate = [
+            'department' => $row['event_department'] ?? 'ALL',
+            'target_sections' => $row['target_sections'] ?? null,
+        ];
+        if (!eventify_student_may_access_event($evGate, [
+            'department' => $studentDepartment,
+            'student_section' => $studentSection,
+        ])) {
             continue;
         }
         $mapped = eventify_map_day_session_row($row);
@@ -1706,7 +1781,16 @@ function eventify_load_session_by_checkin_token(mysqli $conn, string $token): ?a
     } catch (Throwable $e) {
         /* events table may not have map columns yet */
     }
-    $stmt = $conn->prepare("SELECT {$colList}, e.title AS event_title, e.status AS event_status, e.organizer_id{$eventGeoCols} FROM event_day_sessions s JOIN events e ON e.id = s.event_id WHERE s.checkin_token = ? LIMIT 1");
+    $tsJoin = '';
+    try {
+        $tsCol = $conn->query("SHOW COLUMNS FROM events LIKE 'target_sections'");
+        if ($tsCol && $tsCol->num_rows > 0) {
+            $tsJoin = ', e.target_sections AS event_target_sections';
+        }
+    } catch (Throwable $e) {
+        /* ignore */
+    }
+    $stmt = $conn->prepare("SELECT {$colList}, e.title AS event_title, e.status AS event_status, e.organizer_id, e.department AS event_department{$tsJoin}{$eventGeoCols} FROM event_day_sessions s JOIN events e ON e.id = s.event_id WHERE s.checkin_token = ? LIMIT 1");
     if (!$stmt) {
         return null;
     }
@@ -1721,6 +1805,8 @@ function eventify_load_session_by_checkin_token(mysqli $conn, string $token): ?a
     $mapped['event_title'] = trim((string) ($row['event_title'] ?? ''));
     $mapped['event_status'] = trim((string) ($row['event_status'] ?? ''));
     $mapped['organizer_id'] = (int) ($row['organizer_id'] ?? 0);
+    $mapped['event_department'] = $row['event_department'] ?? 'ALL';
+    $mapped['event_target_sections'] = $row['event_target_sections'] ?? null;
     $mapped['event_latitude'] = $row['event_latitude'] ?? null;
     $mapped['event_longitude'] = $row['event_longitude'] ?? null;
     return $mapped;
@@ -1741,6 +1827,11 @@ function eventify_load_event_for_activities_hub(mysqli $conn, int $eventId): ?ar
         $rmCol = $conn->query("SHOW COLUMNS FROM events WHERE Field = 'registration_mode'");
         if ($rmCol && $rmCol->num_rows >= 1) {
             $cols .= ', registration_mode';
+        }
+        eventify_events_ensure_target_sections($conn);
+        $tsCol = $conn->query("SHOW COLUMNS FROM events LIKE 'target_sections'");
+        if ($tsCol && $tsCol->num_rows >= 1) {
+            $cols .= ', target_sections';
         }
     } catch (Throwable $e) {
         /* ignore */
@@ -1772,17 +1863,37 @@ function eventify_user_can_view_event_activities(mysqli $conn, array $event, int
         if (!in_array($st, ['active', 'closed', 'completed'], true)) {
             return false;
         }
+        if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+            require_once __DIR__ . '/../../config/student_sections.php';
+        }
+        if (!function_exists('eventify_student_may_access_event')) {
+            return eventify_student_sees_event_department((string) ($event['department'] ?? 'ALL'), $studentDepartment);
+        }
+        $studentSection = null;
         if ($studentDepartment === null && $userId > 0) {
-            $u = $conn->prepare('SELECT department FROM users WHERE id = ? LIMIT 1');
+            $u = $conn->prepare('SELECT department, student_section FROM users WHERE id = ? LIMIT 1');
             if ($u) {
                 $u->bind_param('i', $userId);
                 $u->execute();
                 $ur = $u->get_result()->fetch_assoc();
                 $u->close();
                 $studentDepartment = $ur['department'] ?? null;
+                $studentSection = $ur['student_section'] ?? null;
+            }
+        } elseif ($userId > 0) {
+            $u = $conn->prepare('SELECT student_section FROM users WHERE id = ? LIMIT 1');
+            if ($u) {
+                $u->bind_param('i', $userId);
+                $u->execute();
+                $ur = $u->get_result()->fetch_assoc();
+                $u->close();
+                $studentSection = $ur['student_section'] ?? null;
             }
         }
-        return eventify_student_sees_event_department((string) ($event['department'] ?? 'ALL'), $studentDepartment);
+        return eventify_student_may_access_event($event, [
+            'department' => $studentDepartment,
+            'student_section' => $studentSection,
+        ]);
     }
     if ($role === 'multimedia') {
         $st = strtolower((string) ($event['status'] ?? ''));
@@ -1834,7 +1945,8 @@ function eventify_load_activities_hub_picker_events(mysqli $conn, int $userId, s
 
     $sessionCountSql = '(SELECT COUNT(*) FROM event_day_sessions s WHERE s.event_id = e.id)';
     $isOrganizer = $role === 'organizer';
-    $sql = "SELECT e.id, e.title, e.date, e.location, e.department, e.status, e.organizer_id,
+    $tsCol = eventify_events_has_target_sections($conn) ? ', e.target_sections' : '';
+    $sql = "SELECT e.id, e.title, e.date, e.location, e.department{$tsCol}, e.status, e.organizer_id,
                    {$sessionCountSql} AS activity_count
             FROM events e
             WHERE 1=1";
@@ -1894,7 +2006,8 @@ function eventify_load_student_registered_hub_events(mysqli $conn, int $userId, 
         return [];
     }
     $sessionCountSql = eventify_event_activity_count_sql($conn);
-    $sql = "SELECT e.id, e.title, e.date, e.location, e.department, e.status, e.end_date,
+    $tsCol = eventify_events_has_target_sections($conn) ? ', e.target_sections' : '';
+    $sql = "SELECT e.id, e.title, e.date, e.location, e.department{$tsCol}, e.status, e.end_date,
                    {$sessionCountSql} AS activity_count
             FROM events e
             INNER JOIN registrations r ON r.event_id = e.id AND r.user_id = ?
@@ -1963,12 +2076,13 @@ function eventify_load_student_department_hub_events(mysqli $conn, int $userId, 
 
     $sessionCountSql = eventify_event_activity_count_sql($conn);
     $regModeCol = eventify_events_select_has_registration_mode($conn) ? ', e.registration_mode' : '';
+    $tsCol = eventify_events_has_target_sections($conn) ? ', e.target_sections' : '';
     $dept = trim((string) $studentDepartment);
     $out = [];
 
     if ($dept !== '') {
         $deptSql = eventify_department_match_sql('e.department');
-        $sql = "SELECT e.id, e.title, e.date, e.location, e.department, e.status, e.end_date{$regModeCol},
+        $sql = "SELECT e.id, e.title, e.date, e.location, e.department{$tsCol}, e.status, e.end_date{$regModeCol},
                        {$sessionCountSql} AS activity_count
                 FROM events e
                 WHERE e.status = 'active'
@@ -1990,7 +2104,7 @@ function eventify_load_student_department_hub_events(mysqli $conn, int $userId, 
         }
         $stmt->close();
     } else {
-        $sql = "SELECT e.id, e.title, e.date, e.location, e.department, e.status, e.end_date{$regModeCol},
+        $sql = "SELECT e.id, e.title, e.date, e.location, e.department{$tsCol}, e.status, e.end_date{$regModeCol},
                        {$sessionCountSql} AS activity_count
                 FROM events e
                 WHERE e.status = 'active'

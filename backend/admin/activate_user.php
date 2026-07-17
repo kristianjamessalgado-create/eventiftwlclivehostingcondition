@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../lib/activity_logger.php';
+require_once __DIR__ . '/../lib/account_email_otp.php';
 
 function eventify_admin_users_redirect(string $type, string $message): void
 {
@@ -39,7 +40,7 @@ if ($id <= 0) {
 
 // Only act on a brand-new, email-verified pending account (never super admin,
 // inactive, and not a locked existing account).
-$stmt = $conn->prepare("SELECT id, role, status, failed_attempts FROM users WHERE id = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts FROM users WHERE id = ? LIMIT 1");
 if (!$stmt) {
     $conn->close();
     eventify_admin_users_redirect('error', 'Database error.');
@@ -87,5 +88,17 @@ log_activity(
     "Admin approved pending account ID {$id}"
 );
 
+$emailResult = eventify_send_account_approved_email(
+    (string) ($user['email'] ?? ''),
+    (string) ($user['name'] ?? '')
+);
 $conn->close();
-eventify_admin_users_redirect('success', 'Account approved and activated.');
+
+if (!empty($emailResult['ok'])) {
+    eventify_admin_users_redirect('success', 'Account approved and activated. Approval email sent.');
+}
+
+eventify_admin_users_redirect(
+    'success',
+    'Account approved and activated, but the approval email could not be sent. Ask the user to log in.'
+);

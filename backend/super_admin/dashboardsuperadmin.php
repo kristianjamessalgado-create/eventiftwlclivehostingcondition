@@ -14,7 +14,7 @@ require_once __DIR__ . '/../lib/event_ticketing.php';
 
 // Only super_admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
-    header("Location: " . BASE_URL . "/views/login.php?error=Access denied");
+    header("Location: " . BASE_URL . "/index.php?auth_modal=login");
     exit();
 }
 

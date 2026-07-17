@@ -5,11 +5,17 @@ session_start();
 include __DIR__ . '/config/db.php';
 include __DIR__ . '/config/config.php';
 include __DIR__ . '/config/departments.php';
+if (is_file(__DIR__ . '/config/student_sections.php')) {
+    require_once __DIR__ . '/config/student_sections.php';
+}
 require_once __DIR__ . '/backend/lib/event_status_auto.php';
 require_once __DIR__ . '/backend/lib/event_calendar.php';
 
 eventify_run_dashboard_maintenance($conn);
 eventify_events_department_ensure_varchar($conn);
+if (function_exists('eventify_sections_schema_ensure')) {
+    eventify_sections_schema_ensure($conn);
+}
 
 // Allow logged-in users (student / multimedia / organizer) to view upcoming events
 $role = $_SESSION['role'] ?? '';
@@ -22,8 +28,8 @@ if (!isset($_SESSION['user_id']) || !in_array($role, $allowedRoles, true)) {
 // Logged-in user's ID
 $session_user_id = $_SESSION['user_id'];
 
-// Fetch user info (including department)
-$stmt = $conn->prepare("SELECT id, user_id, name, department FROM users WHERE id = ?");
+// Fetch user info (including department / section)
+$stmt = $conn->prepare("SELECT id, user_id, name, department, student_section FROM users WHERE id = ?");
 $stmt->bind_param("i", $session_user_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -33,6 +39,7 @@ $stmt->close();
 // Safe defaults
 $user_name  = $user['name'] ?? 'Student';
 $department = $user['department'] ?? null;
+$studentSection = $user['student_section'] ?? null;
 $events     = [];
 $msg        = $_GET['msg'] ?? '';
 
@@ -84,6 +91,14 @@ eventify_events_attach_schedule_dates($conn, $events);
 $events = array_values(array_filter($events, static function ($row) {
     return eventify_event_is_upcoming($row);
 }));
+if ($role === 'student') {
+    $events = array_values(array_filter($events, static function ($row) use ($department, $studentSection) {
+        return eventify_student_may_access_event($row, [
+            'department' => $department,
+            'student_section' => $studentSection,
+        ]);
+    }));
+}
 
 $conn->close();
 ?>

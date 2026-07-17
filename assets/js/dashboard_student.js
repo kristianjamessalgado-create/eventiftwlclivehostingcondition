@@ -1466,6 +1466,17 @@ function showStudentEventDetails(eventLike, options) {
         });
     } else if (attended && !isEndedForFeedback) {
         actionHtml = '<p class="mb-0 small text-muted"><i class="fas fa-check-circle me-1 text-success"></i>You checked in. Post-event evaluation will open after this event ends.</p>';
+    } else if (!isEndedForFeedback && statusLower === 'active') {
+        // Active upcoming/live event that does not use main-event RSVP (e.g. open entry).
+        if (registrationMode === 'open') {
+            capacityHtml = '<p class="mb-2"><strong>Entry:</strong> Open entry (no RSVP)</p>';
+            actionHtml = '<p class="mb-0 small text-muted">No RSVP needed. Use <strong>Browse activities</strong> for the day schedule, or scan the event QR at the venue to check in.</p>';
+        } else if (isPaidTicketEvent) {
+            capacityHtml = '<p class="mb-2"><strong>Entry:</strong> Ticket required (paid event)</p>';
+            actionHtml = '<p class="mb-0 small text-muted">Purchase a ticket if sales are open, then use your digital pass for entry.</p>';
+        } else {
+            actionHtml = '<p class="mb-0 small text-muted">This event is on your calendar. Open <strong>Browse activities</strong> for day details.</p>';
+        }
     } else {
         actionHtml = '<p class="mb-0 small text-muted">This event is finished or was marked ended by the organizer. <strong>Post-event evaluation</strong> is only available if you attended using <strong>QR check-in</strong>.</p>';
     }
@@ -1485,7 +1496,7 @@ function showStudentEventDetails(eventLike, options) {
             '<p class="mb-2"><strong>Department:</strong> ' + escapeHtmlStudent(deptText) + '</p>' +
             capacityHtml +
             '<p class="mb-2"><strong>Description:</strong> ' + escapeHtmlStudent(props.description || 'No description provided.') + '</p>' +
-            (eventId ? '<p class="mb-2"><a class="btn btn-sm btn-outline-success" href="' + escapeHtmlStudent(base + '/event_activities.php?id=' + encodeURIComponent(String(eventId))) + '" target="_blank" rel="noopener"><i class="fas fa-th-large me-1"></i>Browse activities</a></p>' : '') +
+            (eventId ? '<p class="mb-2"><a class="btn btn-sm btn-outline-success" href="' + escapeHtmlStudent(base + '/event_activities.php?id=' + encodeURIComponent(String(eventId))) + '"><i class="fas fa-th-large me-1"></i>Browse activities</a></p>' : '') +
             actionHtml;
     if (bodyEl) {
         var evalDraft = captureStudentEvaluationDraft(bodyEl);

@@ -7,6 +7,9 @@ include __DIR__ . '/../../config/config.php'; // for BASE_URL
 include __DIR__ . '/../../config/csrf.php';
 include __DIR__ . '/../../config/departments.php';
 require_once __DIR__ . '/../../config/student_profile_fields.php';
+if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+    require_once __DIR__ . '/../../config/student_sections.php';
+}
 require_once __DIR__ . '/../lib/event_status_auto.php';
 require_once __DIR__ . '/../lib/event_calendar.php';
 require_once __DIR__ . '/../lib/event_ticketing.php';
@@ -17,13 +20,16 @@ eventify_ticketing_ensure_schema($conn);
 
 // Only allow logged-in students
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
-    header("Location: " . BASE_URL . "/views/login.php?error=Access denied");
+    header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
     exit();
 }
 
 eventify_run_dashboard_maintenance($conn);
 eventify_events_department_ensure_varchar($conn);
 eventify_users_ensure_student_profile_fields($conn);
+if (function_exists('eventify_sections_schema_ensure')) {
+    eventify_sections_schema_ensure($conn);
+}
 
 $hasMustChangePasswordColumn = false;
 try {
@@ -51,16 +57,38 @@ if ($hasMustChangePasswordColumn) {
 $session_user_id = $_SESSION['user_id'];
 
 // Fetch user info (including department and profile picture)
-$stmt = $conn->prepare("SELECT id, user_id, name, department, profile_picture, student_course, student_year_level, student_academic_year FROM users WHERE id = ?");
+$userCols = 'id, user_id, name, department, profile_picture, student_course, student_year_level, student_academic_year';
+try {
+    $secCol = $conn->query("SHOW COLUMNS FROM users LIKE 'student_section'");
+    if ($secCol && $secCol->num_rows > 0) {
+        $userCols .= ', student_section';
+    }
+} catch (Throwable $e) {
+    // keep base columns
+}
+$stmt = $conn->prepare("SELECT {$userCols} FROM users WHERE id = ?");
+if (!$stmt) {
+    header('Location: ' . BASE_URL . '/index.php?auth_modal=login&auth_error=' . urlencode('Could not load your profile. Please try again.'));
+    exit();
+}
 $stmt->bind_param("i", $session_user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 $stmt->close();
+if (!$user) {
+    $_SESSION = [];
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
+    header('Location: ' . BASE_URL . '/index.php?auth_modal=login&auth_error=' . urlencode('Session expired. Please sign in again.'));
+    exit();
+}
 
 // Safe defaults
 $user_name  = $user['name'] ?? 'Student';
 $department = $user['department'] ?? null;
+$studentSection = $user['student_section'] ?? null;
 $events     = [];
 $msg        = $_GET['msg'] ?? '';
 $error      = $_GET['error'] ?? '';
@@ -75,7 +103,7 @@ $studentSettings = [
     'default_calendar_view' => 'dayGridMonth',
     'show_calendar_legend' => 1,
     'auto_add_rsvp_calendar' => 1,
-    'reminder_timing' => '1_day',
+    'reminder_timing' => '30_min',
     'hide_past_rsvped' => 0,
     'share_profile_with_organizers' => 1,
     'allow_photo_tagging' => 1,
@@ -93,7 +121,7 @@ try {
             default_calendar_view VARCHAR(20) NOT NULL DEFAULT 'dayGridMonth',
             show_calendar_legend TINYINT(1) NOT NULL DEFAULT 1,
             auto_add_rsvp_calendar TINYINT(1) NOT NULL DEFAULT 1,
-            reminder_timing VARCHAR(20) NOT NULL DEFAULT '1_day',
+            reminder_timing VARCHAR(20) NOT NULL DEFAULT '30_min',
             hide_past_rsvped TINYINT(1) NOT NULL DEFAULT 0,
             share_profile_with_organizers TINYINT(1) NOT NULL DEFAULT 1,
             allow_photo_tagging TINYINT(1) NOT NULL DEFAULT 1,
@@ -109,6 +137,8 @@ try {
     if ($colPush) {
         $colPush->free();
     }
+    // Prefer venue-ready reminders: move previous product default (1 day) to 30 minutes.
+    $conn->query("UPDATE student_settings SET reminder_timing = '30_min' WHERE reminder_timing = '1_day'");
     $stmtSettings = $conn->prepare("
         SELECT event_reminders, rsvp_updates, announcement_notifications, notif_channel_email, notif_channel_push,
                default_calendar_view, show_calendar_legend, auto_add_rsvp_calendar, reminder_timing,
@@ -155,6 +185,15 @@ if ($department) {
     }
 }
 eventify_events_attach_schedule_dates($conn, $events);
+$studentSection = $user['student_section'] ?? $studentSection ?? null;
+if (function_exists('eventify_student_may_access_event')) {
+    $events = array_values(array_filter($events, static function (array $ev) use ($department, $studentSection): bool {
+        return eventify_student_may_access_event($ev, [
+            'department' => $department,
+            'student_section' => $studentSection,
+        ]);
+    }));
+}
 
 // Fetch this student's attendance records (events they checked into via QR)
 $attendance_records = [];

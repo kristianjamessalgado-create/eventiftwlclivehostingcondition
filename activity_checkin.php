@@ -5,6 +5,9 @@ include __DIR__ . '/config/config.php';
 include __DIR__ . '/config/csrf.php';
 require_once __DIR__ . '/backend/lib/event_day_sessions.php';
 require_once __DIR__ . '/backend/lib/event_checkin_security.php';
+if (is_file(__DIR__ . '/config/student_sections.php')) {
+    require_once __DIR__ . '/config/student_sections.php';
+}
 
 $token = trim($_GET['st'] ?? '');
 $already_done = false;
@@ -77,14 +80,28 @@ if (!$error && $session && $_SERVER['REQUEST_METHOD'] !== 'POST') {
         $uid = (int) $_SESSION['user_id'];
         $sid = (int) ($session['id'] ?? 0);
         $eventId = (int) ($session['event_id'] ?? 0);
-        if ($eventId > 0 && !eventify_student_has_main_event_access($conn, $uid, $eventId)) {
-            $needs_rsvp_first = true;
+        if (function_exists('eventify_student_event_audience_gate') && $eventId > 0) {
+            $audEvent = [
+                'id' => $eventId,
+                'department' => $session['event_department'] ?? null,
+                'target_sections' => $session['event_target_sections'] ?? null,
+            ];
+            $aud = eventify_student_event_audience_gate($conn, $uid, $audEvent);
+            if (!$aud['ok']) {
+                $error = $aud['error'] ?? 'This event is not available for your account.';
+                $session = null;
+            }
         }
-        if (!$needs_rsvp_first && eventify_session_checkin_requires_rsvp($session)
-            && !eventify_student_has_session_rsvp($conn, $uid, $sid)) {
-            $needs_session_rsvp_first = true;
+        if (!$error && $session) {
+            if ($eventId > 0 && !eventify_student_has_main_event_access($conn, $uid, $eventId)) {
+                $needs_rsvp_first = true;
+            }
+            if (!$needs_rsvp_first && eventify_session_checkin_requires_rsvp($session)
+                && !eventify_student_has_session_rsvp($conn, $uid, $sid)) {
+                $needs_session_rsvp_first = true;
+            }
+            $focus_confirm_mobile = !$needs_rsvp_first && !$needs_session_rsvp_first;
         }
-        $focus_confirm_mobile = !$needs_rsvp_first && !$needs_session_rsvp_first;
     }
 }
 

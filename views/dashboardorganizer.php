@@ -54,7 +54,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=2">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=2">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=9">
@@ -64,7 +64,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=1">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 <body class="organizer-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="organizerSidebar" data-eventify-calendar="calendar" data-eventify-main=".organizer-dashboard .main-content">
 
@@ -257,6 +257,27 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
             </div>
         </div>
 
+        <div class="calendars-section">
+            <h3 class="calendars-title">SECTIONS</h3>
+            <div class="calendars-list" id="sectionsList">
+                <div class="calendar-item active" data-section="ALL">
+                    <div class="calendar-avatar" style="background: #1b4a1b;">A</div>
+                    <span class="calendar-name">All sections</span>
+                    <i class="fas fa-check"></i>
+                </div>
+                <?php foreach (($dashboardClassSections ?? []) as $sec): ?>
+                    <?php $secLab = trim((string) ($sec['label'] ?? '')); if ($secLab === '') continue; ?>
+                    <div class="calendar-item" data-section="<?= htmlspecialchars($secLab, ENT_QUOTES, 'UTF-8') ?>">
+                        <div class="calendar-avatar" style="background: #3d8a35;"><?= htmlspecialchars(strtoupper(substr($secLab, 0, 1))) ?></div>
+                        <span class="calendar-name"><?= htmlspecialchars($secLab) ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php if (empty($dashboardClassSections)): ?>
+                <p class="text-muted small px-2 mb-0">No sections yet. Admin can add them in All users, or type one when creating an event.</p>
+            <?php endif; ?>
+        </div>
+
         <!-- Quick Actions -->
         <div class="quick-actions">
             <h3 class="section-title">QUICK ACTIONS</h3>
@@ -309,7 +330,15 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
                 <h2 class="calendar-title" id="calendarTitle">My Events Calendar</h2>
                 <button class="control-nav" id="calNext"><i class="fas fa-chevron-right"></i></button>
             </div>
-            <div class="controls-right">
+            <div class="controls-right d-flex flex-wrap align-items-center gap-2">
+                <label class="visually-hidden" for="orgSectionFilter">Filter by section</label>
+                <select id="orgSectionFilter" class="form-select form-select-sm" style="width: auto; min-width: 9.5rem; max-width: 12rem;" title="Filter by class section">
+                    <option value="ALL">All sections</option>
+                    <?php foreach (($dashboardClassSections ?? []) as $sec): ?>
+                        <?php $secLab = trim((string) ($sec['label'] ?? '')); if ($secLab === '') continue; ?>
+                        <option value="<?= htmlspecialchars($secLab, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($secLab) ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <?php $orgCalView = (string)($organizer_settings['default_calendar_view'] ?? 'dayGridMonth'); ?>
                 <button class="view-btn<?= $orgCalView === 'dayGridMonth' ? ' active' : '' ?>" data-view="dayGridMonth">Month</button>
                 <button class="view-btn<?= $orgCalView === 'timeGridWeek' ? ' active' : '' ?>" data-view="timeGridWeek">Week</button>
@@ -640,6 +669,10 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
         'organizer'     => $user_name,
         'department'    => $e['department'] ?? 'ALL',
         'department_display' => eventify_format_department_label((string)($e['department'] ?? 'ALL')),
+        'target_sections' => $e['target_sections'] ?? null,
+        'sections_display' => function_exists('eventify_format_target_sections_label')
+            ? eventify_format_target_sections_label($e['target_sections'] ?? null)
+            : '',
         'event_is_live'   => function_exists('eventify_event_is_live') ? eventify_event_is_live($e) : (($e['status'] ?? '') === 'active'),
         'registration_mode' => function_exists('eventify_event_registration_mode') ? eventify_event_registration_mode($e) : (string) ($e['registration_mode'] ?? 'rsvp'),
         'has_active_otp' => !empty($e['has_active_otp']),
@@ -652,6 +685,7 @@ window.currentUser = {
 };
 window.currentRole = 'organizer';
 window.__organizerSettings = <?= json_encode($organizer_settings, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
+window.__adminClassSections = <?= json_encode(array_values(is_array($dashboardClassSections ?? null) ? $dashboardClassSections : []), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
 </script>
 
 <!-- Event Details Modal -->
@@ -679,7 +713,7 @@ window.__organizerSettings = <?= json_encode($organizer_settings, JSON_HEX_TAG|J
           <p class="efy-detail-row mb-1"><strong>Status:</strong> <span id="eventStatus" class="badge bg-success"></span></p>
           <p class="efy-detail-row mb-1"><strong>Entry:</strong> <span id="eventRegistrationModeBadge"></span> <span class="efy-form-help d-inline" id="eventRegistrationHint">— use <strong>Ticket sales</strong> below to switch to paid tickets</span></p>
           <p class="efy-detail-row mb-1" id="eventRejectReasonWrap" style="display:none;"><strong>Rejection reason:</strong> <span id="eventRejectReason" class="text-danger"></span></p>
-          <p class="efy-detail-row mb-1"><strong>Target department:</strong> <span id="eventDepartment"></span></p>
+          <p class="efy-detail-row mb-1"><strong>Audience:</strong> <span id="eventDepartment"></span></p>
           <p class="efy-detail-row mb-1"><strong>Created by:</strong> <span id="eventOrganizer"></span></p>
           <p class="efy-detail-row mt-2 mb-1"><strong>Description</strong></p>
           <p id="eventDescription" class="efy-form-help mb-0"></p>
@@ -774,10 +808,19 @@ window.__organizerSettings = <?= json_encode($organizer_settings, JSON_HEX_TAG|J
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+if (typeof window.L === 'undefined') {
+    document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
+}
+</script>
+<script>
+window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
+</script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=2"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=6"></script>
 
 <!-- Dashboard Scripts -->
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
@@ -787,10 +830,10 @@ window.__organizerSettings = <?= json_encode($organizer_settings, JSON_HEX_TAG|J
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=24"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=30"></script>
 
 <script>
-window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
+window.EVENTIFY_GEOCODE_URL = window.EVENTIFY_GEOCODE_URL || <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 window.EVENTIFY_SESSIONS_HAVE_GEO = <?= $daySessionsHaveGeo ? 'true' : 'false' ?>;
 <?php if (!empty($promptActivitiesEventId)): ?>
 document.addEventListener('DOMContentLoaded', function () {

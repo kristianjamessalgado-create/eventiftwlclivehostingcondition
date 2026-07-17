@@ -15,17 +15,24 @@ require_once __DIR__ . '/../lib/event_day_sessions.php';
 require_once __DIR__ . '/../lib/event_organizer_assign.php';
 require_once __DIR__ . '/../../config/departments.php';
 require_once __DIR__ . '/../../config/student_profile_fields.php';
+if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+    require_once __DIR__ . '/../../config/student_sections.php';
+}
 require_once __DIR__ . '/../lib/event_ticketing.php';
+require_once __DIR__ . '/../lib/admin_announcements.php';
 
 // Only admin users can access this dashboard
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: " . BASE_URL . "/views/login.php?error=Access denied");
+    header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
     exit();
 }
 
 require_once __DIR__ . '/../lib/event_ticketing.php';
 
 eventify_run_dashboard_maintenance($conn);
+if (function_exists('eventify_sections_schema_ensure')) {
+    eventify_sections_schema_ensure($conn);
+}
 
 $hasMustChangePasswordColumn = false;
 try {
@@ -415,6 +422,23 @@ try {
 }
 
 $assignableOrganizers = eventify_fetch_assignable_organizers($conn);
+$adminCreateOrganizerOptions = eventify_fetch_admin_create_organizer_options($conn, $session_user_id);
+$createEventMode = 'admin';
+$createEventRedirectTo = '';
+
+require_once __DIR__ . '/../../config/organizer_departments.php';
+$organizer_department_choices = eventify_organizer_department_choices();
+
+$eventsHasGeo = false;
+try {
+    $geoColCheck = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");
+    if ($geoColCheck && $geoColCheck->num_rows >= 2) {
+        $eventsHasGeo = true;
+    }
+} catch (Throwable $e) {
+    $eventsHasGeo = false;
+}
+$eventsHasEndDate = eventify_events_has_end_date($conn);
 
 // Pending events waiting more than 24 hours (dashboard reminder widget)
 $stalePendingEvents = [];
@@ -445,14 +469,24 @@ try {
 $allUsers = [];
 $pendingAccountCount = 0;
 try {
-    $resUsers = $conn->query("
+    $resUsers = @$conn->query("
         SELECT id, user_id, name, email, role, department, status, failed_attempts, created_at,
-               student_course, student_year_level
+               student_course, student_year_level, student_section
         FROM users
         WHERE role <> 'super_admin'
         ORDER BY (status = 'inactive' AND failed_attempts = 0) DESC, created_at DESC
         LIMIT 500
     ");
+    if (!$resUsers) {
+        $resUsers = $conn->query("
+            SELECT id, user_id, name, email, role, department, status, failed_attempts, created_at,
+                   student_course, student_year_level
+            FROM users
+            WHERE role <> 'super_admin'
+            ORDER BY (status = 'inactive' AND failed_attempts = 0) DESC, created_at DESC
+            LIMIT 500
+        ");
+    }
     if ($resUsers) {
         while ($row = $resUsers->fetch_assoc()) {
             $allUsers[] = $row;
@@ -468,6 +502,20 @@ try {
 } catch (Throwable $e) {
     $allUsers = [];
     $pendingAccountCount = 0;
+}
+
+$adminClassSections = [];
+try {
+    $adminClassSections = eventify_list_class_sections($conn);
+} catch (Throwable $e) {
+    $adminClassSections = [];
+}
+
+$adminAnnouncements = [];
+try {
+    $adminAnnouncements = eventify_list_admin_announcements($conn, 40);
+} catch (Throwable $e) {
+    $adminAnnouncements = [];
 }
 
 // Ticket revenue rollup (all paid events; demo/simulate excluded from totals).
@@ -514,6 +562,7 @@ $admin_audit_panel_open = ($admin_panel === 'audit');
 $admin_revenue_panel_open = ($admin_panel === 'revenue');
 $admin_analytics_panel_open = ($admin_panel === 'analytics');
 $admin_upcoming_panel_open = ($admin_panel === 'upcoming');
+$admin_announcements_panel_open = ($admin_panel === 'announcements');
 $admin_focus_pending_event_id = max(0, (int) ($_GET['focus_event'] ?? 0));
 $admin_dashboard_panel_open = $admin_events_panel_open
     || $admin_users_panel_open
@@ -523,7 +572,8 @@ $admin_dashboard_panel_open = $admin_events_panel_open
     || $admin_audit_panel_open
     || $admin_revenue_panel_open
     || $admin_analytics_panel_open
-    || $admin_upcoming_panel_open;
+    || $admin_upcoming_panel_open
+    || $admin_announcements_panel_open;
 $admin_events_count = count($events);
 $admin_users_count = count($allUsers);
 $dashboardHref = BASE_URL . '/backend/admin/dashboard.php';

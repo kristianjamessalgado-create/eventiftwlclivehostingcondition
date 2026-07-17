@@ -1,6 +1,7 @@
 <?php
 if (!defined('EVENTIFY_ADMIN_DASHBOARD_LOADED')) {
-    header('Location: ' . (defined('BASE_URL') ? BASE_URL : '') . '/views/login.php');
+    require_once __DIR__ . '/../config/config.php';
+    header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
     exit;
 }
 $admin_name    = $admin_name    ?? 'Admin';
@@ -51,6 +52,7 @@ $admin_audit_panel_open = !empty($admin_audit_panel_open) || ($admin_panel === '
 $admin_revenue_panel_open = !empty($admin_revenue_panel_open) || ($admin_panel === 'revenue');
 $admin_analytics_panel_open = !empty($admin_analytics_panel_open) || ($admin_panel === 'analytics');
 $admin_upcoming_panel_open = !empty($admin_upcoming_panel_open) || ($admin_panel === 'upcoming');
+$admin_announcements_panel_open = !empty($admin_announcements_panel_open) || ($admin_panel === 'announcements');
 $admin_dashboard_panel_open = !empty($admin_dashboard_panel_open)
     || $admin_events_panel_open
     || $admin_users_panel_open
@@ -60,7 +62,8 @@ $admin_dashboard_panel_open = !empty($admin_dashboard_panel_open)
     || $admin_audit_panel_open
     || $admin_revenue_panel_open
     || $admin_analytics_panel_open
-    || $admin_upcoming_panel_open;
+    || $admin_upcoming_panel_open
+    || $admin_announcements_panel_open;
 $admin_events_count = isset($admin_events_count) ? (int) $admin_events_count : count($events);
 $admin_users_count = isset($admin_users_count) ? (int) $admin_users_count : count($allUsers);
 $staff_messaging_unread = isset($staff_messaging_unread) ? (int) $staff_messaging_unread : 0;
@@ -113,16 +116,18 @@ $peerLabel = 'Organizers';
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=2">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=3">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=9">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=11">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=5">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=26">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=10">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=35">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=2">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=4">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 <body class="admin-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="adminSidebar" data-eventify-calendar="calendar" data-eventify-main=".admin-dashboard .main-content">
 
@@ -137,6 +142,16 @@ $peerLabel = 'Organizers';
         </a>
     </div>
     <div class="d-flex align-items-center">
+        <button
+            type="button"
+            class="nav-btn create-btn me-2"
+            title="Create event"
+            aria-label="Create event"
+            data-bs-toggle="modal"
+            data-bs-target="#createEventModal"
+        >
+            <i class="fas fa-plus"></i>
+        </button>
         <button
             type="button"
             class="nav-btn position-relative me-2<?= $admin_messages_panel_open ? ' is-active' : '' ?>"
@@ -227,6 +242,16 @@ $peerLabel = 'Organizers';
             <h3 class="section-title">QUICK ACTIONS</h3>
             <button
                 type="button"
+                class="action-btn w-100 text-start border-0 bg-transparent"
+                data-bs-toggle="modal"
+                data-bs-target="#createEventModal"
+                title="Create and publish an event"
+            >
+                <i class="fas fa-calendar-plus"></i>
+                <span>Create event</span>
+            </button>
+            <button
+                type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent<?= $admin_pending_panel_open ? ' is-active' : '' ?>"
                 data-admin-panel="pending"
             >
@@ -293,6 +318,14 @@ $peerLabel = 'Organizers';
             </button>
             <button
                 type="button"
+                class="action-btn w-100 text-start border-0 bg-transparent<?= $admin_announcements_panel_open ? ' is-active' : '' ?>"
+                data-admin-panel="announcements"
+            >
+                <i class="fas fa-bullhorn"></i>
+                <span>Announcements</span>
+            </button>
+            <button
+                type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent<?= $admin_feedback_panel_open ? ' is-active' : '' ?>"
                 data-admin-panel="feedback"
             >
@@ -349,7 +382,15 @@ $peerLabel = 'Organizers';
                 <h2 class="calendar-title" id="calendarTitle">Calendar</h2>
                 <button class="control-nav" id="calNext"><i class="fas fa-chevron-right"></i></button>
             </div>
-            <div class="controls-right">
+            <div class="controls-right d-flex flex-wrap align-items-center gap-2">
+                <label class="visually-hidden" for="adminSectionFilter">Filter by section</label>
+                <select id="adminSectionFilter" class="form-select form-select-sm" style="width: auto; min-width: 9.5rem; max-width: 12rem;" title="Filter by class section">
+                    <option value="ALL">All sections</option>
+                    <?php foreach (($adminClassSections ?? []) as $sec): ?>
+                        <?php $secLab = trim((string) ($sec['label'] ?? '')); if ($secLab === '') continue; ?>
+                        <option value="<?= htmlspecialchars($secLab, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($secLab) ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <button class="view-btn active" data-view="dayGridMonth">Month</button>
                 <button class="view-btn" data-view="timeGridWeek">Week</button>
                 <button class="view-btn" data-view="timeGridDay">Day</button>
@@ -370,6 +411,7 @@ $peerLabel = 'Organizers';
         <?php include __DIR__ . '/../views/partials/admin_all_events_panel.php'; ?>
         <?php include __DIR__ . '/../views/partials/admin_all_users_panel.php'; ?>
         <?php include __DIR__ . '/../views/partials/admin_messages_panel.php'; ?>
+        <?php include __DIR__ . '/../views/partials/admin_announcements_panel.php'; ?>
         <?php include __DIR__ . '/../views/partials/admin_pending_events_panel.php'; ?>
         <?php include __DIR__ . '/../views/partials/admin_student_feedback_panel.php'; ?>
         <?php include __DIR__ . '/../views/partials/admin_audit_log_panel.php'; ?>
@@ -667,6 +709,14 @@ $peerLabel = 'Organizers';
 
 <!-- Logout Confirmation Modal -->
 <?php include __DIR__ . '/../views/partials/activities_hub_pick_modal.php'; ?>
+<?php
+$createEventMode = 'admin';
+$adminCreateOrganizerOptions = $adminCreateOrganizerOptions ?? [];
+$organizer_department_choices = $organizer_department_choices ?? [];
+$eventsHasGeo = !empty($eventsHasGeo);
+$eventsHasEndDate = !empty($eventsHasEndDate);
+include __DIR__ . '/../views/partials/create_event_modal.php';
+?>
 <?php include __DIR__ . '/../views/partials/logout_confirm_modal.php'; ?>
 
 <!-- OTP request confirmation modal -->
@@ -762,6 +812,46 @@ $peerLabel = 'Organizers';
   </div>
 </div>
 
+<!-- Admin: assign student class section -->
+<div class="modal fade" id="adminEditStudentSectionModal" tabindex="-1" aria-labelledby="adminEditStudentSectionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content efy-modal">
+      <form method="POST" action="<?= BASE_URL ?>/backend/admin/update_student_section.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="user_id" id="admEditSectionUserId" value="">
+        <div class="modal-header efy-modal__header">
+          <div>
+            <span class="efy-modal__eyebrow">Admin correction</span>
+            <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="adminEditStudentSectionModalLabel"><i class="fas fa-layer-group" aria-hidden="true"></i> Edit class section</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body efy-modal__body">
+          <p class="text-muted small mb-3">Set the class section for <strong id="admEditSectionUserName">this student</strong>. Required for section-only events.</p>
+          <div class="mb-3">
+            <label class="form-label small" for="admEditSectionSelect">Existing section</label>
+            <select name="student_section" id="admEditSectionSelect" class="form-select form-select-sm">
+              <option value="">— None / clear —</option>
+              <?php foreach (($adminClassSections ?? []) as $sec): ?>
+                <option value="<?= htmlspecialchars((string) ($sec['label'] ?? '')) ?>"><?= htmlspecialchars((string) ($sec['label'] ?? '')) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="mb-1">
+            <label class="form-label small" for="admEditSectionNew">Or type a new section</label>
+            <input type="text" class="form-control form-control-sm" name="new_section" id="admEditSectionNew" maxlength="80" placeholder="e.g. BSIT 4102">
+            <p class="form-text small mb-0">If you type a new label, it overrides the dropdown and is added to the section list.</p>
+          </div>
+        </div>
+        <div class="modal-footer efy-modal__footer">
+          <button type="button" class="btn efy-btn-muted btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn efy-btn-primary btn-sm"><i class="fas fa-save me-1"></i> Save section</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Admin edit pending event -->
 <div class="modal fade" id="adminEditPendingEventModal" tabindex="-1" aria-labelledby="adminEditPendingEventModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
@@ -823,48 +913,208 @@ $peerLabel = 'Organizers';
 
 <!-- Event Details Modal -->
 <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="eventDetailsLabel">Event Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <h5 id="eventTitle" class="mb-2"></h5>
-        <div class="efy-detail-row mb-2">
-          <strong class="d-block mb-1">Schedule</strong>
-          <div id="eventDate"></div>
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content efy-modal">
+      <div class="modal-header efy-modal__header">
+        <div>
+          <span class="efy-modal__eyebrow">Admin</span>
+          <h5 class="modal-title efy-modal__title" id="eventDetailsLabel">
+            <i class="fas fa-calendar-day" aria-hidden="true"></i>
+            Event details
+          </h5>
         </div>
-        <p class="mb-1"><strong>Location:</strong> <span id="eventLocation"></span></p>
-        <p class="mb-1"><strong>Status:</strong> <span id="eventStatus" class="badge bg-success"></span></p>
-        <p class="mb-1"><strong>Entry:</strong> <span id="eventRegistrationModeBadge"></span></p>
-        <p class="mb-1"><strong>Target Department:</strong> <span id="eventDepartment"></span></p>
-        <p class="mb-1"><strong>Organizer:</strong> <span id="eventOrganizer"></span></p>
-        <div id="eventAttendanceSummaryWrap" class="adm-event-attendance-summary mb-2" style="display:none;">
-          <strong class="d-block mb-1">Attendance</strong>
-          <div class="adm-event-attendance-summary__grid">
-            <div class="adm-event-attendance-summary__item">
-              <span class="adm-event-attendance-summary__value" id="eventRsvpCount">0</span>
-              <span class="adm-event-attendance-summary__label">RSVPs</span>
-            </div>
-            <div class="adm-event-attendance-summary__item">
-              <span class="adm-event-attendance-summary__value" id="eventCheckinCount">0</span>
-              <span class="adm-event-attendance-summary__label">Checked in</span>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body efy-modal__body">
+        <div class="efy-form-section mb-3">
+          <h5 id="eventTitle" class="mb-2" style="color:var(--efy-forest);font-weight:800;"></h5>
+          <div class="efy-detail-row mb-2">
+            <strong class="d-block mb-1">Schedule</strong>
+            <div id="eventDate"></div>
+          </div>
+          <p class="efy-detail-row mb-1"><strong>Location:</strong> <span id="eventLocation"></span></p>
+          <p class="efy-detail-row mb-1"><strong>Status:</strong> <span id="eventStatus" class="badge bg-success"></span></p>
+          <p class="efy-detail-row mb-1"><strong>Entry:</strong> <span id="eventRegistrationModeBadge"></span></p>
+          <p class="efy-detail-row mb-1"><strong>Audience:</strong> <span id="eventDepartment"></span></p>
+          <p class="efy-detail-row mb-1"><strong>Organizer:</strong> <span id="eventOrganizer"></span></p>
+          <div id="eventAttendanceSummaryWrap" class="adm-event-attendance-summary mt-2 mb-1" style="display:none;">
+            <strong class="d-block mb-1">Attendance</strong>
+            <div class="adm-event-attendance-summary__grid">
+              <div class="adm-event-attendance-summary__item">
+                <span class="adm-event-attendance-summary__value" id="eventRsvpCount">0</span>
+                <span class="adm-event-attendance-summary__label">RSVPs</span>
+              </div>
+              <div class="adm-event-attendance-summary__item">
+                <span class="adm-event-attendance-summary__value" id="eventCheckinCount">0</span>
+                <span class="adm-event-attendance-summary__label">Checked in</span>
+              </div>
             </div>
           </div>
+          <p class="efy-detail-row mt-2 mb-1"><strong>Description</strong></p>
+          <p id="eventDescription" class="efy-form-help mb-0"></p>
         </div>
-        <p class="mt-3 mb-1"><strong>Description:</strong></p>
-        <p id="eventDescription" class="mb-2 text-muted"></p>
-        <p class="mb-0"><small><strong>Created at:</strong> <span id="eventCreatedAt"></span></small></p>
+        <p class="efy-form-help mb-0"><strong>Created at:</strong> <span id="eventCreatedAt"></span></p>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer efy-modal__footer flex-wrap gap-2">
+        <a href="#" id="eventEditLink" class="btn btn-outline-primary btn-sm" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</a>
         <a href="#" id="eventQrLink" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> QR</a>
         <a href="#" id="eventAttendanceLink" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
-        <button type="button" class="btn btn-primary btn-sm" id="admOpenPendingBtn" title="Open pending event approvals">
+        <a href="#" id="eventRsvpLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-user-check me-1"></i> RSVP</a>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="adminCloseEventBtn">
+          <i class="fas fa-flag-checkered me-1"></i> Close event
+        </button>
+        <button type="button" class="btn efy-btn-danger btn-sm" id="adminDeleteEventBtn">
+          <i class="fas fa-trash-alt me-1"></i> Delete event
+        </button>
+        <button type="button" class="btn efy-btn-primary btn-sm" id="admOpenPendingBtn" title="Open pending event approvals">
           <i class="fas fa-inbox me-1"></i> Pending Approvals
         </button>
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn efy-btn-muted btn-sm" data-bs-dismiss="modal">Dismiss</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin close active event -->
+<div class="modal fade" id="adminCloseEventModal" tabindex="-1" aria-labelledby="adminCloseEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content efy-modal efy-modal--compact">
+      <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/update_event_status.php" id="adminCloseEventForm">
+        <?= csrf_field() ?>
+        <input type="hidden" name="event_id" id="adminCloseEventId" value="">
+        <input type="hidden" name="action" value="close">
+        <input type="hidden" name="return_to" value="dashboard">
+        <input type="hidden" name="return_panel" value="events">
+        <div class="modal-header efy-modal__header">
+          <div>
+            <span class="efy-modal__eyebrow">Admin</span>
+            <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="adminCloseEventModalLabel">
+              <i class="fas fa-flag-checkered" aria-hidden="true"></i>
+              Close this event?
+            </h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body efy-modal__body efy-modal__body--compact">
+          <p class="efy-confirm-message mb-0" id="adminCloseEventMessage">Closing keeps history (RSVPs, attendance) but removes it from the live student calendar.</p>
+        </div>
+        <div class="modal-footer efy-modal__footer">
+          <button type="submit" class="btn efy-btn-primary"><i class="fas fa-check me-1"></i> Yes, close event</button>
+          <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit announcement -->
+<div class="modal fade" id="editAnnouncementModal" tabindex="-1" aria-labelledby="editAnnouncementModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content efy-modal">
+      <form method="post" action="<?= BASE_URL ?>/backend/admin/edit_announcement.php" id="editAnnouncementForm">
+        <?= csrf_field() ?>
+        <input type="hidden" name="announcement_id" id="editAnnounceId" value="">
+        <div class="modal-header efy-modal__header">
+          <div>
+            <span class="efy-modal__eyebrow">Admin</span>
+            <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="editAnnouncementModalLabel">
+              <i class="fas fa-bullhorn" aria-hidden="true"></i>
+              Edit announcement
+            </h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body efy-modal__body">
+          <p class="efy-confirm-message mb-3">Saves your changes and notifies matching students again (bell + push).</p>
+          <div class="mb-3">
+            <label for="editAnnounceTitle" class="form-label fw-semibold">Title</label>
+            <input type="text" class="form-control" name="title" id="editAnnounceTitle" maxlength="255" required autocomplete="off">
+          </div>
+          <div class="mb-0">
+            <label for="editAnnounceBody" class="form-label fw-semibold">Message</label>
+            <textarea class="form-control" name="body" id="editAnnounceBody" rows="5" maxlength="4000" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer efy-modal__footer">
+          <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn efy-btn-primary">
+            <i class="fas fa-paper-plane me-1" aria-hidden="true"></i>Save &amp; notify
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete announcement -->
+<div class="modal fade" id="deleteAnnouncementModal" tabindex="-1" aria-labelledby="deleteAnnouncementModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content efy-modal efy-modal--compact">
+      <form method="post" action="<?= BASE_URL ?>/backend/admin/delete_announcement.php" id="deleteAnnouncementForm">
+        <?= csrf_field() ?>
+        <input type="hidden" name="announcement_id" id="deleteAnnounceId" value="">
+        <div class="modal-header efy-modal__header">
+          <div>
+            <span class="efy-modal__eyebrow">Admin</span>
+            <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="deleteAnnouncementModalLabel">
+              <i class="fas fa-trash-alt" aria-hidden="true"></i>
+              Delete announcement?
+            </h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body efy-modal__body efy-modal__body--compact">
+          <p class="efy-confirm-message mb-0" id="deleteAnnounceMessage">
+            Students will also lose this bell notification.
+          </p>
+        </div>
+        <div class="modal-footer efy-modal__footer">
+          <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn efy-btn-danger">
+            <i class="fas fa-trash-alt me-1" aria-hidden="true"></i>Yes, delete
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Admin delete event (permanent) -->
+<div class="modal fade" id="adminDeleteEventModal" tabindex="-1" aria-labelledby="adminDeleteEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content efy-modal efy-modal--compact">
+      <form method="POST" action="<?= BASE_URL ?>/backend/admin/delete_event.php" id="adminDeleteEventForm">
+        <?= csrf_field() ?>
+        <input type="hidden" name="event_id" id="adminDeleteEventId" value="">
+        <input type="hidden" name="return_to" value="dashboard">
+        <input type="hidden" name="return_panel" value="events">
+        <div class="modal-header efy-modal__header">
+          <div>
+            <span class="efy-modal__eyebrow">Admin</span>
+            <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="adminDeleteEventModalLabel">
+              <i class="fas fa-trash-alt" aria-hidden="true"></i>
+              Delete this event?
+            </h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body efy-modal__body efy-modal__body--compact">
+          <p class="efy-confirm-message mb-2" id="adminDeleteEventMessage">This permanently removes the event (use for duplicates / mistakes).</p>
+          <ul class="small text-muted mb-3 ps-3" id="adminDeleteEventImpact"></ul>
+          <label class="form-label small fw-semibold" for="adminDeleteConfirmInput">Type <strong>DELETE</strong> to confirm</label>
+          <input type="text" class="form-control form-control-sm" name="confirm_delete" id="adminDeleteConfirmInput" autocomplete="off" placeholder="DELETE" required>
+          <div class="form-check mt-3" id="adminDeleteForceWrap" style="display:none;">
+            <input class="form-check-input" type="checkbox" value="1" name="force_revenue_delete" id="adminDeleteForceRevenue">
+            <label class="form-check-label small" for="adminDeleteForceRevenue">I understand this also removes paid ticket order records</label>
+          </div>
+        </div>
+        <div class="modal-footer efy-modal__footer">
+          <button type="submit" class="btn efy-btn-danger" id="adminDeleteEventSubmit" disabled>
+            <i class="fas fa-trash-alt me-1"></i> Permanently delete
+          </button>
+          <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -883,14 +1133,18 @@ window.__adminOpenModal = <?= json_encode($openModal) ?>;
 window.__adminSettings = <?= json_encode($adminSettings ?? []) ?>;
 window.__adminCsrfToken = <?= json_encode(function_exists('csrf_token') ? csrf_token() : '') ?>;
 window.csrfToken = window.__adminCsrfToken;
+window.__adminClassSections = <?= json_encode(array_values(is_array($adminClassSections ?? null) ? $adminClassSections : []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.__eventifyMessengerHref = <?= json_encode(BASE_URL . '/backend/admin/dashboard.php?panel=messages') ?>;
 window.__staffMessengerSelfId = <?= (int) ($_SESSION['user_id'] ?? 0) ?>;
+window.__adminUserId = <?= (int) ($_SESSION['user_id'] ?? 0) ?>;
 window.__staffMessengerPeers = <?= json_encode($peersList, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.__staffMessengerInitialWith = <?= (int) $initialWith ?>;
 window.__staffMessengerPeerLabel = <?= json_encode($peerLabel) ?>;
 window.__staffMessengerError = <?= json_encode($messaging_error) ?>;
-window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events, function ($e) use ($rsvpCountByEvent, $checkinCountByEvent) {
+window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events, function ($e) use ($rsvpCountByEvent, $checkinCountByEvent, $session_user_id) {
     $eid = (int) ($e['id'] ?? 0);
+    $ownerId = (int) ($e['organizer_id'] ?? 0);
+    $ownedByMe = $ownerId > 0 && $ownerId === (int) $session_user_id;
     return [
         'description'         => $e['description'] ?? '',
         'location'            => $e['location'] ?? '',
@@ -904,25 +1158,47 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
         'department_display'  => function_exists('eventify_format_department_label')
             ? eventify_format_department_label((string) ($e['department'] ?? 'ALL'))
             : (string) ($e['department'] ?? 'ALL'),
+        'target_sections'     => $e['target_sections'] ?? null,
+        'sections_display'    => function_exists('eventify_format_target_sections_label')
+            ? eventify_format_target_sections_label($e['target_sections'] ?? null)
+            : '',
         'organizer'           => $e['organizer_name'] ?? 'Organizer',
+        'organizer_id'        => $ownerId,
+        'editUrl'             => $ownedByMe ? (BASE_URL . '/backend/auth/edit_event.php?id=' . $eid) : '',
         'registration_mode'   => function_exists('eventify_event_registration_mode') ? eventify_event_registration_mode($e) : (string) ($e['registration_mode'] ?? 'rsvp'),
         'event_is_live'       => function_exists('eventify_event_is_live') ? eventify_event_is_live($e) : (($e['status'] ?? '') === 'active'),
         'rsvp_count'          => (int) ($rsvpCountByEvent[$eid] ?? 0),
         'checkin_count'       => (int) ($checkinCountByEvent[$eid] ?? 0),
+        'admin_can_close'     => strtolower((string) ($e['status'] ?? '')) === 'active',
+        'admin_can_delete'    => true,
     ];
 }), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP); ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+if (typeof window.L === 'undefined') {
+    document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
+}
+</script>
+<script>
+window.BASE_URL = window.BASE_URL || <?= json_encode(BASE_URL) ?>;
+window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
+</script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=6"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=21"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=30"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=9"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=20"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=26"></script>
 </body>
 </html>

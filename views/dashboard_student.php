@@ -62,8 +62,8 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=2">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=18">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=19">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=4">
@@ -94,7 +94,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
         </button>
     </div>
     <div class="navbar-right">
-        <a class="nav-btn" href="<?= BASE_URL ?>/activities_hub.php" title="My Activities and Events" aria-label="My Activities and Events">
+        <a class="nav-btn" href="<?= BASE_URL ?>/activities_hub.php" title="My registrations" aria-label="My registrations">
             <i class="fas fa-th-large"></i>
         </a>
         <button type="button" class="nav-btn" id="topCalendarShortcutBtn" title="Go to today">
@@ -172,7 +172,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <a class="dropdown-item" href="<?= BASE_URL ?>/activities_hub.php">
-                        <i class="fas fa-th-large me-2"></i> My Activities and Events
+                        <i class="fas fa-th-large me-2"></i> My registrations
                     </a>
                 </li>
                 <li>
@@ -192,7 +192,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                 </li>
                 <li>
                     <a class="dropdown-item" href="#" data-student-panel="attendance">
-                        <i class="fas fa-clipboard-check me-2"></i> My attendance
+                        <i class="fas fa-clipboard-check me-2"></i> Check-in history
                     </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
@@ -264,6 +264,22 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
             </button>
             <button
                 type="button"
+                class="action-btn w-100 text-start border-0 bg-transparent<?= $student_upcoming_panel_open ? ' is-active' : '' ?>"
+                data-student-panel="upcoming"
+            >
+                <i class="fas fa-calendar-check"></i>
+                <span>Browse events</span>
+                <?php if ($student_upcoming_count > 0): ?>
+                    <span class="badge bg-success ms-1"><?= $student_upcoming_count ?></span>
+                <?php endif; ?>
+            </button>
+            <?php
+                $activities_hub_use_student_label = true;
+                $activities_hub_student_label = 'My registrations';
+                include __DIR__ . '/partials/activities_hub_quick_action.php';
+            ?>
+            <button
+                type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent<?= $student_photos_panel_open ? ' is-active' : '' ?>"
                 data-student-panel="photos"
             >
@@ -273,32 +289,34 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                     <span class="badge bg-success ms-1"><?= $student_photos_gallery_count ?></span>
                 <?php endif; ?>
             </button>
-            <?php
-                $activities_hub_use_student_label = true;
-                include __DIR__ . '/partials/activities_hub_quick_action.php';
-            ?>
-            <button
-                type="button"
-                class="action-btn w-100 text-start border-0 bg-transparent<?= $student_upcoming_panel_open ? ' is-active' : '' ?>"
-                data-student-panel="upcoming"
-            >
-                <i class="fas fa-calendar-check"></i>
-                <span>Upcoming Events</span>
-                <?php if ($student_upcoming_count > 0): ?>
-                    <span class="badge bg-success ms-1"><?= $student_upcoming_count ?></span>
-                <?php endif; ?>
-            </button>
             <button
                 type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent<?= $student_attendance_panel_open ? ' is-active' : '' ?>"
                 data-student-panel="attendance"
             >
                 <i class="fas fa-clipboard-check"></i>
-                <span>My attendance</span>
+                <span>Check-in history</span>
                 <?php if ($student_attendance_count > 0): ?>
                     <span class="badge bg-success ms-1"><?= $student_attendance_count ?></span>
                 <?php endif; ?>
             </button>
+        </div>
+
+        <!-- My Department Info -->
+        <?php if ($department): ?>
+        <div class="department-info">
+            <h3 class="section-title">MY DEPARTMENT</h3>
+            <div class="department-badge-large" data-dept="<?= htmlspecialchars($department) ?>">
+                <div class="dept-avatar"><?= strtoupper(substr($department, 0, 1)) ?></div>
+                <span><?= htmlspecialchars($department) ?></span>
+            </div>
+            <p class="dept-note">You only see events open to your department or all departments.</p>
+        </div>
+        <?php endif; ?>
+
+        <!-- Account (install + logout — not quick tasks) -->
+        <div class="sidebar-account">
+            <h3 class="section-title">ACCOUNT</h3>
             <button
                 type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent"
@@ -313,18 +331,6 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                 <span>Logout</span>
             </a>
         </div>
-
-        <!-- My Department Info -->
-        <?php if ($department): ?>
-        <div class="department-info">
-            <h3 class="section-title">MY DEPARTMENT</h3>
-            <div class="department-badge-large" data-dept="<?= htmlspecialchars($department) ?>">
-                <div class="dept-avatar"><?= strtoupper(substr($department, 0, 1)) ?></div>
-                <span><?= htmlspecialchars($department) ?></span>
-            </div>
-            <p class="dept-note">You only see events open to your department or all departments.</p>
-        </div>
-        <?php endif; ?>
 </aside>
 
 <!-- Main Layout -->
@@ -379,12 +385,12 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
         <?php if (!empty($my_registered_events) || !empty($today_activities)): ?>
         <section class="student-my-events-hub mb-4" id="studentMyEventsHub">
             <div class="student-my-events-hub__header">
-                <h3 class="section-heading mb-0"><i class="fas fa-id-card-alt me-2 text-success"></i>My Events</h3>
+                <h3 class="section-heading mb-0"><i class="fas fa-id-card-alt me-2 text-success"></i>My registrations</h3>
                 <div class="student-my-events-hub__actions">
                     <a class="btn btn-outline-success btn-sm student-my-events-hub__action" href="<?= BASE_URL ?>/activities_hub.php">
                         <i class="fas fa-th-large me-1" aria-hidden="true"></i>
-                        <span class="student-my-events-hub__label-full">My Activities and Events</span>
-                        <span class="student-my-events-hub__label-short">Activities hub</span>
+                        <span class="student-my-events-hub__label-full">My registrations</span>
+                        <span class="student-my-events-hub__label-short">Registrations</span>
                     </a>
                     <button type="button" class="btn btn-success btn-sm student-my-events-hub__action" data-bs-toggle="modal" data-bs-target="#scanQRModal">
                         <i class="fas fa-qrcode me-1" aria-hidden="true"></i>Scan QR
@@ -648,6 +654,17 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
             </div>
 
             <div class="form-group">
+                <label for="studentSectionModal">Class section</label>
+                <input
+                    type="text"
+                    id="studentSectionModal"
+                    value="<?= htmlspecialchars(trim((string) ($user['student_section'] ?? '')) !== '' ? (string) $user['student_section'] : 'Not assigned yet') ?>"
+                    readonly
+                >
+                <small class="text-muted">Assigned by admin. Needed for section-only events (e.g. BSIT 4102).</small>
+            </div>
+
+            <div class="form-group">
                 <label for="studentYearLevelModal">Year level</label>
                 <select id="studentYearLevelModal" name="student_year_level">
                     <?php foreach (eventify_student_year_level_options() as $yv => $ylab): ?>
@@ -690,6 +707,10 @@ window.studentEvents = <?= json_encode(eventify_events_to_fullcalendar_list($eve
             'end_time_na'         => !empty($e['end_time_na']),
         'department'          => $e['department'] ?? 'ALL',
         'department_display'  => eventify_format_department_label((string) ($e['department'] ?? 'ALL')),
+        'target_sections'     => $e['target_sections'] ?? null,
+        'sections_display'    => function_exists('eventify_format_target_sections_label')
+            ? eventify_format_target_sections_label($e['target_sections'] ?? null)
+            : '',
         'max_capacity'        => $maxCap,
         'registration_count'  => $reg_count_by_event[$eid] ?? 0,
         'is_registered'       => in_array($eid, $registered_event_ids, true),
@@ -719,7 +740,7 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 
 <!-- Logout Modal -->
 <?php include __DIR__ . '/partials/logout_confirm_modal.php'; ?>
@@ -810,12 +831,13 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
             <div class="row g-2">
               <div class="col-md-6">
                 <label class="form-label small" for="reminder_timing">Reminder timing</label>
-                <?php $stReminderTiming = (string)($studentSettings['reminder_timing'] ?? '1_day'); ?>
+                <?php $stReminderTiming = (string)($studentSettings['reminder_timing'] ?? '30_min'); ?>
                 <select class="form-select" id="reminder_timing" name="reminder_timing">
-                  <option value="1_day" <?= $stReminderTiming === '1_day' ? 'selected' : '' ?>>1 day before</option>
-                  <option value="1_hour" <?= $stReminderTiming === '1_hour' ? 'selected' : '' ?>>1 hour before</option>
                   <option value="30_min" <?= $stReminderTiming === '30_min' ? 'selected' : '' ?>>30 minutes before</option>
+                  <option value="1_hour" <?= $stReminderTiming === '1_hour' ? 'selected' : '' ?>>1 hour before</option>
+                  <option value="1_day" <?= $stReminderTiming === '1_day' ? 'selected' : '' ?>>1 day before</option>
                 </select>
+                <span class="form-text small text-muted">Bell + push before events start (open-entry audience or your RSVPs). Also notifies when the event is starting. Needs Event reminders + Phone push on.</span>
               </div>
               <div class="col-md-6 d-flex align-items-end">
                 <div class="form-check form-switch mb-2">
@@ -967,14 +989,14 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
   <button type="button" class="student-app-tabbar__btn" data-student-nav="scan" data-bs-toggle="modal" data-bs-target="#scanQRModal">
     <i class="fas fa-qrcode"></i><span>Scan</span>
   </button>
-  <button type="button" class="student-app-tabbar__btn" data-student-nav="myevents" data-scroll-target="#studentMyEventsHub">
-    <i class="fas fa-id-card-alt"></i><span>My Events</span>
+  <button type="button" class="student-app-tabbar__btn" data-student-nav="myevents" data-scroll-target="#studentMyEventsHub" title="My registrations" aria-label="My registrations">
+    <i class="fas fa-id-card-alt"></i><span>Joined</span>
   </button>
   <button type="button" class="student-app-tabbar__btn" data-student-nav="calendar" data-scroll-target="#studentCalendarSection">
     <i class="fas fa-calendar"></i><span>Calendar</span>
   </button>
-  <button type="button" class="student-app-tabbar__btn<?= $student_attendance_panel_open ? ' is-active' : '' ?>" data-student-panel="attendance">
-    <i class="fas fa-clipboard-check"></i><span>Attendance</span>
+  <button type="button" class="student-app-tabbar__btn<?= $student_attendance_panel_open ? ' is-active' : '' ?>" data-student-panel="attendance" title="Check-in history" aria-label="Check-in history">
+    <i class="fas fa-clipboard-check"></i><span>History</span>
   </button>
 </nav>
 
@@ -1118,7 +1140,7 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=20"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=22"></script>
 <script>window.__myTicketsBootstrap = <?= json_encode($student_tickets_bootstrap, JSON_UNESCAPED_UNICODE) ?>;</script>
 
 <script>
@@ -1222,9 +1244,20 @@ document.addEventListener('keydown', function(e) {
 });
 
 </script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=15"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
 <script>
 (function () {
+    function showPushMessage(message, options) {
+        if (typeof window.eventifyAlert === 'function') {
+            window.eventifyAlert(message, options || {});
+            return;
+        }
+        if (window.eventifyAlertModal && typeof window.eventifyAlertModal.show === 'function') {
+            window.eventifyAlertModal.show(message, options || {});
+        }
+    }
+
     function updatePushStatusHint() {
         var hint = document.getElementById('studentPushStatusHint');
         if (!hint || !window.eventifyPwa || typeof window.eventifyPwa.fetchPushStatus !== 'function') {
@@ -1269,14 +1302,22 @@ document.addEventListener('keydown', function(e) {
             return window.eventifyPwa.sendTestPush();
         }).then(function (result) {
             if (result && result.ok) {
-                alert('Test notification sent. Check your phone notification tray.');
+                showPushMessage('Test notification sent. Check your phone notification tray.', {
+                    title: 'Notifications',
+                    type: 'success',
+                    icon: 'fa-circle-check'
+                });
                 updatePushStatusHint();
                 return;
             }
             var detail = (result && Array.isArray(result.errors) && result.errors.length)
                 ? result.errors.join('; ')
                 : ((result && result.error) || 'unknown error');
-            alert('Test failed: ' + detail);
+            showPushMessage('Test failed: ' + detail, {
+                title: 'Notifications',
+                type: 'error',
+                icon: 'fa-circle-exclamation'
+            });
         }).finally(function () {
             btn.disabled = false;
         });

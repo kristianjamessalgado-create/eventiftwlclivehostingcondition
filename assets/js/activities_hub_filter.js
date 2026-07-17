@@ -39,6 +39,11 @@
         /* ignore */
     }
 
+    // Never leave users on an empty filter (shows “nothing matches”).
+    if (selected.length === 0) {
+        selected = defaultSelected.slice();
+    }
+
     function normalizeList(arr) {
         var out = [];
         allOptions.forEach(function (key) {
@@ -97,7 +102,7 @@
         if (selected.length === 0) {
             emptyEl.hidden = false;
             if (emptyTextEl) {
-                emptyTextEl.innerHTML = 'Select at least one status above, or tap <strong>Select all</strong>.';
+                emptyTextEl.innerHTML = 'No events match the selected statuses. Try <strong>Select all</strong> or turn on more chips.';
             }
             return;
         }
@@ -173,6 +178,9 @@
                 return allOptions.indexOf(a) - allOptions.indexOf(b);
             });
         }
+        if (selected.length === 0) {
+            selected = defaultSelected.slice();
+        }
         applyFilter();
     }
 
@@ -193,7 +201,8 @@
     var noneBtn = document.querySelector('[data-eah-filter-none]');
     if (noneBtn) {
         noneBtn.addEventListener('click', function () {
-            selected = [];
+            // Reset to default (Active) instead of showing zero events.
+            selected = defaultSelected.slice();
             applyFilter();
         });
     }

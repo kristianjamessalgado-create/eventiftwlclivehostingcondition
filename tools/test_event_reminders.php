@@ -58,7 +58,7 @@ foreach ($rows as $row) {
     if (!$event) {
         continue;
     }
-    $settings = $settingsMap[$userId] ?? ['event_reminders' => 1, 'reminder_timing' => '1_day'];
+    $settings = $settingsMap[$userId] ?? ['event_reminders' => 1, 'reminder_timing' => '30_min'];
     echo PHP_EOL . "User {$userId} — {$row['title']} (pref: {$settings['reminder_timing']})" . PHP_EOL;
 
     foreach (eventify_event_upcoming_occurrence_starts($event, $now) as $occ) {

@@ -13,6 +13,27 @@
         return (global.BASE_URL || '').replace(/\/$/, '');
     }
 
+    /** Branded modal when available; never rely on native browser alert on live host. */
+    function showUserMessage(message, options) {
+        options = options || {};
+        if (typeof global.eventifyAlert === 'function') {
+            global.eventifyAlert(message, options);
+            return;
+        }
+        if (global.eventifyAlertModal && typeof global.eventifyAlertModal.show === 'function') {
+            global.eventifyAlertModal.show(message, options);
+            return;
+        }
+        if (global.eventifyToast && typeof global.eventifyToast.info === 'function') {
+            var toastFn = global.eventifyToast[options.type] || global.eventifyToast.info;
+            toastFn.call(global.eventifyToast, message);
+            return;
+        }
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('[EVENTIFY]', message);
+        }
+    }
+
     function ticketsApiUrl() {
         return baseUrl() + '/backend/auth/student_tickets_api.php';
     }
@@ -254,7 +275,11 @@
             global.bootstrap.Modal.getOrCreateInstance(modalEl).show();
             return;
         }
-        alert(installHelpHtml(platform).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+        showUserMessage(installHelpHtml(platform).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), {
+            title: 'Install EVENTIFY',
+            icon: 'fa-mobile-alt',
+            type: 'info'
+        });
     }
 
     function syncInstallSidebarButton() {
@@ -774,6 +799,45 @@
         }).then(function (r) { return r.json(); });
     }
 
+    /**
+     * Unlink this browser/device from server push (keeps browser permission).
+     * Call before logout so the phone stops receiving for the logged-out account.
+     * On next login, syncPushSubscription silently re-links if permission is still granted.
+     */
+    function clearDevicePush() {
+        if (!pushSupported()) {
+            return Promise.resolve({ ok: true, skipped: true });
+        }
+        var ready = swReadyPromise || ensureServiceWorkerReady();
+        return ready.then(function (reg) {
+            if (!reg || !reg.pushManager) {
+                return null;
+            }
+            return reg.pushManager.getSubscription();
+        }).then(function (sub) {
+            if (!sub || !sub.endpoint) {
+                return { ok: true, skipped: true };
+            }
+            return fetch(pushApiUrl(), {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'unsubscribe_device',
+                    csrf_token: csrfToken(),
+                    endpoint: sub.endpoint
+                })
+            }).then(function (r) {
+                return r.json().catch(function () { return { ok: false }; });
+            }).catch(function () {
+                return { ok: false };
+            });
+        }).catch(function () {
+            return { ok: false, skipped: true };
+        });
+    }
+
     function syncPushSubscription(showAlerts) {
         if (!pushSupported() || !studentPushEnabledInSettings()) {
             return Promise.resolve({ ok: false, error: 'unsupported' });
@@ -800,7 +864,10 @@
                 return result;
             }
             if (showAlerts) {
-                alert(pushStatusMessage(result));
+                showUserMessage(pushStatusMessage(result), {
+                    title: 'Notifications',
+                    type: (result && result.ok) ? 'success' : 'error'
+                });
             }
             return result || { ok: false, error: 'subscribe_failed' };
         });
@@ -883,7 +950,11 @@
 
     function enablePushFromSettings() {
         if (!pushSupported()) {
-            alert('This browser does not support push notifications.');
+            showUserMessage('This browser does not support push notifications.', {
+                title: 'Notifications',
+                type: 'error',
+                icon: 'fa-circle-exclamation'
+            });
             return Promise.resolve({ ok: false, error: 'unsupported' });
         }
         if (isIosBrowserTab()) {
@@ -895,7 +966,11 @@
         }
         return Notification.requestPermission().then(function (perm) {
             if (perm !== 'granted') {
-                alert('Allow notifications in your browser, then try again.');
+                showUserMessage('Allow notifications in your browser, then try again.', {
+                    title: 'Notifications',
+                    type: 'warning',
+                    icon: 'fa-triangle-exclamation'
+                });
                 return { ok: false, permission: perm };
             }
             return syncPushSubscription(true);
@@ -943,7 +1018,11 @@
             return;
         }
         if (!('Notification' in global)) {
-            alert('This browser does not support notifications.');
+            showUserMessage('This browser does not support notifications.', {
+                title: 'Notifications',
+                type: 'error',
+                icon: 'fa-circle-exclamation'
+            });
             return;
         }
         if (isIosBrowserTab()) {
@@ -956,7 +1035,11 @@
 
         var keys = getCachedPushKeysOrNull();
         if (!keys) {
-            alert('Push key not loaded yet. Pull down to refresh the page, wait 3 seconds, then tap Enable again.');
+            showUserMessage('Push key not loaded yet. Pull down to refresh the page, wait 3 seconds, then tap Enable again.', {
+                title: 'Notifications',
+                type: 'warning',
+                icon: 'fa-triangle-exclamation'
+            });
             enableBtn.disabled = false;
             enableBtn.textContent = prevLabel || 'Enable';
             return;
@@ -966,10 +1049,15 @@
         swReadyPromise.then(function (reg) {
             function afterPermission(perm) {
                 if (perm !== 'granted') {
-                    alert(
+                    showUserMessage(
                         perm === 'denied'
                             ? 'Notifications are blocked. On iPhone: Settings → Notifications → EVENTIFY → Allow Notifications.'
-                            : 'Permission not granted. Tap Enable again and choose Allow.'
+                            : 'Permission not granted. Tap Enable again and choose Allow.',
+                        {
+                            title: 'Notifications',
+                            type: 'warning',
+                            icon: 'fa-triangle-exclamation'
+                        }
                     );
                     return { ok: false, permission: perm };
                 }
@@ -987,12 +1075,24 @@
                 if (banner) {
                     banner.hidden = true;
                 }
-                alert('Push notifications enabled on this device.');
+                showUserMessage('Push notifications enabled on this device.', {
+                    title: 'Notifications',
+                    type: 'success',
+                    icon: 'fa-circle-check'
+                });
                 return;
             }
-            alert(pushStatusMessage(result));
+            showUserMessage(pushStatusMessage(result), {
+                title: 'Notifications',
+                type: 'error',
+                icon: 'fa-circle-exclamation'
+            });
         }).catch(function (err) {
-            alert(pushStatusMessage({ ok: false, error: (err && err.message) ? err.message : 'subscribe_failed' }));
+            showUserMessage(pushStatusMessage({ ok: false, error: (err && err.message) ? err.message : 'subscribe_failed' }), {
+                title: 'Notifications',
+                type: 'error',
+                icon: 'fa-circle-exclamation'
+            });
         }).finally(function () {
             enableBtn.disabled = false;
             enableBtn.textContent = prevLabel || 'Enable';
@@ -1011,6 +1111,7 @@
         }
 
         if (Notification.permission === 'granted') {
+            // Silent re-link after login / page load — no permission prompt.
             syncPushSubscription(false).then(function (result) {
                 if (banner) {
                     var needsFix = result && !result.ok && !result.already_ready;
@@ -1125,6 +1226,7 @@
         enablePush: enablePushFromSettings,
         subscribePush: subscribePush,
         syncPushSubscription: syncPushSubscription,
+        clearDevicePush: clearDevicePush,
         sendTestPush: sendTestPush,
         fetchPushStatus: fetchPushStatus,
         pushSupported: pushSupported

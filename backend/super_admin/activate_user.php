@@ -7,6 +7,7 @@ include __DIR__ . '/../../config/db.php';
 include __DIR__ . '/../../config/config.php';
 include __DIR__ . '/../../config/csrf.php';
 include __DIR__ . '/../../backend/lib/activity_logger.php';
+require_once __DIR__ . '/../../backend/lib/account_email_otp.php';
 
 function eventify_redirect_superadmin_activate(string $type, string $message): void
 {
@@ -30,7 +31,7 @@ if ($id <= 0) {
     eventify_redirect_superadmin_activate('error', 'Invalid user ID.');
 }
 
-$userStmt = $conn->prepare("SELECT id, email, status, failed_attempts FROM users WHERE id = ? LIMIT 1");
+$userStmt = $conn->prepare("SELECT id, name, email, status, failed_attempts FROM users WHERE id = ? LIMIT 1");
 if (!$userStmt) {
     $conn->close();
     eventify_redirect_superadmin_activate('error', 'Failed to validate user for activation.');
@@ -96,5 +97,17 @@ log_activity(
     "Activated pending user ID {$id}"
 );
 
+$emailResult = eventify_send_account_approved_email(
+    (string) ($user['email'] ?? ''),
+    (string) ($user['name'] ?? '')
+);
 $conn->close();
-eventify_redirect_superadmin_activate('success', 'User activated.');
+
+if (!empty($emailResult['ok'])) {
+    eventify_redirect_superadmin_activate('success', 'User activated. Approval email sent.');
+}
+
+eventify_redirect_superadmin_activate(
+    'success',
+    'User activated, but the approval email could not be sent.'
+);

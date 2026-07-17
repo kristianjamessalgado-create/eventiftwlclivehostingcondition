@@ -59,9 +59,9 @@ if ($eventId <= 0 || !in_array($action, $validActions, true)) {
     eventify_redirect_event_status('error', 'Invalid request.');
 }
 
-// Only super_admin can close events
-if ($action === 'close' && $_SESSION['role'] !== 'super_admin') {
-    eventify_redirect_event_status('error', 'Only Super Admin can close events.');
+// Admin and Super Admin can close active events
+if ($action === 'close' && !in_array((string) ($_SESSION['role'] ?? ''), ['admin', 'super_admin'], true)) {
+    eventify_redirect_event_status('error', 'Only Admin or Super Admin can close events.');
 }
 
 // Read current event state for safer transitions and richer logs.
@@ -257,6 +257,15 @@ if ($changed) {
                 $body    = $notifMsg . "\n\nLog in to your organizer dashboard to view details.";
                 eventify_send_email($organizerEmail, $subject, $body);
             }
+        }
+    }
+
+    if (in_array($action, ['approve', 'approve_with_otp'], true)) {
+        try {
+            require_once __DIR__ . '/../lib/notifications_service.php';
+            eventify_notify_students_event_published($conn, $eventId, 'approved');
+        } catch (Throwable $e) {
+            // ignore
         }
     }
 

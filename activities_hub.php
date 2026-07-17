@@ -213,8 +213,8 @@ function ah_event_status_display(string $status): array
                 <i class="fas fa-th-large me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Activities hub</span>
             </a>
             <?php if ($showMainHubNav): ?>
-            <a class="eah-topbar__action" href="<?= ah_h($mainHubUrl) ?>" aria-label="Main hub">
-                <i class="fas fa-calendar-day me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Main hub</span>
+            <a class="eah-topbar__action" href="<?= ah_h($mainHubUrl) ?>" aria-label="<?= $isStudent ? 'This event' : 'Main hub' ?>">
+                <i class="fas fa-calendar-day me-1" aria-hidden="true"></i><span class="d-none d-sm-inline"><?= $isStudent ? 'This event' : 'Main hub' ?></span>
             </a>
             <?php endif; ?>
             <a class="eah-topbar__action" href="<?= ah_h($backUrl) ?>">
@@ -244,8 +244,11 @@ function ah_event_status_display(string $status): array
                     $studentNavHubUrl = $hubUrl;
                     $studentNavMainHubUrl = $mainHubUrl;
                     $studentNavShowMainHub = $showMainHubNav;
-                    $studentNavMainHubHint = 'Open last event';
+                    $studentNavMainHubLabel = 'This event';
+                    $studentNavMainHubHint = 'Continue where you left off';
                     $studentNavHubCount = $activities_hub_visible_count;
+                    $studentNavTicketsUrl = BASE_URL . '/backend/auth/dashboard_student.php?panel=tickets';
+                    $studentNavTicketsHint = 'Your digital passes';
                     $studentNavAttendanceCount = (int) ($studentAttendanceCounts['total'] ?? 0);
                     include __DIR__ . '/views/partials/student_hub_nav_items.php';
                 ?>
@@ -289,9 +292,9 @@ function ah_event_status_display(string $status): array
                 <div class="eah-student-hub-hero__main">
                     <div class="eah-student-hub-hero__icon" aria-hidden="true"><i class="fas fa-th-large"></i></div>
                     <div class="eah-student-hub-hero__copy">
-                        <p class="eah-student-hub-hero__eyebrow">My Activities and Events</p>
+                        <p class="eah-student-hub-hero__eyebrow">My registrations</p>
                         <h1 class="eah-student-hub-hero__title">Your events &amp; activities</h1>
-                        <p class="eah-student-hub-hero__subtitle">Active events for your department show here automatically — no RSVP needed for <strong>open entry</strong> events. Tap one to open its <strong>Main hub</strong> for day activities and check-in.</p>
+                        <p class="eah-student-hub-hero__subtitle">Active events for your department show here automatically — no RSVP needed for <strong>open entry</strong> events. Tap one to open <strong>This event</strong> for day activities and check-in.</p>
                     </div>
                 </div>
                 <div class="eah-student-hub-hero__stats">
@@ -368,7 +371,7 @@ function ah_event_status_display(string $status): array
                 <div class="eah-hub-filter__quick">
                     <button type="button" class="eah-hub-filter__quick-btn" data-eah-filter-all>Select all</button>
                     <span class="eah-hub-filter__quick-sep" aria-hidden="true">·</span>
-                    <button type="button" class="eah-hub-filter__quick-btn" data-eah-filter-none>Clear all</button>
+                    <button type="button" class="eah-hub-filter__quick-btn" data-eah-filter-none>Active only</button>
                 </div>
             </div>
         </div>
@@ -438,7 +441,7 @@ function ah_event_status_display(string $status): array
             <a class="eah-landing-attendance-card" href="<?= ah_h(BASE_URL . '/attendance_history.php') ?>">
                 <span class="eah-landing-attendance-card__icon"><i class="fas fa-history"></i></span>
                 <span class="eah-landing-attendance-card__body">
-                    <span class="eah-landing-attendance-card__title">My attendance</span>
+                    <span class="eah-landing-attendance-card__title">Check-in history</span>
                     <span class="eah-landing-attendance-card__meta">
                         Full list · <?= (int) $studentAttendanceCounts['total'] ?> check-in<?= $studentAttendanceCounts['total'] === 1 ? '' : 's' ?>
                         <?php if ($studentAttendanceCounts['events'] > 0 && $studentAttendanceCounts['activities'] > 0): ?>
@@ -536,7 +539,7 @@ function ah_event_status_display(string $status): array
                     </a>
                     <?php if ($studentAttendanceCounts['total'] > 0): ?>
                     <a class="eah-student-hub-empty__cta eah-student-hub-empty__cta--ghost" href="<?= ah_h(BASE_URL . '/attendance_history.php') ?>">
-                        <i class="fas fa-clipboard-check" aria-hidden="true"></i> My attendance
+                        <i class="fas fa-clipboard-check" aria-hidden="true"></i> Check-in history
                     </a>
                     <?php endif; ?>
                 </div>
@@ -565,7 +568,7 @@ function ah_event_status_display(string $status): array
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <?php if ($showHubStatusFilter): ?>
 <script>
 window.__eahHubStatusDefault = <?= json_encode(array_values($hubStatusDefault), JSON_UNESCAPED_UNICODE) ?>;
@@ -573,7 +576,7 @@ window.__eahHubStatusInitial = <?= json_encode(array_values($hubStatusSelected),
 window.__eahHubStatusOptions = <?= json_encode($hubStatusOptions, JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_spinner.js?v=2"></script>
-<script src="<?= BASE_URL ?>/assets/js/activities_hub_filter.js?v=4"></script>
+<script src="<?= BASE_URL ?>/assets/js/activities_hub_filter.js?v=5"></script>
 <?php endif; ?>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
 <?php if ($isStudent): ?>

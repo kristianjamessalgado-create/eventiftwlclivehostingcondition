@@ -5,6 +5,9 @@ include __DIR__ . '/../../config/config.php';
 include __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../../config/organizer_departments.php';
 require_once __DIR__ . '/../../config/departments.php';
+if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+    require_once __DIR__ . '/../../config/student_sections.php';
+}
 require_once __DIR__ . '/../lib/event_status_auto.php';
 require_once __DIR__ . '/../lib/staff_messaging.php';
 require_once __DIR__ . '/../lib/event_feedback_schema.php';
@@ -15,11 +18,14 @@ require_once __DIR__ . '/../lib/event_ticketing.php';
 
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'organizer') {
-    header("Location: " . BASE_URL . "/views/login.php?error=Access denied");
+    header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
     exit();
 }
 
 eventify_run_dashboard_maintenance($conn);
+if (function_exists('eventify_sections_schema_ensure')) {
+    eventify_sections_schema_ensure($conn);
+}
 
 $hasMustChangePasswordColumn = false;
 try {
@@ -84,7 +90,7 @@ $user_name = $user['name'] ?: 'Organizer';
 
 // Fetch events for this organizer
 $events = [];
-$stmt2 = $conn->prepare("SELECT * FROM events WHERE organizer_id = ? ORDER BY date ASC, id ASC");
+$stmt2 = $conn->prepare("SELECT * FROM events WHERE organizer_id = ? ORDER BY id DESC");
 $stmt2->bind_param("i", $session_user_id);
 $stmt2->execute();
 $result = $stmt2->get_result();
@@ -355,6 +361,17 @@ $organizer_events_panel_open = ($organizer_panel === 'events');
 $organizer_feedback_panel_open = ($organizer_panel === 'feedback');
 $organizer_dashboard_panel_open = $organizer_events_panel_open || $organizer_feedback_panel_open;
 $organizer_events_count = count($events);
+
+$dashboardClassSections = [];
+try {
+    if (function_exists('eventify_list_class_sections')) {
+        $dashboardClassSections = eventify_list_class_sections($conn);
+    }
+} catch (Throwable $e) {
+    $dashboardClassSections = [];
+}
+// Alias used by admin modal / shared UI
+$adminClassSections = $dashboardClassSections;
 
 $msg = trim((string)($_GET['msg'] ?? ''));
 $error = trim((string)($_GET['error'] ?? ''));

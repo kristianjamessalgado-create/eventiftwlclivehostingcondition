@@ -16,6 +16,7 @@ if (!function_exists('eventify_users_ensure_student_profile_fields')) {
             'student_course' => 'VARCHAR(120) NULL DEFAULT NULL',
             'student_year_level' => 'VARCHAR(40) NULL DEFAULT NULL',
             'student_academic_year' => 'VARCHAR(20) NULL DEFAULT NULL',
+            'student_section' => 'VARCHAR(80) NULL DEFAULT NULL',
         ];
         foreach ($cols as $field => $definition) {
             if (!preg_match('/^[a-z_]+$/', $field)) {

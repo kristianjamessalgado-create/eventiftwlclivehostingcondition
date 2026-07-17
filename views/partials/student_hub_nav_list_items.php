@@ -3,22 +3,25 @@
  * Unified student nav list items (no wrapping <ul>).
  * See student_hub_nav_items.php for full drawer list wrapper.
  *
- * Activities hub = list of all your events (pick / switch).
- * Main hub       = one event's day activities, RSVP, tickets, check-in.
+ * My registrations = list of all your events (pick / switch).
+ * This event       = one event's day activities, RSVP, tickets, check-in.
  */
 $studentNavActive = (string) ($studentNavActive ?? 'hub');
 $studentNavDashboardUrl = (string) ($studentNavDashboardUrl ?? BASE_URL . '/backend/auth/dashboard_student.php');
 $studentNavHubUrl = (string) ($studentNavHubUrl ?? BASE_URL . '/activities_hub.php');
 $studentNavMainHubUrl = (string) ($studentNavMainHubUrl ?? $studentNavHubUrl);
 $studentNavShowMainHub = (bool) ($studentNavShowMainHub ?? false);
+$studentNavInEventContext = (bool) ($studentNavInEventContext ?? false);
 $studentNavScheduleUrl = (string) ($studentNavScheduleUrl ?? '');
 $studentNavScheduleCount = (int) ($studentNavScheduleCount ?? 0);
-$studentNavTicketsUrl = (string) ($studentNavTicketsUrl ?? BASE_URL . '/backend/auth/dashboard_student.php?panel=tickets');
+$studentNavTicketsUrl = (string) ($studentNavTicketsUrl ?? '');
 $studentNavTicketsCount = (int) ($studentNavTicketsCount ?? 0);
 $studentNavAttendanceUrl = (string) ($studentNavAttendanceUrl ?? BASE_URL . '/attendance_history.php');
 $studentNavAttendanceCount = (int) ($studentNavAttendanceCount ?? 0);
 $studentNavHubCount = (int) ($studentNavHubCount ?? 0);
-$studentNavMainHubHint = (string) ($studentNavMainHubHint ?? 'This event\'s schedule');
+$studentNavMainHubLabel = (string) ($studentNavMainHubLabel ?? 'This event');
+$studentNavMainHubHint = (string) ($studentNavMainHubHint ?? 'Day activities & check-in');
+$studentNavTicketsHint = (string) ($studentNavTicketsHint ?? '');
 
 if (!function_exists('student_nav_h')) {
     function student_nav_h(string $s): string
@@ -47,13 +50,22 @@ if (!function_exists('student_nav_count_badge')) {
     }
 }
 
-$studentNavShowEventSection = ($studentNavScheduleUrl !== '' || $studentNavTicketsUrl !== '');
+$studentNavInCurrentEvent = $studentNavInEventContext || $studentNavScheduleUrl !== '';
+$studentNavShowTickets = $studentNavTicketsUrl !== '';
+$studentNavTicketsInCurrentEvent = $studentNavShowTickets && $studentNavInCurrentEvent;
+$studentNavTicketsGlobal = $studentNavShowTickets && !$studentNavInCurrentEvent;
+$studentNavMainHubInCurrentEvent = $studentNavShowMainHub && $studentNavInCurrentEvent;
+$studentNavMainHubResume = $studentNavShowMainHub && !$studentNavInCurrentEvent;
+$studentNavTicketsHintText = $studentNavTicketsHint !== ''
+    ? $studentNavTicketsHint
+    : ($studentNavTicketsInCurrentEvent ? 'Passes for this event' : 'Your digital passes');
 ?>
     <li>
-        <a class="eah-nav-drawer__link" href="<?= student_nav_h($studentNavDashboardUrl) ?>">
+        <a class="eah-nav-drawer__link<?= student_nav_is_active('dashboard', $studentNavActive) ?>" href="<?= student_nav_h($studentNavDashboardUrl) ?>"<?= $studentNavActive === 'dashboard' ? ' aria-current="page"' : '' ?>>
             <i class="fas fa-gauge-high"></i>
             <span class="eah-nav-drawer__link-text">
                 <span class="eah-nav-drawer__link-label">Dashboard</span>
+                <span class="eah-nav-drawer__link-hint">Calendar &amp; home</span>
             </span>
         </a>
     </li>
@@ -62,67 +74,70 @@ $studentNavShowEventSection = ($studentNavScheduleUrl !== '' || $studentNavTicke
         <a class="eah-nav-drawer__link<?= student_nav_is_active('hub', $studentNavActive) ?>" href="<?= student_nav_h($studentNavHubUrl) ?>"<?= $studentNavActive === 'hub' ? ' aria-current="page"' : '' ?>>
             <i class="fas fa-th-large"></i>
             <span class="eah-nav-drawer__link-text">
-                <span class="eah-nav-drawer__link-label">My Activities and Events<?= student_nav_count_badge($studentNavHubCount) ?></span>
-                <span class="eah-nav-drawer__link-hint">Browse &amp; switch events</span>
+                <span class="eah-nav-drawer__link-label">My registrations<?= student_nav_count_badge($studentNavHubCount) ?></span>
+                <span class="eah-nav-drawer__link-hint">Events you joined</span>
             </span>
         </a>
     </li>
-    <?php if ($studentNavShowMainHub): ?>
+    <?php if ($studentNavMainHubResume): ?>
     <li>
         <a class="eah-nav-drawer__link<?= student_nav_is_active('main_hub', $studentNavActive) ?>" href="<?= student_nav_h($studentNavMainHubUrl) ?>"<?= $studentNavActive === 'main_hub' ? ' aria-current="page"' : '' ?>>
             <i class="fas fa-calendar-day"></i>
             <span class="eah-nav-drawer__link-text">
-                <span class="eah-nav-drawer__link-label">Main hub</span>
+                <span class="eah-nav-drawer__link-label"><?= student_nav_h($studentNavMainHubLabel) ?></span>
                 <span class="eah-nav-drawer__link-hint"><?= student_nav_h($studentNavMainHubHint) ?></span>
             </span>
         </a>
     </li>
     <?php endif; ?>
-    <?php if ($studentNavShowEventSection): ?>
-    <li class="eah-nav-drawer__section" aria-hidden="true">This event</li>
+    <?php if ($studentNavTicketsGlobal): ?>
+    <li>
+        <a class="eah-nav-drawer__link<?= student_nav_is_active('tickets', $studentNavActive) ?>" href="<?= student_nav_h($studentNavTicketsUrl) ?>"<?= $studentNavActive === 'tickets' ? ' aria-current="page"' : '' ?>>
+            <i class="fas fa-ticket-alt"></i>
+            <span class="eah-nav-drawer__link-text">
+                <span class="eah-nav-drawer__link-label">My tickets<?= student_nav_count_badge($studentNavTicketsCount, 'eah-nav-count--ticket') ?></span>
+                <span class="eah-nav-drawer__link-hint"><?= student_nav_h($studentNavTicketsHintText) ?></span>
+            </span>
+        </a>
+    </li>
+    <?php endif; ?>
+    <?php if ($studentNavInCurrentEvent): ?>
+    <li class="eah-nav-drawer__section" aria-hidden="true">Current event</li>
+    <?php if ($studentNavMainHubInCurrentEvent): ?>
+    <li>
+        <a class="eah-nav-drawer__link<?= student_nav_is_active('main_hub', $studentNavActive) ?>" href="<?= student_nav_h($studentNavMainHubUrl) ?>"<?= $studentNavActive === 'main_hub' ? ' aria-current="page"' : '' ?>>
+            <i class="fas fa-calendar-day"></i>
+            <span class="eah-nav-drawer__link-text">
+                <span class="eah-nav-drawer__link-label"><?= student_nav_h($studentNavMainHubLabel) ?></span>
+                <span class="eah-nav-drawer__link-hint"><?= student_nav_h($studentNavMainHubHint) ?></span>
+            </span>
+        </a>
+    </li>
+    <?php endif; ?>
     <?php if ($studentNavScheduleUrl !== ''): ?>
     <li>
         <a class="eah-nav-drawer__link<?= student_nav_is_active('schedule', $studentNavActive) ?>" href="<?= student_nav_h($studentNavScheduleUrl) ?>"<?= $studentNavActive === 'schedule' ? ' aria-current="page"' : '' ?>>
             <i class="fas fa-bookmark"></i>
             <span class="eah-nav-drawer__link-text">
                 <span class="eah-nav-drawer__link-label">My schedule<?= student_nav_count_badge($studentNavScheduleCount) ?></span>
-                <span class="eah-nav-drawer__link-hint">RSVP'd day activities</span>
+                <span class="eah-nav-drawer__link-hint">Only what you RSVP’d</span>
             </span>
         </a>
     </li>
     <?php endif; ?>
-    <?php if ($studentNavTicketsUrl !== ''): ?>
+    <?php if ($studentNavTicketsInCurrentEvent): ?>
     <li>
         <a class="eah-nav-drawer__link<?= student_nav_is_active('tickets', $studentNavActive) ?>" href="<?= student_nav_h($studentNavTicketsUrl) ?>"<?= $studentNavActive === 'tickets' ? ' aria-current="page"' : '' ?>>
             <i class="fas fa-ticket-alt"></i>
             <span class="eah-nav-drawer__link-text">
                 <span class="eah-nav-drawer__link-label">My tickets<?= student_nav_count_badge($studentNavTicketsCount, 'eah-nav-count--ticket') ?></span>
-                <span class="eah-nav-drawer__link-hint">Passes for this event</span>
+                <span class="eah-nav-drawer__link-hint"><?= student_nav_h($studentNavTicketsHintText) ?></span>
             </span>
         </a>
     </li>
     <?php endif; ?>
     <?php endif; ?>
-    <li class="eah-nav-drawer__section" aria-hidden="true">Account</li>
-    <li>
-        <a class="eah-nav-drawer__link<?= student_nav_is_active('attendance', $studentNavActive) ?>" href="<?= student_nav_h($studentNavAttendanceUrl) ?>"<?= $studentNavActive === 'attendance' ? ' aria-current="page"' : '' ?>>
-            <i class="fas fa-clipboard-check"></i>
-            <span class="eah-nav-drawer__link-text">
-                <span class="eah-nav-drawer__link-label">My attendance<?= student_nav_count_badge($studentNavAttendanceCount) ?></span>
-                <span class="eah-nav-drawer__link-hint">Full check-in list</span>
-            </span>
-        </a>
-    </li>
-    <?php if (!$studentNavShowEventSection): ?>
-    <li>
-        <a class="eah-nav-drawer__link<?= student_nav_is_active('tickets', $studentNavActive) ?>" href="<?= student_nav_h($studentNavTicketsUrl) ?>"<?= $studentNavActive === 'tickets' ? ' aria-current="page"' : '' ?>>
-            <i class="fas fa-ticket-alt"></i>
-            <span class="eah-nav-drawer__link-text">
-                <span class="eah-nav-drawer__link-label">My tickets<?= student_nav_count_badge($studentNavTicketsCount, 'eah-nav-count--ticket') ?></span>
-            </span>
-        </a>
-    </li>
-    <?php endif; ?>
+    <li class="eah-nav-drawer__section" aria-hidden="true">Check-in</li>
     <li>
         <button type="button" class="eah-nav-drawer__link eah-nav-drawer__link--btn" data-bs-toggle="modal" data-bs-target="#scanQRModal" data-eah-close-nav>
             <i class="fas fa-qrcode"></i>
@@ -131,4 +146,13 @@ $studentNavShowEventSection = ($studentNavScheduleUrl !== '' || $studentNavTicke
                 <span class="eah-nav-drawer__link-hint">Check in at venue</span>
             </span>
         </button>
+    </li>
+    <li>
+        <a class="eah-nav-drawer__link<?= student_nav_is_active('attendance', $studentNavActive) ?>" href="<?= student_nav_h($studentNavAttendanceUrl) ?>"<?= $studentNavActive === 'attendance' ? ' aria-current="page"' : '' ?>>
+            <i class="fas fa-clipboard-check"></i>
+            <span class="eah-nav-drawer__link-text">
+                <span class="eah-nav-drawer__link-label">Check-in history<?= student_nav_count_badge($studentNavAttendanceCount) ?></span>
+                <span class="eah-nav-drawer__link-hint">Past scans</span>
+            </span>
+        </a>
     </li>

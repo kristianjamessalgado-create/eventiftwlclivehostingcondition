@@ -39,10 +39,10 @@ if (!in_array($defaultView, $allowedViews, true)) {
     $defaultView = 'dayGridMonth';
 }
 
-$reminderTiming = (string)($_POST['reminder_timing'] ?? '1_day');
-$allowedTiming = ['1_day', '1_hour', '30_min'];
+$reminderTiming = (string)($_POST['reminder_timing'] ?? '30_min');
+$allowedTiming = ['30_min', '1_hour', '1_day'];
 if (!in_array($reminderTiming, $allowedTiming, true)) {
-    $reminderTiming = '1_day';
+    $reminderTiming = '30_min';
 }
 
 $eventReminders = student_checkbox('event_reminders');
@@ -69,7 +69,7 @@ try {
             default_calendar_view VARCHAR(20) NOT NULL DEFAULT 'dayGridMonth',
             show_calendar_legend TINYINT(1) NOT NULL DEFAULT 1,
             auto_add_rsvp_calendar TINYINT(1) NOT NULL DEFAULT 1,
-            reminder_timing VARCHAR(20) NOT NULL DEFAULT '1_day',
+            reminder_timing VARCHAR(20) NOT NULL DEFAULT '30_min',
             hide_past_rsvped TINYINT(1) NOT NULL DEFAULT 0,
             share_profile_with_organizers TINYINT(1) NOT NULL DEFAULT 1,
             allow_photo_tagging TINYINT(1) NOT NULL DEFAULT 1,

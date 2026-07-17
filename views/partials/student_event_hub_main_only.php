@@ -19,6 +19,8 @@ $mainOnlyDescription = trim(strip_tags((string) ($mainOnlyEvent['description'] ?
 $mainOnlyIsOpen = ($mainOnlyRegMode === 'open');
 $mainOnlyIsPaid = ($mainOnlyRegMode === 'paid_ticket');
 $mainOnlyIsLive = function_exists('eventify_event_is_live') && eventify_event_is_live($mainOnlyEvent);
+$mainOnlyEnded = function_exists('eventify_event_ended_for_feedback') && eventify_event_ended_for_feedback($mainOnlyEvent);
+$mainOnlyShowScan = $mainOnlyIsOpen && $mainOnlyIsLive && !$mainOnlyEnded;
 
 if (!function_exists('student_main_only_h')) {
     function student_main_only_h(string $s): string
@@ -78,10 +80,15 @@ if (!function_exists('student_main_only_h')) {
     </div>
     <?php endif; ?>
 
-    <?php if ($mainOnlyIsOpen && $mainOnlyIsLive): ?>
+    <?php if ($mainOnlyShowScan): ?>
     <p class="eah-main-event-card__checkin">
         <i class="fas fa-qrcode" aria-hidden="true"></i>
         At the venue, tap <strong>Scan QR</strong> below and scan the organizer's check-in code when you arrive.
+    </p>
+    <?php elseif ($mainOnlyIsOpen && $mainOnlyEnded): ?>
+    <p class="eah-main-event-card__checkin eah-main-event-card__checkin--muted">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+        <strong>Event ended</strong> — Scan QR is not available.
     </p>
     <?php elseif ($mainOnlyIsOpen): ?>
     <p class="eah-main-event-card__checkin eah-main-event-card__checkin--muted">
@@ -91,7 +98,7 @@ if (!function_exists('student_main_only_h')) {
     <?php endif; ?>
 
     <div class="eah-main-event-card__actions">
-        <?php if ($mainOnlyIsOpen): ?>
+        <?php if ($mainOnlyShowScan): ?>
         <button type="button" class="eah-main-event-card__cta" data-bs-toggle="modal" data-bs-target="#scanQRModal">
             <i class="fas fa-qrcode" aria-hidden="true"></i> Scan QR at venue
         </button>
@@ -100,7 +107,7 @@ if (!function_exists('student_main_only_h')) {
             <i class="fas fa-calendar-alt" aria-hidden="true"></i> Open dashboard calendar
         </a>
         <a class="eah-main-event-card__cta eah-main-event-card__cta--ghost" href="<?= student_main_only_h($mainOnlyHubUrl) ?>">
-            <i class="fas fa-th-large" aria-hidden="true"></i> My Activities and Events
+            <i class="fas fa-th-large" aria-hidden="true"></i> My registrations
         </a>
     </div>
 

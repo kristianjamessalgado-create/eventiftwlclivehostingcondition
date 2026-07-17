@@ -22,7 +22,7 @@ if (!function_exists('student_event_hub_h')) {
 <header class="eah-student-hub-hero eah-student-hub-hero--event">
     <nav class="eah-student-hub-hero__crumb" aria-label="Breadcrumb">
         <a class="eah-student-hub-hero__crumb-link" href="<?= student_event_hub_h($studentEventHubHubUrl) ?>">
-            <i class="fas fa-th-large" aria-hidden="true"></i> My Activities and Events
+            <i class="fas fa-th-large" aria-hidden="true"></i> My registrations
         </a>
         <span class="eah-student-hub-hero__crumb-sep" aria-hidden="true">/</span>
         <span class="eah-student-hub-hero__crumb-current"><?= student_event_hub_h($studentEventHubTitle) ?></span>
@@ -30,9 +30,9 @@ if (!function_exists('student_event_hub_h')) {
     <div class="eah-student-hub-hero__main">
         <div class="eah-student-hub-hero__icon" aria-hidden="true"><i class="fas fa-calendar-day"></i></div>
         <div class="eah-student-hub-hero__copy">
-            <p class="eah-student-hub-hero__eyebrow">Main hub</p>
+            <p class="eah-student-hub-hero__eyebrow">This event</p>
             <h1 class="eah-student-hub-hero__title"><?= student_event_hub_h($studentEventHubTitle) ?></h1>
-            <p class="eah-student-hub-hero__subtitle">Day activities for this event only — RSVP, save your schedule, and check in with QR. To switch events, open <strong>My Activities and Events</strong> in the menu.</p>
+            <p class="eah-student-hub-hero__subtitle">Browse day activities here. Use <strong>My schedule</strong> only for ones you RSVP to. Open entry needs no RSVP — scan QR at the venue. Switch events from <strong>My registrations</strong>.</p>
         </div>
     </div>
     <div class="eah-student-hub-hero__stats">

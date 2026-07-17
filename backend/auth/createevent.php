@@ -4,21 +4,40 @@ include __DIR__ . '/../../config/db.php';
 include __DIR__ . '/../../config/config.php';
 include __DIR__ . '/../../config/csrf.php';
 include __DIR__ . '/../../config/departments.php';
+if (is_file(__DIR__ . '/../../config/student_sections.php')) {
+    require_once __DIR__ . '/../../config/student_sections.php';
+}
 require_once __DIR__ . '/../../config/organizer_departments.php';
 require_once __DIR__ . '/../lib/event_calendar.php';
 require_once __DIR__ . '/../lib/event_ticketing.php';
 
-// Check if user is logged in as organizer
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'organizer') {
+$sessionRole = (string) ($_SESSION['role'] ?? '');
+$isOrganizerCreator = $sessionRole === 'organizer';
+$isAdminCreator = in_array($sessionRole, ['admin', 'super_admin'], true);
+
+// Organizers create for approval; admins/super_admins may create & publish with an assigned organizer.
+if (!isset($_SESSION['user_id']) || (!$isOrganizerCreator && !$isAdminCreator)) {
     header("Location: " . BASE_URL . "/views/login.php?error=Access denied");
     exit();
 }
 
-$session_user_id = $_SESSION['user_id'];
+$session_user_id = (int) $_SESSION['user_id'];
 $error = '';
 $success = '';
 
+// Admin create UI lives on the dashboard modal — don't serve the standalone form.
+if ($isAdminCreator && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $dash = $sessionRole === 'super_admin'
+        ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php'
+        : BASE_URL . '/backend/admin/dashboard.php';
+    header('Location: ' . $dash . '?open_create=1');
+    exit();
+}
+
+require_once __DIR__ . '/../lib/event_organizer_assign.php';
+
 eventify_events_department_ensure_varchar($conn);
+eventify_sections_schema_ensure($conn);
 
 $eventsHasGeo = false;
 try {
@@ -46,9 +65,28 @@ eventify_ticketing_ensure_registration_mode_column($conn);
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $adminCreateFailRedirect = $sessionRole === 'super_admin'
+        ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php?error='
+        : BASE_URL . '/backend/admin/dashboard.php?error=';
+    $organizerFailRedirect = BASE_URL . '/backend/auth/dashboardorganizer.php?msg=';
+
     if (!csrf_validate()) {
-        header("Location: " . BASE_URL . "/backend/auth/dashboardorganizer.php?msg=" . urlencode("Invalid request. Please try again."));
+        $failMsg = urlencode('Invalid request. Please try again.');
+        header('Location: ' . ($isAdminCreator ? $adminCreateFailRedirect . $failMsg : $organizerFailRedirect . $failMsg));
         exit();
+    }
+
+    $eventOrganizerId = (int) $session_user_id;
+    $assignedOrganizerUser = null;
+    if ($isAdminCreator) {
+        $selectedOrganizerId = (int) ($_POST['organizer_id'] ?? 0);
+        $orgCheck = eventify_validate_admin_create_organizer($conn, $selectedOrganizerId, (int) $session_user_id);
+        if (empty($orgCheck['ok'])) {
+            header('Location: ' . $adminCreateFailRedirect . urlencode((string) ($orgCheck['error'] ?? 'Please choose an organizer.')));
+            exit();
+        }
+        $assignedOrganizerUser = $orgCheck['user'] ?? null;
+        $eventOrganizerId = (int) ($assignedOrganizerUser['id'] ?? 0);
     }
     $title = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -213,12 +251,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "Event start date cannot be in the past.";
             }
 
+            $targetSectionsJson = null;
             if (!$error) {
                 $parsedDept = eventify_parse_event_departments_from_request($_POST);
                 if (!$parsedDept['ok']) {
                     $error = $parsedDept['error'] ?? 'Invalid department selection.';
                 } else {
                     $department = $parsedDept['department'];
+                }
+            }
+            if (!$error) {
+                $parsedSecs = eventify_parse_event_sections_from_request($conn, $_POST, $session_user_id);
+                if (!$parsedSecs['ok']) {
+                    $error = $parsedSecs['error'] ?? 'Invalid section selection.';
+                } else {
+                    $targetSectionsJson = $parsedSecs['target_sections'];
                 }
             }
 
@@ -252,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if ($eventsHasMaxCapacity) {
                                 $stmt = $conn->prepare("INSERT INTO events (title, description, date, end_date, start_time, end_time, location, latitude, longitude, max_capacity, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                                 if ($stmt) {
-                                    $stmt->bind_param("sssssssddiiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $maxCapVal, $session_user_id, $department, $checkin_token);
+                                    $stmt->bind_param("sssssssddiiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $maxCapVal, $eventOrganizerId, $department, $checkin_token);
                                     if ($stmt->execute()) {
                                         $executed = true;
                                     }
@@ -262,7 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (!$executed) {
                                 $stmt = $conn->prepare("INSERT INTO events (title, description, date, end_date, start_time, end_time, location, latitude, longitude, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                                 if ($stmt) {
-                                    $stmt->bind_param("sssssssddiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $session_user_id, $department, $checkin_token);
+                                    $stmt->bind_param("sssssssddiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $eventOrganizerId, $department, $checkin_token);
                                     if ($stmt->execute()) {
                                         $executed = true;
                                     }
@@ -272,7 +319,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } elseif ($eventsHasMaxCapacity) {
                             $stmt = $conn->prepare("INSERT INTO events (title, description, date, start_time, end_time, location, latitude, longitude, max_capacity, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                             if ($stmt) {
-                                $stmt->bind_param("ssssssddiiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $maxCapVal, $session_user_id, $department, $checkin_token);
+                                $stmt->bind_param("ssssssddiiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $maxCapVal, $eventOrganizerId, $department, $checkin_token);
                                 if ($stmt->execute()) {
                                     $executed = true;
                                 }
@@ -282,7 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!$executed && !$eventsHasEndDate) {
                             $stmt = $conn->prepare("INSERT INTO events (title, description, date, start_time, end_time, location, latitude, longitude, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                             if ($stmt) {
-                                $stmt->bind_param("ssssssddiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $session_user_id, $department, $checkin_token);
+                                $stmt->bind_param("ssssssddiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $latVal, $lngVal, $eventOrganizerId, $department, $checkin_token);
                                 if ($stmt->execute()) {
                                     $executed = true;
                                 }
@@ -296,7 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if ($eventsHasMaxCapacity) {
                                 $stmt = $conn->prepare("INSERT INTO events (title, description, date, end_date, start_time, end_time, location, max_capacity, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                                 if ($stmt) {
-                                    $stmt->bind_param("sssssssiiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $maxCapVal, $session_user_id, $department, $checkin_token);
+                                    $stmt->bind_param("sssssssiiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $maxCapVal, $eventOrganizerId, $department, $checkin_token);
                                     if ($stmt->execute()) {
                                         $executed = true;
                                     }
@@ -306,7 +353,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (!$executed) {
                                 $stmt = $conn->prepare("INSERT INTO events (title, description, date, end_date, start_time, end_time, location, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                                 if ($stmt) {
-                                    $stmt->bind_param("sssssssiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $session_user_id, $department, $checkin_token);
+                                    $stmt->bind_param("sssssssiss", $title, $description, $date, $end_date_param, $start_time_param, $end_time_param, $location, $eventOrganizerId, $department, $checkin_token);
                                     if ($stmt->execute()) {
                                         $executed = true;
                                     }
@@ -316,7 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } elseif ($eventsHasMaxCapacity) {
                             $stmt = $conn->prepare("INSERT INTO events (title, description, date, start_time, end_time, location, max_capacity, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                             if ($stmt) {
-                                $stmt->bind_param("ssssssiiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $maxCapVal, $session_user_id, $department, $checkin_token);
+                                $stmt->bind_param("ssssssiiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $maxCapVal, $eventOrganizerId, $department, $checkin_token);
                                 if ($stmt->execute()) {
                                     $executed = true;
                                 }
@@ -326,7 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!$executed && !$eventsHasEndDate) {
                             $stmt = $conn->prepare("INSERT INTO events (title, description, date, start_time, end_time, location, organizer_id, department, status, checkin_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)");
                             if ($stmt) {
-                                $stmt->bind_param("ssssssiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $session_user_id, $department, $checkin_token);
+                                $stmt->bind_param("ssssssiss", $title, $description, $date, $start_time_param, $end_time_param, $location, $eventOrganizerId, $department, $checkin_token);
                                 if ($stmt->execute()) {
                                     $executed = true;
                                 }
@@ -337,6 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if ($executed) {
                         $newEventId = (int) $conn->insert_id;
+                        eventify_event_save_target_sections($conn, $newEventId, $targetSectionsJson);
                         if (count($scheduleDatesToStore) >= 2) {
                             eventify_save_event_schedule_dates($conn, $newEventId, $scheduleDatesToStore, $dayEndTimes, $dayStartTimes);
                         } else {
@@ -358,6 +406,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $upMode->close();
                         }
                         require_once __DIR__ . '/../lib/activity_logger.php';
+
+                        if ($isAdminCreator) {
+                            $pub = $conn->prepare("UPDATE events SET status = 'active' WHERE id = ?");
+                            if ($pub) {
+                                $pub->bind_param('i', $newEventId);
+                                $pub->execute();
+                                $pub->close();
+                            }
+
+                            $orgName = (string) ($assignedOrganizerUser['name'] ?? 'organizer');
+                            $assignedSelf = $eventOrganizerId === (int) $session_user_id;
+                            log_activity(
+                                $conn,
+                                (int) $session_user_id,
+                                $sessionRole,
+                                'event_created_by_admin',
+                                'event',
+                                $newEventId,
+                                'Published event "' . $title . '" assigned to ' . $orgName
+                            );
+
+                            if (!$assignedSelf && $eventOrganizerId > 0) {
+                                try {
+                                    require_once __DIR__ . '/../lib/notifications_service.php';
+                                    eventify_insert_user_notification(
+                                        $conn,
+                                        $eventOrganizerId,
+                                        'event_assigned_published',
+                                        'Event assigned to you',
+                                        'Admin published "' . $title . '" and assigned you as organizer. It is live on the calendar.',
+                                        $newEventId
+                                    );
+                                } catch (Throwable $e) {
+                                    // ignore
+                                }
+                            }
+
+                            try {
+                                require_once __DIR__ . '/../lib/notifications_service.php';
+                                $notifyOverride = [
+                                    'id' => $newEventId,
+                                    'title' => $title,
+                                    'date' => $date,
+                                    'start_time' => $start_time_param,
+                                    'end_time' => $end_time_param,
+                                    'location' => $location,
+                                    'department' => $department,
+                                    'target_sections' => $targetSectionsJson,
+                                    'status' => 'active',
+                                    'registration_mode' => $registration_mode,
+                                ];
+                                eventify_notify_students_event_published($conn, $newEventId, 'admin', $notifyOverride);
+                            } catch (Throwable $e) {
+                                // keep publish successful even if notify fails
+                            }
+
+                            if ($assignedSelf) {
+                                $success = 'Event published. You are the organizer — manage activities and check-in from this page.';
+                                $redirect = BASE_URL . '/event_activities.php?id=' . $newEventId . '&msg=' . urlencode($success);
+                            } else {
+                                $success = 'Event published and assigned to ' . $orgName . '. It is live on the calendar (no approval needed).';
+                                $redirect = ($sessionRole === 'super_admin')
+                                    ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php?success=' . urlencode($success)
+                                    : BASE_URL . '/backend/admin/dashboard.php?panel=events&success=' . urlencode($success);
+                            }
+                            if (count($scheduleDatesToStore) >= 2) {
+                                $redirect .= (strpos($redirect, '?') !== false ? '&' : '?') . 'prompt_activities=' . ($assignedSelf ? '1' : $newEventId);
+                            }
+                            header('Location: ' . $redirect);
+                            exit();
+                        }
+
                         log_activity(
                             $conn,
                             (int) $session_user_id,
@@ -420,6 +540,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+if ($isAdminCreator && $error !== '') {
+    $dash = $sessionRole === 'super_admin'
+        ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php'
+        : BASE_URL . '/backend/admin/dashboard.php';
+    header('Location: ' . $dash . '?open_create=1&error=' . urlencode($error));
+    exit();
+}
+
 // Get pre-filled date from URL parameter (from calendar click)
 $prefilled_date = $_GET['date'] ?? '';
 
@@ -450,7 +578,7 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
@@ -957,7 +1085,7 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
 
                 <?php
                 $regModeFieldIdPrefix = 'standalone';
-                $postedRegistrationMode = $_POST['registration_mode'] ?? 'rsvp';
+                $postedRegistrationMode = $_POST['registration_mode'] ?? 'open';
                 include __DIR__ . '/../../views/partials/event_registration_mode_fields.php';
                 ?>
 
@@ -999,6 +1127,13 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
                         <?php endforeach; ?>
                     </div>
                 </div>
+
+                <?php
+                  $sectionFieldIdPrefix = 'standalone';
+                  $postedSections = isset($_POST['section']) && is_array($_POST['section']) ? $_POST['section'] : [];
+                  $newSectionValue = (string) ($_POST['new_section'] ?? '');
+                  include __DIR__ . '/../../views/partials/event_section_audience_fields.php';
+                ?>
                 
                 <div class="btn-group">
                     <button type="button" class="btn btn-primary" id="createEventSubmitBtn">
@@ -1051,8 +1186,13 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+    if (typeof window.L === 'undefined') {
+        document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
+    }
+    </script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=3"></script>
     <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js"></script>
 
     <script>
@@ -1157,10 +1297,17 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
             const allD = document.getElementById('standaloneDeptAll');
             const specsD = form.querySelectorAll('.standalone-dept-specific');
             const anyD = Array.from(specsD).some(function (c) { return c.checked; });
-            const allOn = allD && allD.checked;
-            if (!allOn && !anyD) {
+            let allOn = allD && allD.checked;
+            const sectionCbs = form.querySelectorAll('input[name="section[]"]:checked');
+            const newSecEl = form.querySelector('input[name="new_section"]');
+            const hasSection = sectionCbs.length > 0 || !!(newSecEl && String(newSecEl.value || '').trim());
+            if (hasSection && allD && allD.checked) {
+                allD.checked = false;
+                allOn = false;
+            }
+            if (!allOn && !anyD && !hasSection) {
                 e.preventDefault();
-                showMessageModal('Please choose "All departments" or select at least one department.');
+                showMessageModal('Choose All departments, pick at least one college, or select a class section.');
                 return false;
             }
             const requireGeo = form.getAttribute('data-require-geo') === '1';

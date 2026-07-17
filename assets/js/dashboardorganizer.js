@@ -48,6 +48,36 @@ function eventifyEventDeptMatchesFilter(eventDept, filterDept) {
     return false;
 }
 
+/** Section filter: All = everything; specific = events that target that section label. */
+function eventifyEventSectionMatchesFilter(targetSections, filterSection) {
+    const f = String(filterSection || 'ALL').trim();
+    if (f === 'ALL' || f === '') {
+        return true;
+    }
+    const fKey = f.toLowerCase();
+    const raw = targetSections == null ? '' : String(targetSections).trim();
+    if (raw === '') {
+        // College/school-wide event (no section lock) — hide when filtering to one section
+        return false;
+    }
+    let list = [];
+    if (raw.charAt(0) === '[') {
+        try {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+                list = arr.map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+            }
+        } catch (e) {
+            list = [raw];
+        }
+    } else {
+        list = [raw];
+    }
+    return list.some(function (lab) {
+        return lab.toLowerCase() === fKey;
+    });
+}
+
 function eventifyOrganizerCalendarUsesAutoHeight(viewType) {
     var vt = String(viewType || '').toLowerCase();
     return vt === 'daygridmonth' || vt.indexOf('daygrid') === 0;
@@ -152,7 +182,16 @@ function eventifyFillAndShowEventDetails(event, options) {
     const deptEl = document.getElementById('eventDepartment');
     if (deptEl) {
         const label = String(props.department_display || '').trim();
-        deptEl.textContent = label || eventifyFormatStoredDeptForModal(props.department);
+        const secLabel = String(props.sections_display || '').trim();
+        let text = label || eventifyFormatStoredDeptForModal(props.department);
+        if (secLabel) {
+            if (!text || text === 'All Departments') {
+                text = 'Section · ' + secLabel;
+            } else {
+                text = text + ' · Section ' + secLabel;
+            }
+        }
+        deptEl.textContent = text;
     }
 
     const orgEl = document.getElementById('eventOrganizer');
@@ -258,6 +297,72 @@ function eventifyFillAndShowEventDetails(event, options) {
         }
     }
 
+    const isStaffAdmin = EVENTIFY_ROLE === 'admin' || EVENTIFY_ROLE === 'super_admin';
+    const closeBtn = document.getElementById('adminCloseEventBtn');
+    if (closeBtn) {
+        const canClose = isStaffAdmin && (props.admin_can_close === true || String(status).toLowerCase() === 'active');
+        closeBtn.style.display = canClose && realEventId ? 'inline-block' : 'none';
+        closeBtn.disabled = !(canClose && realEventId);
+        closeBtn.onclick = canClose && realEventId ? function () {
+            const idInput = document.getElementById('adminCloseEventId');
+            const msg = document.getElementById('adminCloseEventMessage');
+            if (idInput) idInput.value = String(realEventId);
+            if (msg) {
+                msg.textContent = 'Close "' + (event.title || 'this event') + '"? It stays in history (RSVPs / attendance) but leaves the live student calendar.';
+            }
+            const detailsModal = document.getElementById('eventDetailsModal');
+            if (detailsModal && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(detailsModal).hide();
+            }
+            const closeModal = document.getElementById('adminCloseEventModal');
+            if (closeModal && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(closeModal).show();
+            }
+        } : null;
+    }
+
+    const deleteBtn = document.getElementById('adminDeleteEventBtn');
+    if (deleteBtn) {
+        const canDelete = isStaffAdmin && props.admin_can_delete !== false && !!realEventId;
+        deleteBtn.style.display = canDelete ? 'inline-block' : 'none';
+        deleteBtn.disabled = !canDelete;
+        deleteBtn.onclick = canDelete ? function () {
+            const idInput = document.getElementById('adminDeleteEventId');
+            const msg = document.getElementById('adminDeleteEventMessage');
+            const impactEl = document.getElementById('adminDeleteEventImpact');
+            const confirmInput = document.getElementById('adminDeleteConfirmInput');
+            const submitBtn = document.getElementById('adminDeleteEventSubmit');
+            const forceWrap = document.getElementById('adminDeleteForceWrap');
+            const forceCb = document.getElementById('adminDeleteForceRevenue');
+            if (idInput) idInput.value = String(realEventId);
+            if (msg) {
+                msg.textContent = 'Permanently delete "' + (event.title || 'this event') + '"? Use this for duplicate bookings or mistakes.';
+            }
+            if (impactEl) {
+                const rsvp = Number(props.rsvp_count || 0);
+                const checkins = Number(props.checkin_count || 0);
+                const bits = [];
+                bits.push(rsvp > 0 ? (rsvp + ' RSVP record' + (rsvp === 1 ? '' : 's') + ' will be removed') : 'No RSVPs on file');
+                bits.push(checkins > 0 ? (checkins + ' check-in record' + (checkins === 1 ? '' : 's') + ' will be removed') : 'No check-ins on file');
+                bits.push('Prefer Close if you only want it off the live calendar');
+                impactEl.innerHTML = bits.map(function (b) { return '<li>' + b + '</li>'; }).join('');
+            }
+            if (confirmInput) confirmInput.value = '';
+            if (submitBtn) submitBtn.disabled = true;
+            const isPaid = String(props.registration_mode || '').toLowerCase() === 'paid_ticket';
+            if (forceWrap) forceWrap.style.display = isPaid ? 'block' : 'none';
+            if (forceCb) forceCb.checked = false;
+            const detailsModal = document.getElementById('eventDetailsModal');
+            if (detailsModal && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(detailsModal).hide();
+            }
+            const delModal = document.getElementById('adminDeleteEventModal');
+            if (delModal && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(delModal).show();
+            }
+        } : null;
+    }
+
     const qrLink = document.getElementById('eventQrLink');
     if (qrLink) {
         if (realEventId && eventIsLive) {
@@ -284,6 +389,16 @@ function eventifyFillAndShowEventDetails(event, options) {
             attendanceLink.style.display = 'inline-block';
         } else {
             attendanceLink.style.display = 'none';
+        }
+    }
+
+    const rsvpLink = document.getElementById('eventRsvpLink');
+    if (rsvpLink) {
+        if (realEventId) {
+            rsvpLink.href = BASE_URL + '/event_rsvp.php?id=' + realEventId;
+            rsvpLink.style.display = 'inline-block';
+        } else {
+            rsvpLink.style.display = 'none';
         }
     }
 
@@ -475,6 +590,7 @@ let selectedDepartment = (function () {
     }
     return d;
 })();
+let selectedSection = 'ALL';
 let renderMiniCalendar = null; // Will be set by initMiniCalendar
 
 function isSameDay(a, b) {
@@ -581,6 +697,10 @@ function initCreateEventDeptAudience() {
     if (!form) {
         return;
     }
+    // create_event_modal.js owns create-event audience validation (efy alert + section-only).
+    if (typeof window.initCreateEventModalScripts === 'function' || document.querySelector('script[src*="create_event_modal.js"]')) {
+        return;
+    }
     const allCb = document.getElementById('ceDeptAll');
     const specifics = form.querySelectorAll('.ce-dept-specific');
     if (allCb) {
@@ -604,9 +724,21 @@ function initCreateEventDeptAudience() {
             return c.checked;
         });
         const allOn = allCb && allCb.checked;
-        if (!allOn && !anySpecific) {
+        const hasSection = form.querySelectorAll('input[name="section[]"]:checked').length > 0
+            || !!(form.querySelector('input[name="new_section"]') && String(form.querySelector('input[name="new_section"]').value || '').trim());
+        if (hasSection && allCb && allCb.checked) {
+            allCb.checked = false;
+        }
+        if (!allOn && !anySpecific && !hasSection) {
             e.preventDefault();
-            alert('Please choose "All departments" or select at least one department.');
+            if (typeof window.eventifyAlert === 'function') {
+                window.eventifyAlert('Choose All departments, pick at least one college, or select a class section.', {
+                    title: 'Who can attend?',
+                    type: 'warning'
+                });
+            } else {
+                alert('Choose All departments, pick at least one college, or select a class section.');
+            }
         }
     });
 }
@@ -981,6 +1113,34 @@ function initOrganizerReopenModalFromUrl() {
     }
 }
 
+function initAdminEventDeleteConfirmGate() {
+    var input = document.getElementById('adminDeleteConfirmInput');
+    var submitBtn = document.getElementById('adminDeleteEventSubmit');
+    var forceCb = document.getElementById('adminDeleteForceRevenue');
+    var forceWrap = document.getElementById('adminDeleteForceWrap');
+    if (!input || !submitBtn) {
+        return;
+    }
+    function refresh() {
+        var typedOk = String(input.value || '').trim() === 'DELETE';
+        var forceNeeded = forceWrap && forceWrap.style.display !== 'none';
+        var forceOk = !forceNeeded || (forceCb && forceCb.checked);
+        submitBtn.disabled = !(typedOk && forceOk);
+    }
+    input.addEventListener('input', refresh);
+    if (forceCb) {
+        forceCb.addEventListener('change', refresh);
+    }
+    var modal = document.getElementById('adminDeleteEventModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function () {
+            input.focus();
+            refresh();
+        });
+    }
+    refresh();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initOrganizerFlashToast();
 
@@ -988,9 +1148,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initMiniCalendar();
     initFullCalendar();
     initDepartmentFilter();
+    initSectionFilter();
     initViewButtons();
     initCalendarNavigation();
     initOrganizerEventStatusModal();
+    initAdminEventDeleteConfirmGate();
     initOrganizerDashboardPanels();
     initOrganizerDashboardPanelFromUrl();
     if (organizerGetPanelFromUrl() === 'events' || organizerGetPanelFromUrl() === 'feedback') {
@@ -1179,15 +1341,14 @@ function initFullCalendar() {
     const showWeekends = !(os.show_weekends === 0 || os.show_weekends === false || String(os.show_weekends) === '0');
     const weekStartsOn = parseInt(os.week_starts_on, 10) === 1 ? 1 : 0;
 
-    // Filter events by selected department
+    // Filter events by selected department + optional class section
     function getFilteredEvents() {
         if (!window.eventsData) return [];
-        if (selectedDepartment === 'ALL') {
-            return window.eventsData;
-        }
-        return window.eventsData.filter(event => {
+        return window.eventsData.filter(function (event) {
             const dept = event.extendedProps?.department || 'ALL';
-            return eventifyEventDeptMatchesFilter(dept, selectedDepartment);
+            const sections = event.extendedProps?.target_sections ?? '';
+            return eventifyEventDeptMatchesFilter(dept, selectedDepartment)
+                && eventifyEventSectionMatchesFilter(sections, selectedSection);
         });
     }
 
@@ -1333,9 +1494,16 @@ function initFullCalendar() {
         eventifyBindCalendarSegmentRepaint(calendar, calendarEl);
     }
 
-    document.querySelectorAll('.calendar-item').forEach(function (i) {
+    document.querySelectorAll('.calendar-item[data-dept]').forEach(function (i) {
         i.classList.toggle('active', (i.getAttribute('data-dept') || '') === selectedDepartment);
     });
+    document.querySelectorAll('.calendar-item[data-section]').forEach(function (i) {
+        i.classList.toggle('active', (i.getAttribute('data-section') || '') === selectedSection);
+    });
+    var secSel = document.getElementById('orgSectionFilter') || document.getElementById('adminSectionFilter');
+    if (secSel) {
+        secSel.value = selectedSection;
+    }
     document.querySelectorAll('.view-btn').forEach(function (b) {
         const v = b.getAttribute('data-view');
         b.classList.toggle('active', v === initView && v !== 'today');
@@ -1371,11 +1539,11 @@ function updateCalendarTitle(info) {
 // DEPARTMENT FILTER
 // ===============================
 function initDepartmentFilter() {
-    const calendarItems = document.querySelectorAll('.calendar-item');
+    const calendarItems = document.querySelectorAll('.calendar-item[data-dept]');
     
     calendarItems.forEach(item => {
         item.addEventListener('click', function() {
-            // Remove active class from all
+            // Remove active class from all department items
             calendarItems.forEach(i => i.classList.remove('active'));
             
             // Add active to clicked
@@ -1390,6 +1558,38 @@ function initDepartmentFilter() {
             }
         });
     });
+}
+
+// ===============================
+// SECTION FILTER
+// ===============================
+function initSectionFilter() {
+    function applySection(value) {
+        selectedSection = String(value || 'ALL').trim() || 'ALL';
+        document.querySelectorAll('.calendar-item[data-section]').forEach(function (i) {
+            i.classList.toggle('active', (i.getAttribute('data-section') || '') === selectedSection);
+        });
+        var sel = document.getElementById('orgSectionFilter') || document.getElementById('adminSectionFilter');
+        if (sel && sel.value !== selectedSection) {
+            sel.value = selectedSection;
+        }
+        if (window.updateCalendarEvents) {
+            window.updateCalendarEvents();
+        }
+    }
+
+    document.querySelectorAll('.calendar-item[data-section]').forEach(function (item) {
+        item.addEventListener('click', function () {
+            applySection(this.getAttribute('data-section') || 'ALL');
+        });
+    });
+
+    var sel = document.getElementById('orgSectionFilter') || document.getElementById('adminSectionFilter');
+    if (sel) {
+        sel.addEventListener('change', function () {
+            applySection(this.value);
+        });
+    }
 }
 
 // ===============================

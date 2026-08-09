@@ -2190,6 +2190,11 @@ body.organizer-dashboard .org-dash-panel .org-my-event-card:hover {
     box-shadow: var(--org-shadow);
 }
 
+body.organizer-dashboard .org-dash-panel .org-my-event-card--highlight {
+    border-color: #c9a227;
+    box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.28);
+}
+
 body.organizer-dashboard .org-dash-panel .event-title {
     color: var(--org-text);
     font-weight: 700;

@@ -108,7 +108,8 @@ if (!function_exists('organizer_event_hub_h')) {
         <?php endif; ?>
         <?php if ($eventHasEditableScheduleDay): ?>
         <button type="button" class="eah-hero-create-btn" id="eahHeroAddActivity">
-            <i class="fas fa-plus" aria-hidden="true"></i> Add activity
+            <i class="fas fa-<?= $organizerEventHubActivityCount > 0 ? 'pen-to-square' : 'plus' ?>" aria-hidden="true"></i>
+            <?= $organizerEventHubActivityCount > 0 ? 'Manage activities' : 'Add activity' ?>
         </button>
         <?php endif; ?>
         <?php if ($eventCanEndEarly): ?>

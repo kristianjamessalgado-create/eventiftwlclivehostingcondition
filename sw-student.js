@@ -250,9 +250,18 @@ self.addEventListener('notificationclick', function (event) {
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
             for (var i = 0; i < clientList.length; i++) {
                 var client = clientList[i];
-                if (client.url && client.url.indexOf('dashboard_student.php') !== -1 && 'focus' in client) {
-                    return client.focus();
+                if (!client || !('focus' in client)) {
+                    continue;
                 }
+                return client.focus().then(function (focused) {
+                    var win = focused || client;
+                    if (win && 'navigate' in win) {
+                        return win.navigate(targetUrl);
+                    }
+                    if (clients.openWindow) {
+                        return clients.openWindow(targetUrl);
+                    }
+                });
             }
             if (clients.openWindow) {
                 return clients.openWindow(targetUrl);

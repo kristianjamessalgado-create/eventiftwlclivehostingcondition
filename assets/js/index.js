@@ -720,6 +720,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     initVerifyOtpBoxes();
+    initVerifyResendEmailSync();
 
     // Re-open specific auth modal after backend redirect — wait until splash finishes.
     function openAuthModalAfterSplash(fn) {
@@ -939,7 +940,8 @@ function initRememberEmail() {
 
     try {
         var saved = localStorage.getItem('eventify_remember_email');
-        if (saved) {
+        var current = String(emailInput.value || '').trim();
+        if (saved && current === '') {
             emailInput.value = saved;
             rememberToggle.checked = true;
         }
@@ -1117,6 +1119,40 @@ function initVerifyOtpBoxes() {
     syncVerifyOtpHidden();
 }
 
+function syncVerifyResendEmail() {
+    var emailInput = document.getElementById('verifyModalEmail');
+    var resendEmail = document.getElementById('verifyResendEmail');
+    if (!emailInput || !resendEmail) {
+        return '';
+    }
+    var email = String(emailInput.value || '').trim();
+    resendEmail.value = email;
+    return email;
+}
+
+function initVerifyResendEmailSync() {
+    var emailInput = document.getElementById('verifyModalEmail');
+    var resendForm = document.getElementById('verifyResendOtpForm');
+    if (!emailInput) {
+        return;
+    }
+    var sync = function () {
+        syncVerifyResendEmail();
+    };
+    emailInput.addEventListener('input', sync);
+    emailInput.addEventListener('change', sync);
+    emailInput.addEventListener('blur', sync);
+    if (resendForm) {
+        resendForm.addEventListener('submit', function () {
+            var email = syncVerifyResendEmail();
+            if (!email) {
+                emailInput.focus();
+            }
+        });
+    }
+    sync();
+}
+
 function openVerifyModal(opts) {
     opts = opts || {};
     var modal = document.getElementById('loginModal');
@@ -1148,13 +1184,18 @@ function openVerifyModal(opts) {
         if (purpose === 'register') {
             emailInput.readOnly = true;
         }
+    } else if (emailInput && purpose === 'reactivate' && !emailInput.value) {
+        var loginEmail = document.getElementById('loginModalEmail');
+        if (loginEmail && String(loginEmail.value || '').trim() !== '') {
+            emailInput.value = String(loginEmail.value || '').trim();
+        } else if (window.REACTIVATE_EMAIL) {
+            emailInput.value = String(window.REACTIVATE_EMAIL || '').trim();
+        }
     }
     if (resendPurpose) {
         resendPurpose.value = purpose;
     }
-    if (resendEmail && emailInput && emailInput.value) {
-        resendEmail.value = emailInput.value;
-    }
+    syncVerifyResendEmail();
     if (otpInput && !opts.keepOtp) {
         otpInput.value = '';
         if (typeof window.eventifyClearVerifyOtp === 'function') {

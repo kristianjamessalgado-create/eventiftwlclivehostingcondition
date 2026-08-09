@@ -24,12 +24,12 @@ function eventify_resend_otp_redirect(string $purpose, string $email, ?string $e
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !csrf_validate()) {
     $failPurpose = (($_POST['purpose'] ?? 'register') === 'reactivate') ? 'reactivate' : 'register';
-    $failEmail = trim(strtolower((string) ($_POST['email'] ?? '')));
+    $failEmail = eventify_normalize_email((string) ($_POST['email'] ?? ''));
     eventify_resend_otp_redirect($failPurpose, $failEmail, 'Invalid or expired session. Refresh the page and try again.');
 }
 
 $purpose = ($_POST['purpose'] ?? 'register') === 'reactivate' ? 'reactivate' : 'register';
-$email = trim(strtolower((string) ($_POST['email'] ?? '')));
+$email = eventify_normalize_email((string) ($_POST['email'] ?? ''));
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     eventify_resend_otp_redirect($purpose, $email, 'Enter a valid email address.');
@@ -62,6 +62,30 @@ if ($stmt) {
 
 if ($purpose === 'register' && $payload === null) {
     eventify_resend_otp_redirect($purpose, $email, 'No pending registration found for this email. Please register again.');
+}
+
+if ($purpose === 'reactivate' && ($userId === null || $userId < 1)) {
+    $uStmt = $conn->prepare(
+        'SELECT id FROM users
+         WHERE LOWER(TRIM(email)) = ? AND status = \'inactive\' AND COALESCE(failed_attempts, 0) > 0
+         LIMIT 1'
+    );
+    if ($uStmt) {
+        $uStmt->bind_param('s', $email);
+        $uStmt->execute();
+        $uRow = $uStmt->get_result()->fetch_assoc();
+        $uStmt->close();
+        if ($uRow) {
+            $userId = (int) ($uRow['id'] ?? 0);
+        }
+    }
+    if ($userId === null || $userId < 1) {
+        eventify_resend_otp_redirect(
+            $purpose,
+            $email,
+            'No locked account found for this email. Ask your super admin to send a reactivation OTP, or double-check the address.'
+        );
+    }
 }
 
 $otpCreate = eventify_create_email_otp($conn, $purpose, $email, $userId, $payload, 10);

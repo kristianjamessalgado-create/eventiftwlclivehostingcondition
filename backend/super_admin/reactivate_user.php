@@ -63,7 +63,7 @@ if ($lockStmt) {
     }
 }
 
-$email = trim((string)($user['email'] ?? ''));
+$email = eventify_normalize_email((string)($user['email'] ?? ''));
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $conn->close();
     eventify_redirect_superadmin_reactivate('error', 'Cannot reactivate: invalid email on account.');

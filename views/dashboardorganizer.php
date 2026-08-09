@@ -31,13 +31,14 @@ $organizer_events_count = (int) ($organizer_events_count ?? count($events ?? [])
 $events = $events ?? [];
 $eventsHasGeo = !empty($eventsHasGeo);
 $eventsHasEndDate = !empty($eventsHasEndDate);
+$eventsHasCheckinTimes = !empty($eventsHasCheckinTimes);
 $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Organizer Dashboard - EVENTIFY</title>
 
     <!-- Bootstrap CSS -->
@@ -54,19 +55,20 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=2">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=8">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=9">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
-<body class="organizer-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="organizerSidebar" data-eventify-calendar="calendar" data-eventify-main=".organizer-dashboard .main-content">
+<body class="organizer-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="organizerSidebar" data-eventify-calendar="calendar" data-eventify-main=".organizer-dashboard .main-content" data-eventify-pull-refresh="1">
 
 <!-- Top Navigation Bar -->
 <nav class="top-navbar">
@@ -656,15 +658,15 @@ window.__organizerFlash = <?= json_encode([
     'message' => $organizer_flash_message,
 ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events, function ($e) use ($user_name) {
-    return [
+    return array_merge([
         'description'   => $e['description'],
         'location'      => $e['location'],
         'created_at'    => $e['created_at'],
         'status'        => $e['status'],
         'reject_reason' => $e['reject_reason'] ?? null,
         'start_time'    => $e['start_time'] ?? null,
-            'end_time'      => $e['end_time'] ?? null,
-            'end_time_na'   => !empty($e['end_time_na']),
+        'end_time'      => $e['end_time'] ?? null,
+        'end_time_na'   => !empty($e['end_time_na']),
         'editUrl'       => 'edit_event.php?id=' . $e['id'],
         'organizer'     => $user_name,
         'department'    => $e['department'] ?? 'ALL',
@@ -676,7 +678,7 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
         'event_is_live'   => function_exists('eventify_event_is_live') ? eventify_event_is_live($e) : (($e['status'] ?? '') === 'active'),
         'registration_mode' => function_exists('eventify_event_registration_mode') ? eventify_event_registration_mode($e) : (string) ($e['registration_mode'] ?? 'rsvp'),
         'has_active_otp' => !empty($e['has_active_otp']),
-    ];
+    ], function_exists('eventify_event_calendar_status_props') ? eventify_event_calendar_status_props($e) : []);
 }), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP); ?>;
 
 window.currentUser = {
@@ -817,20 +819,21 @@ if (typeof window.L === 'undefined') {
 <script>
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=4"></script>
+    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=21"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=6"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=7"></script>
 
 <!-- Dashboard Scripts -->
-<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=14"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=7"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=11"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=21"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=10"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=30"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=32"></script>
 
 <script>
 window.EVENTIFY_GEOCODE_URL = window.EVENTIFY_GEOCODE_URL || <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;

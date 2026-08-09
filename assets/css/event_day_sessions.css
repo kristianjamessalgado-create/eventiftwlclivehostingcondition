@@ -696,7 +696,6 @@
     flex-wrap: wrap;
     gap: 0.4rem;
     align-items: center;
-    margin-bottom: 0.5rem;
 }
 
 #eventDaySessionsModal .eds-loc-toolbar__search {

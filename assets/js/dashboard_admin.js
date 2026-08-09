@@ -279,10 +279,73 @@ window.adminFocusPendingEventCard = adminFocusPendingEventCard;
 window.showAdminDashboardPanel = showAdminDashboardPanel;
 window.adminOpenPendingFromNotification = adminOpenPendingFromNotification;
 
+function adminOpenEventFromNotification(eventId) {
+    var eid = eventId ? String(eventId).trim() : '';
+    if (!eid) {
+        return false;
+    }
+
+    var onAdminDash = false;
+    try {
+        onAdminDash = /\/backend\/admin\/dashboard\.php$/i.test(window.location.pathname)
+            || /\/admin\/dashboard\.php$/i.test(window.location.pathname);
+    } catch (err) {
+        onAdminDash = false;
+    }
+
+    if (!onAdminDash) {
+        window.location.href = adminDashboardBaseUrl()
+            + '?panel=home&event_id=' + encodeURIComponent(eid)
+            + '&open_modal=eventDetails';
+        return true;
+    }
+
+    adminDismissBootstrapModals();
+    window.setTimeout(function () {
+        if (typeof showAdminDashboardPanel === 'function') {
+            showAdminDashboardPanel('home');
+        }
+        var opened = typeof window.eventifyOpenEventDetailsById === 'function'
+            && window.eventifyOpenEventDetailsById(eid);
+        if (!opened && typeof window.eventifyToast === 'object' && window.eventifyToast && typeof window.eventifyToast.info === 'function') {
+            window.eventifyToast.info('Could not open that event on the calendar. Try All Events or Pending.');
+        }
+    }, 280);
+    return true;
+}
+
+window.adminOpenEventFromNotification = adminOpenEventFromNotification;
+
 document.addEventListener('eventify:notif-open-pending', function (e) {
     var detail = (e && e.detail) || {};
     adminOpenPendingFromNotification(detail.eventId || '');
 });
+
+function initAdminOpenEventFromUrl() {
+    var openModal = '';
+    var eventId = '';
+    try {
+        var params = new URLSearchParams(window.location.search);
+        openModal = String(params.get('open_modal') || window.__adminOpenModal || '').toLowerCase();
+        eventId = String(params.get('event_id') || window.__adminOpenEventId || '').trim();
+    } catch (e) {
+        return;
+    }
+
+    try {
+        var url = new URL(window.location.href);
+        url.searchParams.delete('open_modal');
+        url.searchParams.delete('event_id');
+        var next = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash;
+        history.replaceState({}, '', next);
+    } catch (e) { /* ignore */ }
+
+    if (openModal === 'eventdetails' && eventId) {
+        setTimeout(function () {
+            adminOpenEventFromNotification(eventId);
+        }, 450);
+    }
+}
 
 function initAdminDashboardPanels() {
     document.addEventListener('click', function (e) {
@@ -1189,12 +1252,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('eventify:notif-view-event', function (e) {
         var detail = (e && e.detail) || {};
-        if (detail.eventId && typeof window.eventifyOpenEventDetailsById === 'function') {
+        if (detail.eventId && typeof window.adminOpenEventFromNotification === 'function') {
             setTimeout(function () {
-                window.eventifyOpenEventDetailsById(String(detail.eventId));
+                window.adminOpenEventFromNotification(String(detail.eventId));
             }, 200);
         }
     });
+
+    initAdminOpenEventFromUrl();
 
     (function initAdminAnnouncementForm() {
         var form = document.getElementById('adminAnnouncementForm');

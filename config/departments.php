@@ -122,6 +122,29 @@ if (!function_exists('eventify_student_sees_event_department')) {
     }
 }
 
+/** @return list<string> ALL, one dept, or multiple from JSON array. Empty input = []. */
+if (!function_exists('eventify_parse_stored_departments_list')) {
+    function eventify_parse_stored_departments_list(?string $stored): array
+    {
+        $s = trim((string) $stored);
+        if ($s === '') {
+            return [];
+        }
+        if ($s === 'ALL') {
+            return ['ALL'];
+        }
+        if ($s[0] === '[') {
+            $arr = json_decode($s, true);
+            if (is_array($arr)) {
+                return array_values(array_filter(array_map('strval', $arr), static function ($x) {
+                    return trim($x) !== '';
+                }));
+            }
+        }
+        return [$s];
+    }
+}
+
 /** Human-readable label for admin/organizer lists (never JSON raw in UI). */
 if (!function_exists('eventify_format_department_label')) {
     function eventify_format_department_label(string $stored): string

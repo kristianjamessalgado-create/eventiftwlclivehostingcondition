@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $ownsEvent = eventify_organizer_owns_event($conn, $eventId, $userId);
-    $canEdit = $mayManageOwned && $ownsEvent;
+    $canEdit = eventify_user_may_manage_event_activities($conn, $role, $userId, $eventId);
 
     if ($role === 'organizer' && !$ownsEvent) {
 
@@ -115,6 +115,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($canEdit) {
         eventify_ticketing_ensure_schema($conn);
         $payload['ticket_types'] = eventify_load_ticket_types_for_event($conn, $eventId, false);
+        $parentEvent = eventify_load_event_for_activities_hub($conn, $eventId);
+        if ($parentEvent) {
+            if (!function_exists('eventify_parse_target_sections_list')) {
+                require_once __DIR__ . '/../../config/student_sections.php';
+            }
+            $parentTargetSections = $parentEvent['target_sections'] ?? null;
+            $payload['parent_event_audience'] = [
+                'event_title' => trim((string) ($parentEvent['title'] ?? '')),
+                'department' => $parentEvent['department'] ?? 'ALL',
+                'target_sections' => $parentTargetSections,
+                'target_sections_list' => function_exists('eventify_parse_target_sections_list')
+                    ? eventify_parse_target_sections_list($parentTargetSections)
+                    : [],
+                'department_label' => function_exists('eventify_format_department_label')
+                    ? eventify_format_department_label((string) ($parentEvent['department'] ?? 'ALL'))
+                    : (string) ($parentEvent['department'] ?? 'ALL'),
+                'sections_label' => function_exists('eventify_format_target_sections_label')
+                    ? eventify_format_target_sections_label($parentTargetSections)
+                    : '',
+            ];
+        }
         $editCheck = eventify_organizer_can_edit_event_schedule(
             $conn,
             $eventId,
@@ -273,7 +294,7 @@ $scheduleDate = trim((string) ($_POST['schedule_date'] ?? ''));
 
 
 
-if ($eventId < 1 || !eventify_organizer_owns_event($conn, $eventId, $userId)) {
+if ($eventId < 1 || !eventify_user_may_manage_event_activities($conn, $role, $userId, $eventId)) {
 
     http_response_code(403);
 
@@ -351,6 +372,14 @@ if ($action === 'save') {
 
         'end_time' => $_POST['end_time'] ?? '',
 
+        'checkin_start_time' => $_POST['checkin_start_time'] ?? '',
+
+        'checkin_end_time' => $_POST['checkin_end_time'] ?? '',
+
+        'attendance_mode' => $_POST['attendance_mode'] ?? 'single',
+
+        'checkout_end_time' => $_POST['checkout_end_time'] ?? '',
+
         'max_capacity' => $_POST['max_capacity'] ?? '',
 
         'contact_name' => $_POST['contact_name'] ?? '',
@@ -366,6 +395,11 @@ if ($action === 'save') {
         'ticket_type_ids' => isset($_POST['ticket_type_ids']) && is_array($_POST['ticket_type_ids'])
             ? $_POST['ticket_type_ids']
             : [],
+
+        'audience_inherit' => $_POST['audience_inherit'] ?? '1',
+        'department' => $_POST['department'] ?? null,
+        'section' => $_POST['section'] ?? null,
+        'new_section' => $_POST['new_section'] ?? '',
 
     ];
 

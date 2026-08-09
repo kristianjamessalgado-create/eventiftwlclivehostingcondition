@@ -155,22 +155,65 @@
             setCoords(e.latlng.lat, e.latlng.lng, false);
         });
 
+        var searchAbort = null;
+        var searchDebounceTimer = null;
+        var lastSearchQuery = '';
+
+        function setResultsOpen(isOpen) {
+            if (!resultsEl) {
+                return;
+            }
+            if (isOpen) {
+                resultsEl.hidden = false;
+                resultsEl.style.display = 'block';
+            } else {
+                resultsEl.hidden = true;
+                resultsEl.style.display = 'none';
+            }
+            if (searchIn) {
+                searchIn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        }
+
+        function hideResults() {
+            if (!resultsEl) {
+                return;
+            }
+            resultsEl.innerHTML = '';
+            setResultsOpen(false);
+        }
+
         function runSearch() {
             if (!searchIn || !resultsEl) return;
             var q = searchIn.value.trim();
-            resultsEl.innerHTML = '';
-            resultsEl.style.display = 'none';
-            if (q.length < 2) return;
+            if (q.length < 2) {
+                hideResults();
+                return;
+            }
+            if (q === lastSearchQuery && resultsEl.children.length > 0 && !resultsEl.hidden) {
+                return;
+            }
+            lastSearchQuery = q;
             var base = resolveGeocodeBase();
             if (!base) {
                 resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search is not configured. Tap the map or use GPS.</div>';
-                resultsEl.style.display = 'block';
+                setResultsOpen(true);
                 return;
             }
+            if (searchAbort) {
+                try {
+                    searchAbort.abort();
+                } catch (abortErr) { /* ignore */ }
+            }
+            searchAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
             var url = base + '?action=search&q=' + encodeURIComponent(q);
             resultsEl.innerHTML = '<div class="list-group-item small text-muted">Searching…</div>';
-            resultsEl.style.display = 'block';
-            fetch(url, { credentials: 'same-origin' })
+            setResultsOpen(true);
+            var fetchOpts = { credentials: 'same-origin' };
+            if (searchAbort) {
+                fetchOpts.signal = searchAbort.signal;
+            }
+            fetch(url, fetchOpts)
                 .then(function (r) {
                     return r.text().then(function (text) {
                         var data = null;
@@ -183,53 +226,103 @@
                     });
                 })
                 .then(function (res) {
+                    if (searchIn.value.trim() !== q) {
+                        return;
+                    }
                     var data = res.data;
                     if (!data) {
                         resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search failed. Tap the map or use GPS.</div>';
-                        resultsEl.style.display = 'block';
+                        setResultsOpen(true);
                         return;
                     }
                     if (!data.ok) {
                         var errMsg = data.error || 'Search failed. Tap the map or use GPS.';
                         resultsEl.innerHTML = '<div class="list-group-item small text-danger">' + errMsg + '</div>';
-                        resultsEl.style.display = 'block';
+                        setResultsOpen(true);
                         return;
                     }
                     if (!data.results || !data.results.length) {
                         resultsEl.innerHTML = '<div class="list-group-item small text-muted">No results. Try another name, or tap the map.</div>';
-                        resultsEl.style.display = 'block';
+                        setResultsOpen(true);
                         return;
                     }
                     resultsEl.innerHTML = '';
                     data.results.forEach(function (item) {
                         var div = document.createElement('button');
                         div.type = 'button';
-                        div.className = 'list-group-item list-group-item-action small text-start';
+                        div.className = 'list-group-item list-group-item-action small text-start eventify-loc-results__item';
+                        div.setAttribute('role', 'option');
                         div.textContent = item.label || (item.lat + ', ' + item.lon);
                         div.addEventListener('click', function () {
-                            addrIn.value = item.label.length > 255 ? item.label.slice(0, 252) + '...' : item.label;
+                            var label = String(item.label || '');
+                            addrIn.value = label.length > 255 ? label.slice(0, 252) + '...' : label;
+                            if (searchIn) {
+                                searchIn.value = label.length > 120 ? label.slice(0, 117) + '...' : label;
+                            }
                             setCoords(item.lat, item.lon, true);
                             map.setView([item.lat, item.lon], 16);
-                            resultsEl.style.display = 'none';
-                            resultsEl.innerHTML = '';
+                            lastSearchQuery = searchIn ? searchIn.value.trim() : '';
+                            hideResults();
                         });
                         resultsEl.appendChild(div);
                     });
-                    resultsEl.style.display = 'block';
+                    setResultsOpen(true);
                 })
-                .catch(function () {
+                .catch(function (err) {
+                    if (err && err.name === 'AbortError') {
+                        return;
+                    }
                     resultsEl.innerHTML = '<div class="list-group-item small text-danger">Search failed. Tap the map or use GPS.</div>';
-                    resultsEl.style.display = 'block';
+                    setResultsOpen(true);
                 });
         }
 
+        function queueSearch(immediate) {
+            if (!searchIn) {
+                return;
+            }
+            if (searchDebounceTimer) {
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = null;
+            }
+            if (immediate) {
+                runSearch();
+                return;
+            }
+            searchDebounceTimer = setTimeout(runSearch, 450);
+        }
+
         if (searchBtn && searchIn) {
-            searchBtn.addEventListener('click', runSearch);
+            searchBtn.addEventListener('click', function () {
+                queueSearch(true);
+            });
+            searchIn.addEventListener('input', function () {
+                lastSearchQuery = '';
+                queueSearch(false);
+            });
+            searchIn.addEventListener('focus', function () {
+                if (searchIn.value.trim().length >= 2) {
+                    queueSearch(true);
+                }
+            });
+            searchIn.addEventListener('blur', function () {
+                setTimeout(function () {
+                    hideResults();
+                }, 180);
+            });
             searchIn.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    runSearch();
+                    queueSearch(true);
+                } else if (e.key === 'Escape') {
+                    hideResults();
                 }
+            });
+        }
+
+        if (resultsEl) {
+            resultsEl.addEventListener('mousedown', function (e) {
+                e.preventDefault();
             });
         }
 

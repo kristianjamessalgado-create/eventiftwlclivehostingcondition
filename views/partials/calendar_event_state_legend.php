@@ -14,11 +14,11 @@ $showSelectionClearNote = !empty($showSelectionClearNote);
         </li>
         <li>
             <span class="eventify-calendar-legend__swatch eventify-calendar-legend__swatch--active" aria-hidden="true"></span>
-            <span class="eventify-calendar-legend__label"><strong>Green</strong> — Active (approved and in progress)</span>
+            <span class="eventify-calendar-legend__label"><strong>Green</strong> — Active (happening now — start time has passed)</span>
         </li>
         <li>
             <span class="eventify-calendar-legend__swatch eventify-calendar-legend__swatch--upcoming" aria-hidden="true"></span>
-            <span class="eventify-calendar-legend__label"><strong>Gold</strong> — Upcoming (approved; scheduled on a future day)</span>
+            <span class="eventify-calendar-legend__label"><strong>Gold</strong> — Upcoming (before start time, or on a future day)</span>
         </li>
         <li>
             <span class="eventify-calendar-legend__swatch eventify-calendar-legend__swatch--closed" aria-hidden="true"></span>
@@ -30,7 +30,7 @@ $showSelectionClearNote = !empty($showSelectionClearNote);
         </li>
     </ul>
     <?php if ($showMultiDayNote): ?>
-    <p class="eventify-calendar-legend__note">Pending events stay orange on every day until admin approves. Active multi-day bars use gray for past days, <strong>green on today</strong>, and gold on future days.</p>
+    <p class="eventify-calendar-legend__note">Pending events stay orange until admin approves. Approved events use gold until the start time, green while in progress, and gray after they end.</p>
     <?php endif; ?>
     <?php if ($showSelectionClearNote): ?>
     <p class="eventify-calendar-legend__note">Double-click a highlighted day on the calendar to clear the selection and return it to white.</p>

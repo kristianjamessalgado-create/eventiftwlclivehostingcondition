@@ -20,9 +20,12 @@ $needs_rsvp_first = false;
 $needs_session_rsvp_first = false;
 $focus_confirm_mobile = false;
 $justConfirmed = isset($_GET['checked_in']) && (string) $_GET['checked_in'] === '1';
+$confirmed_action = trim((string) ($_GET['action'] ?? 'time_in'));
 $checkin_venue_lat = null;
 $checkin_venue_lng = null;
 $checkin_unavailable = null;
+$student_attendance = ['checked_in_at' => null, 'checked_out_at' => null, 'present' => false];
+$scan_state = null;
 
 if ($token === '') {
     $error = 'Invalid or missing activity check-in link.';
@@ -45,24 +48,31 @@ if ($token === '') {
             $student_uid = (int) $_SESSION['user_id'];
             $sid = (int) ($session['id'] ?? 0);
             if ($sid > 0) {
-                $chk = $conn->prepare('SELECT 1 FROM event_day_session_attendance WHERE session_id = ? AND user_id = ? LIMIT 1');
-                if ($chk) {
-                    $chk->bind_param('ii', $sid, $student_uid);
-                    $chk->execute();
-                    $chk->store_result();
-                    $already_done = $chk->num_rows > 0;
-                    $chk->close();
-                }
+                $student_attendance = eventify_load_session_attendance($conn, $student_uid, $sid);
+                $scan_state = eventify_activity_scan_state($session, $student_attendance);
+                $already_done = ($scan_state['phase'] ?? '') === 'complete';
             }
         }
-        if (!$already_done && !eventify_session_allows_checkin($session)) {
-            $checkin_unavailable = eventify_session_checkin_student_details($session);
-            $error = $checkin_unavailable['reason'];
+        if (!eventify_entity_uses_time_in_out($session)) {
+            if (!$already_done && !eventify_session_allows_checkin($session)) {
+                $checkin_unavailable = eventify_session_checkin_student_details($session);
+                $error = $checkin_unavailable['reason'];
+            } else {
+                $geo_required = eventify_session_checkin_geo_required($session);
+                $venue = eventify_session_checkin_venue_coords($session);
+                $checkin_venue_lat = $venue['lat'];
+                $checkin_venue_lng = $venue['lng'];
+            }
         } else {
             $geo_required = eventify_session_checkin_geo_required($session);
             $venue = eventify_session_checkin_venue_coords($session);
             $checkin_venue_lat = $venue['lat'];
             $checkin_venue_lng = $venue['lng'];
+            if (!$already_done && ($scan_state['phase'] ?? '') === 'unavailable'
+                && empty($student_attendance['checked_in_at'])) {
+                $checkin_unavailable = eventify_session_checkin_student_details($session);
+                $error = $scan_state['message'] ?? ($checkin_unavailable['reason'] ?? 'Check-in is not available right now.');
+            }
         }
     }
 }
@@ -76,20 +86,35 @@ if (!$error && $session && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     if (($_SESSION['role'] ?? '') !== 'student') {
         $error = 'Only students can confirm activity attendance.';
         $session = null;
-    } elseif (!$already_done) {
+    } elseif (!$already_done || ($scan_state && !empty($scan_state['can_submit']))) {
         $uid = (int) $_SESSION['user_id'];
         $sid = (int) ($session['id'] ?? 0);
         $eventId = (int) ($session['event_id'] ?? 0);
+        if ($sid > 0) {
+            $student_attendance = eventify_load_session_attendance($conn, $uid, $sid);
+            $scan_state = eventify_activity_scan_state($session, $student_attendance);
+            $already_done = ($scan_state['phase'] ?? '') === 'complete';
+        }
         if (function_exists('eventify_student_event_audience_gate') && $eventId > 0) {
-            $audEvent = [
+            $parentEvent = [
                 'id' => $eventId,
                 'department' => $session['event_department'] ?? null,
                 'target_sections' => $session['event_target_sections'] ?? null,
             ];
-            $aud = eventify_student_event_audience_gate($conn, $uid, $audEvent);
+            $aud = eventify_student_event_audience_gate($conn, $uid, $parentEvent);
             if (!$aud['ok']) {
                 $error = $aud['error'] ?? 'This event is not available for your account.';
                 $session = null;
+            } elseif ($session) {
+                $sessionGate = [
+                    'department' => $session['department'] ?? null,
+                    'target_sections' => $session['target_sections'] ?? null,
+                ];
+                $student = eventify_load_student_audience_profile($conn, $uid);
+                if (!eventify_student_may_access_session($sessionGate, $parentEvent, $student)) {
+                    $error = 'This activity is not available for your department or class section.';
+                    $session = null;
+                }
             }
         }
         if (!$error && $session) {
@@ -100,7 +125,7 @@ if (!$error && $session && $_SERVER['REQUEST_METHOD'] !== 'POST') {
                 && !eventify_student_has_session_rsvp($conn, $uid, $sid)) {
                 $needs_session_rsvp_first = true;
             }
-            $focus_confirm_mobile = !$needs_rsvp_first && !$needs_session_rsvp_first;
+            $focus_confirm_mobile = !$needs_rsvp_first && !$needs_session_rsvp_first && $scan_state && !empty($scan_state['can_submit']);
         }
     }
 }
@@ -108,20 +133,18 @@ if (!$error && $session && $_SERVER['REQUEST_METHOD'] !== 'POST') {
 if (!$error && $session && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm']) && isset($_SESSION['user_id']) && $_SESSION['role'] === 'student') {
     if (!csrf_validate()) {
         $checkin_error = 'Invalid request. Please try again.';
-    } elseif ($already_done) {
+    } elseif ($already_done && !($scan_state && !empty($scan_state['can_submit']))) {
         header('Location: ' . BASE_URL . '/activity_checkin.php?st=' . urlencode($token) . '&checked_in=1');
         exit();
-    } elseif (!eventify_session_allows_checkin($session)) {
-        $checkin_unavailable = eventify_session_checkin_student_details($session);
-        $checkin_error = $checkin_unavailable['reason'];
     } else {
         $user_id = (int) $_SESSION['user_id'];
         $event_id = (int) ($session['event_id'] ?? 0);
         $result = eventify_process_activity_checkin($conn, $session, $user_id, $_POST);
         if ($result['ok']) {
+            $action = (string) ($result['action'] ?? 'time_in');
             try {
                 $orgId = (int) ($session['organizer_id'] ?? 0);
-                if ($orgId > 0) {
+                if ($orgId > 0 && $action !== 'time_out') {
                     $studentName = (string) ($_SESSION['name'] ?? 'A student');
                     $actTitle = (string) ($session['title'] ?? 'activity');
                     $msg = $studentName . ' checked in for "' . $actTitle . '".';
@@ -136,7 +159,7 @@ if (!$error && $session && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST
                 /* ignore */
             }
             $conn->close();
-            header('Location: ' . BASE_URL . '/activity_checkin.php?st=' . urlencode($token) . '&checked_in=1');
+            header('Location: ' . BASE_URL . '/activity_checkin.php?st=' . urlencode($token) . '&checked_in=1&action=' . urlencode($action));
             exit();
         }
         $checkin_error = $result['error'] ?? 'Could not record check-in.';
@@ -155,8 +178,12 @@ $hubUrl = ($session && !empty($session['event_id']))
     ? BASE_URL . '/event_activities.php?id=' . (int) $session['event_id']
     : BASE_URL . '/activities_hub.php';
 $dashboardUrl = BASE_URL . '/backend/auth/dashboard_student.php';
-$showSuccess = $justConfirmed || $already_done;
-$showCheckinForm = $session && !$showSuccess && !$needs_rsvp_first && !$needs_session_rsvp_first;
+$showSuccess = $justConfirmed || ($already_done && !($scan_state && !empty($scan_state['can_submit'])));
+$showCheckinForm = $session && !$showSuccess && !$needs_rsvp_first && !$needs_session_rsvp_first && $scan_state && !empty($scan_state['can_submit']);
+$waitingForCheckout = $session && !$showSuccess && !$needs_rsvp_first && !$needs_session_rsvp_first
+    && ($scan_state['phase'] ?? '') === 'unavailable'
+    && !empty($student_attendance['checked_in_at'])
+    && empty($student_attendance['checked_out_at']);
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -234,18 +261,32 @@ $conn->close();
             <?php elseif ($showSuccess): ?>
                 <div class="text-center">
                     <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
-                    <h5><?= $justConfirmed ? 'Check-in confirmed!' : 'Already checked in' ?></h5>
+                    <h5><?php if ($justConfirmed && $confirmed_action === 'time_out'): ?>Time out recorded!<?php elseif ($justConfirmed): ?><?= eventify_entity_uses_time_in_out($session ?? []) ? 'Time in recorded!' : 'Check-in confirmed!' ?><?php else: ?><?= eventify_entity_uses_time_in_out($session ?? []) ? 'Attendance complete' : 'Already checked in' ?><?php endif; ?></h5>
                     <?php if ($session): ?>
                         <p class="text-muted mb-0"><?= htmlspecialchars($session['title']) ?></p>
                         <?php if (!empty($session['event_title'])): ?>
                             <p class="small text-muted"><?= htmlspecialchars($session['event_title']) ?></p>
                         <?php endif; ?>
                     <?php endif; ?>
-                    <p class="small text-muted mt-2 mb-0">Where would you like to go next?</p>
+                    <?php if ($justConfirmed && $confirmed_action !== 'time_out' && eventify_entity_uses_time_in_out($session ?? [])): ?>
+                        <p class="small text-muted mt-2 mb-0">Scan the same QR again when you leave to time out.</p>
+                    <?php else: ?>
+                        <p class="small text-muted mt-2 mb-0">Where would you like to go next?</p>
+                    <?php endif; ?>
                     <div class="checkin-nav">
                         <a href="<?= htmlspecialchars($hubUrl) ?>" class="btn btn-success">Activities hub</a>
                         <a href="<?= htmlspecialchars($dashboardUrl) ?>" class="btn btn-outline-primary">Dashboard</a>
                     </div>
+                </div>
+            <?php elseif ($waitingForCheckout): ?>
+                <h5 class="mb-1"><?= htmlspecialchars($session['title']) ?></h5>
+                <div class="alert alert-info small mb-3">
+                    <i class="fas fa-sign-in-alt me-1"></i> You timed in at <strong><?= htmlspecialchars(date('g:i A', strtotime((string) $student_attendance['checked_in_at']))) ?></strong>.
+                    <?= htmlspecialchars($scan_state['message'] ?? 'Scan again when the activity ends to time out.') ?>
+                </div>
+                <div class="checkin-nav">
+                    <a href="<?= htmlspecialchars($hubUrl) ?>" class="btn btn-success">Activities hub</a>
+                    <a href="<?= htmlspecialchars($dashboardUrl) ?>" class="btn btn-outline-primary">Dashboard</a>
                 </div>
             <?php elseif ($session): ?>
                 <h5 class="mb-1"><?= htmlspecialchars($session['title']) ?></h5>
@@ -281,7 +322,16 @@ $conn->close();
                             <i class="fas fa-qrcode me-1"></i> QR check-in is enabled. Distance check is off for testing — tap <strong>Confirm check-in</strong> after scanning.
                         </div>
                     <?php endif; ?>
-                    <p class="small text-muted mb-2">One device per student for this activity<?= $geo_required ? '; you must be within ' . (int) $geo_radius_m . 'm of the venue' : '' ?>.</p>
+                    <p class="small text-muted mb-2"><?php if ($scan_state && ($scan_state['phase'] ?? '') === 'time_out'): ?>
+                        Scan to record your departure (time out).
+                    <?php elseif (eventify_entity_uses_time_in_out($session)): ?>
+                        Scan to record time in. Use the same QR again when you leave.
+                    <?php else: ?>
+                        One device per student for this activity<?= $geo_required ? '; you must be within ' . (int) $geo_radius_m . 'm of the venue' : '' ?>.
+                    <?php endif; ?></p>
+                    <?php if ($scan_state && !empty($scan_state['message']) && !empty($scan_state['can_submit'])): ?>
+                        <p class="small text-muted mb-2"><?= htmlspecialchars($scan_state['message']) ?></p>
+                    <?php endif; ?>
                     <p class="small checkin-geo-status mb-2" id="checkinGeoStatus" role="status" aria-live="polite"></p>
                     <form method="POST" id="checkinForm">
                         <?= csrf_field() ?>
@@ -292,7 +342,7 @@ $conn->close();
                         <input type="hidden" name="geo_ts" id="geo_ts" value="">
                         <input type="hidden" name="device_hash" id="device_hash" value="">
                         <button type="submit" class="btn btn-success w-100" id="confirmBtn" disabled>
-                            <i class="fas fa-check me-1"></i>Confirm check-in
+                            <i class="fas fa-check me-1"></i><?= htmlspecialchars($scan_state['label'] ?? 'Confirm check-in') ?>
                         </button>
                     </form>
                     <?php include __DIR__ . '/views/partials/checkin_security_script.php'; ?>

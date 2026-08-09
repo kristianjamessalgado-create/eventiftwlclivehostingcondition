@@ -299,6 +299,7 @@ function eventify_push_type_allowed_for_student(array $settings, string $notifTy
         'event_updated_pending',
         'staff_message',
         'activity_update',
+        'activity_created',
         'event_admin_corrected',
         'event_published',
         'event_assigned_published',
@@ -307,6 +308,11 @@ function eventify_push_type_allowed_for_student(array $settings, string $notifTy
     $reminderTypes = ['event_reminder', 'activity_reminder'];
     if (in_array($type, $rsvpTypes, true)) {
         return !empty($settings['rsvp_updates']);
+    }
+    if (in_array($type, ['event_update', 'event_updated_pending'], true)) {
+        return !empty($settings['announcement_notifications'])
+            || !empty($settings['rsvp_updates'])
+            || !empty($settings['event_reminders']);
     }
     if (in_array($type, $announceTypes, true)) {
         return !empty($settings['announcement_notifications']);
@@ -321,7 +327,7 @@ function eventify_push_url_for_notification(?int $eventId): string
 {
     $base = rtrim(BASE_URL, '/');
     if ($eventId !== null && $eventId > 0) {
-        return $base . '/backend/auth/dashboard_student.php?event_id=' . $eventId;
+        return $base . '/event_activities.php?id=' . $eventId;
     }
     return $base . '/backend/auth/dashboard_student.php';
 }
@@ -487,7 +493,22 @@ function eventify_web_push_send_to_user(
     return $result;
 }
 
-function eventify_push_notify_user(
+/** @var list<array{conn: mysqli, userId: int, type: string, title: string, message: string, eventId: ?int}> */
+$GLOBALS['eventify_push_queue'] = $GLOBALS['eventify_push_queue'] ?? [];
+
+function eventify_push_queue_register_shutdown(): void
+{
+    static $registered = false;
+    if ($registered) {
+        return;
+    }
+    $registered = true;
+    register_shutdown_function(static function (): void {
+        eventify_push_queue_flush(false);
+    });
+}
+
+function eventify_push_queue_add(
     mysqli $conn,
     int $userId,
     string $type,
@@ -495,5 +516,81 @@ function eventify_push_notify_user(
     string $message,
     ?int $eventId = null
 ): void {
-    eventify_web_push_send_to_user($conn, $userId, $type, $title, $message, $eventId);
+    $GLOBALS['eventify_push_queue'][] = [
+        'conn' => $conn,
+        'userId' => $userId,
+        'type' => $type,
+        'title' => $title,
+        'message' => $message,
+        'eventId' => $eventId,
+    ];
+    eventify_push_queue_register_shutdown();
+}
+
+/**
+ * Send queued push jobs (used after edit-event redirect so hosting does not cut off FCM calls).
+ */
+function eventify_push_queue_flush(bool $logSummary = true): void
+{
+    $queue = $GLOBALS['eventify_push_queue'] ?? [];
+    if ($queue === []) {
+        return;
+    }
+    $GLOBALS['eventify_push_queue'] = [];
+
+    $sent = 0;
+    $failed = 0;
+    foreach ($queue as $job) {
+        try {
+            $result = eventify_web_push_send_to_user(
+                $job['conn'],
+                (int) $job['userId'],
+                (string) $job['type'],
+                (string) $job['title'],
+                (string) $job['message'],
+                $job['eventId'] ?? null
+            );
+            if (!empty($result['ok'])) {
+                $sent += (int) ($result['sent'] ?? 0);
+            } else {
+                $failed++;
+                if ($logSummary && !empty($result['errors'])) {
+                    error_log('[EVENTIFY push] user=' . (int) $job['userId']
+                        . ' type=' . (string) $job['type']
+                        . ' errors=' . implode('; ', (array) $result['errors']));
+                }
+            }
+        } catch (Throwable $e) {
+            $failed++;
+            if ($logSummary) {
+                error_log('[EVENTIFY push] user=' . (int) $job['userId']
+                    . ' type=' . (string) $job['type']
+                    . ' exception=' . $e->getMessage());
+            }
+        }
+    }
+
+    if ($logSummary && ($sent > 0 || $failed > 0)) {
+        error_log('[EVENTIFY push] queue flush sent=' . $sent . ' failed_jobs=' . $failed);
+    }
+}
+
+function eventify_push_notify_user(
+    mysqli $conn,
+    int $userId,
+    string $type,
+    string $title,
+    string $message,
+    ?int $eventId = null,
+    bool $defer = false
+): void {
+    if ($defer) {
+        eventify_push_queue_add($conn, $userId, $type, $title, $message, $eventId);
+        return;
+    }
+    $result = eventify_web_push_send_to_user($conn, $userId, $type, $title, $message, $eventId);
+    if (empty($result['ok']) && !empty($result['errors'])) {
+        error_log('[EVENTIFY push] user=' . $userId . ' type=' . $type
+            . ' errors=' . implode('; ', (array) $result['errors']));
+    }
 }

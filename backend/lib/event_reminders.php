@@ -241,6 +241,11 @@ function eventify_build_activity_reminder_message(
     $activity = trim($activityTitle) !== '' ? trim($activityTitle) : 'Activity';
     $parent = trim($parentEventTitle) !== '' ? trim($parentEventTitle) : 'Event';
     $when = $startsAt->format('M j, Y \a\t g:i A');
+
+    if ($timing === 'at_start') {
+        return $activity . ' (' . $parent . ') is starting now (' . $when . ').';
+    }
+
     $lead = eventify_reminder_human_lead($timing);
 
     return $activity . ' (' . $parent . ') starts in ' . $lead . ' (' . $when . ').';
@@ -314,20 +319,31 @@ function eventify_activity_reminder_recipient_ids(mysqli $conn, array $session):
     $ids = [];
 
     if (eventify_session_is_open_access($session)) {
-        $stmt = $conn->prepare("
-            SELECT DISTINCT r.user_id
-            FROM registrations r
-            INNER JOIN users u ON u.id = r.user_id AND u.role = 'student'
-            WHERE r.event_id = ?
-        ");
-        if ($stmt) {
-            $stmt->bind_param('i', $eventId);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            while ($row = $res->fetch_assoc()) {
-                $ids[] = (int) ($row['user_id'] ?? 0);
+        $eventRow = eventify_fetch_event_notify_row($conn, $eventId);
+        if ($eventRow) {
+            $sessionAudience = [
+                'department' => $session['department'] ?? null,
+                'target_sections' => $session['target_sections'] ?? null,
+            ];
+            foreach (eventify_student_ids_for_session_audience($conn, $sessionAudience, $eventRow) as $uid) {
+                $ids[] = (int) $uid;
             }
-            $stmt->close();
+        } else {
+            $stmt = $conn->prepare("
+                SELECT DISTINCT r.user_id
+                FROM registrations r
+                INNER JOIN users u ON u.id = r.user_id AND u.role = 'student'
+                WHERE r.event_id = ?
+            ");
+            if ($stmt) {
+                $stmt->bind_param('i', $eventId);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $ids[] = (int) ($row['user_id'] ?? 0);
+                }
+                $stmt->close();
+            }
         }
     } else {
         $stmt = $conn->prepare("
@@ -357,7 +373,14 @@ function eventify_run_activity_reminders(mysqli $conn, DateTimeImmutable $nowDt,
 {
     $graceSeconds = EVENTIFY_REMINDER_GRACE_MINUTES * 60;
     $offsets = eventify_reminder_timing_offsets();
-    $maxOffset = max($offsets);
+    $leadOffsets = [];
+    foreach ($offsets as $timingKey => $seconds) {
+        if ($timingKey !== 'at_start') {
+            $leadOffsets[] = (int) $seconds;
+        }
+    }
+    $maxOffset = $leadOffsets !== [] ? max($leadOffsets) : (30 * 60);
+    $atStartPastCutoff = (EVENTIFY_REMINDER_AT_START_AFTER_MINUTES * 60) + $graceSeconds;
     $todayYmd = $nowDt->format('Y-m-d');
 
     if (!eventify_event_day_sessions_table_exists($conn)) {
@@ -365,6 +388,7 @@ function eventify_run_activity_reminders(mysqli $conn, DateTimeImmutable $nowDt,
     }
 
     eventify_event_day_sessions_ensure_enhanced($conn);
+    eventify_event_day_sessions_ensure_audience_columns($conn);
     eventify_event_reminders_ensure_tables($conn);
 
     $sql = "
@@ -410,12 +434,15 @@ function eventify_run_activity_reminders(mysqli $conn, DateTimeImmutable $nowDt,
         }
 
         $startsAt = eventify_session_start_datetime($session);
-        if ($startsAt === null || $startsAt <= $nowDt) {
+        if ($startsAt === null) {
             continue;
         }
 
         $secondsUntilStart = $startsAt->getTimestamp() - $nowDt->getTimestamp();
         if ($secondsUntilStart > $maxOffset + $graceSeconds) {
+            continue;
+        }
+        if ($secondsUntilStart < -$atStartPastCutoff) {
             continue;
         }
 
@@ -430,10 +457,7 @@ function eventify_run_activity_reminders(mysqli $conn, DateTimeImmutable $nowDt,
                     continue;
                 }
 
-                $remindAt = $startsAt->getTimestamp() - $offsetSeconds;
-                $windowEnd = $remindAt + $graceSeconds;
-                $nowTs = $nowDt->getTimestamp();
-                if ($nowTs < $remindAt || $nowTs >= $windowEnd) {
+                if (!eventify_reminder_window_hit($startsAt, $nowDt, $timing, (int) $offsetSeconds, $graceSeconds)) {
                     $result['skipped']++;
                     continue;
                 }
@@ -443,7 +467,7 @@ function eventify_run_activity_reminders(mysqli $conn, DateTimeImmutable $nowDt,
                     continue;
                 }
 
-                $title = 'Activity reminder';
+                $title = $timing === 'at_start' ? 'Activity starting' : 'Activity reminder';
                 $message = eventify_build_activity_reminder_message(
                     (string) ($session['title'] ?? 'Activity'),
                     (string) ($session['parent_event_title'] ?? 'Event'),
@@ -662,6 +686,9 @@ function eventify_run_event_reminders(mysqli $conn, ?DateTimeInterface $now = nu
         }
         if ($hasDept) {
             $cols .= ', department';
+        }
+        if (function_exists('eventify_events_has_target_sections') && eventify_events_has_target_sections($conn)) {
+            $cols .= ', target_sections';
         }
 
         // Active events — include ones whose primary date is slightly in the past

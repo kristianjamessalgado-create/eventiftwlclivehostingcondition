@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     initStudentDashboardHashScroll();
     initStudentPhotoGalleryViewer();
+    initStudentPhotoGalleryFilter();
+    initStudentDayEventsModal();
 });
 
 function jumpStudentCalendarToToday(options) {
@@ -553,6 +555,8 @@ function initStudentNotificationHooks() {
 function initStudentMobileNav() {
     document.querySelectorAll('.student-app-tabbar__btn[data-scroll-target]').forEach(function (btn) {
         btn.addEventListener('click', function () {
+            clearStudentTabbarActive(btn);
+            btn.classList.add('is-active');
             var sel = btn.getAttribute('data-scroll-target');
             if (!sel) return;
             var home = document.getElementById('studentDashboardHome');
@@ -571,6 +575,24 @@ function initStudentMobileNav() {
                 el.scrollIntoView({ behavior: studentPrefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
             }
         });
+    });
+
+    document.querySelectorAll('.student-app-tabbar__btn[data-student-nav="profile"]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            clearStudentTabbarActive(btn);
+            btn.classList.add('is-active');
+            if (typeof openProfileModal === 'function') {
+                openProfileModal();
+            }
+        });
+    });
+}
+
+function clearStudentTabbarActive(exceptBtn) {
+    document.querySelectorAll('.student-app-tabbar__btn.is-active').forEach(function (el) {
+        if (el !== exceptBtn) {
+            el.classList.remove('is-active');
+        }
     });
 }
 
@@ -817,6 +839,7 @@ function showStudentDashboardPanel(panel, options) {
 
         if (panelName === 'photos') {
             initStudentPhotoGalleryViewer();
+            initStudentPhotoGalleryFilter();
         }
     }
 
@@ -964,6 +987,113 @@ function studentPhotoViewerShow(index) {
     }
     overlay.hidden = false;
     document.body.classList.add('student-photo-viewer-open');
+}
+
+function initStudentPhotoGalleryFilter() {
+    var panel = document.getElementById('studentPhotoGalleryPanel');
+    var grid = document.getElementById('studentPhotoGalleryGrid');
+    var searchInput = document.getElementById('studentPhotoGallerySearch');
+    var sortSelect = document.getElementById('studentPhotoGallerySort');
+    var yearSelect = document.getElementById('studentPhotoGalleryYear');
+    var statusEl = document.getElementById('studentPhotoGalleryFilterStatus');
+    var emptyEl = document.getElementById('studentPhotoGalleryFilterEmpty');
+    var clearBtn = document.getElementById('studentPhotoGalleryFilterClear');
+
+    if (!panel || !grid || !searchInput || !sortSelect) {
+        return;
+    }
+
+    var viewingEventId = parseInt(panel.getAttribute('data-rendered-event-id') || '0', 10) || 0;
+    if (viewingEventId > 0) {
+        return;
+    }
+
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.student-photo-gallery-card'));
+    if (!cards.length) {
+        return;
+    }
+
+    function compareCards(a, b, sort) {
+        if (sort === 'title') {
+            return (a.getAttribute('data-gallery-title') || '').localeCompare(b.getAttribute('data-gallery-title') || '');
+        }
+        if (sort === 'date-asc') {
+            return (a.getAttribute('data-gallery-date') || '').localeCompare(b.getAttribute('data-gallery-date') || '');
+        }
+        if (sort === 'date-desc') {
+            return (b.getAttribute('data-gallery-date') || '').localeCompare(a.getAttribute('data-gallery-date') || '');
+        }
+        return (parseInt(b.getAttribute('data-gallery-latest') || '0', 10) || 0)
+            - (parseInt(a.getAttribute('data-gallery-latest') || '0', 10) || 0);
+    }
+
+    function applyStudentPhotoGalleryFilter() {
+        var query = String(searchInput.value || '').trim().toLowerCase();
+        var sort = String(sortSelect.value || 'newest');
+        var year = yearSelect ? String(yearSelect.value || 'all') : 'all';
+        var matched = [];
+
+        cards.forEach(function (card) {
+            var title = card.getAttribute('data-gallery-title') || '';
+            var location = card.getAttribute('data-gallery-location') || '';
+            var cardYear = card.getAttribute('data-gallery-year') || '';
+            var matchesQuery = !query || title.indexOf(query) !== -1 || location.indexOf(query) !== -1;
+            var matchesYear = year === 'all' || cardYear === year;
+            if (matchesQuery && matchesYear) {
+                matched.push(card);
+            }
+        });
+
+        matched.sort(function (a, b) {
+            return compareCards(a, b, sort);
+        });
+
+        cards.forEach(function (card) {
+            card.classList.add('is-filter-hidden');
+        });
+        matched.forEach(function (card) {
+            card.classList.remove('is-filter-hidden');
+            grid.appendChild(card);
+        });
+
+        if (emptyEl) {
+            emptyEl.hidden = matched.length > 0;
+        }
+        if (statusEl) {
+            if (matched.length === cards.length) {
+                statusEl.textContent = 'Showing ' + matched.length + (matched.length === 1 ? ' gallery' : ' galleries');
+            } else {
+                statusEl.textContent = 'Showing ' + matched.length + ' of ' + cards.length + ' galleries';
+            }
+        }
+    }
+
+    function clearStudentPhotoGalleryFilter() {
+        searchInput.value = '';
+        sortSelect.value = 'newest';
+        if (yearSelect) {
+            yearSelect.value = 'all';
+        }
+        applyStudentPhotoGalleryFilter();
+        searchInput.focus();
+    }
+
+    if (panel.__studentPhotoGalleryFilterBound) {
+        applyStudentPhotoGalleryFilter();
+        return;
+    }
+    panel.__studentPhotoGalleryFilterBound = true;
+
+    searchInput.addEventListener('input', applyStudentPhotoGalleryFilter);
+    sortSelect.addEventListener('change', applyStudentPhotoGalleryFilter);
+    if (yearSelect) {
+        yearSelect.addEventListener('change', applyStudentPhotoGalleryFilter);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearStudentPhotoGalleryFilter);
+    }
+
+    applyStudentPhotoGalleryFilter();
 }
 
 function initStudentPhotoGalleryViewer() {
@@ -1199,7 +1329,14 @@ function initMiniCalendar() {
 // ===============================
 // FULLCALENDAR INITIALIZATION
 // ===============================
+function isStudentMobileView() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+
 function getStudentCalendarHeight() {
+    if (isStudentMobileView()) {
+        return 'auto';
+    }
     var container = document.querySelector('.main-content .calendar-container');
     if (!container) {
         return 520;
@@ -1228,21 +1365,24 @@ function initFullCalendar() {
         return st !== 'rejected';
     });
 
+    var mobileCal = isStudentMobileView();
+
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: defaultView,
         initialDate: currentDate,
         selectable: false, // Students can't create events
-        dayMaxEvents: false,
+        dayMaxEvents: mobileCal ? 2 : false,
         eventOrder: 'start',
         headerToolbar: false, // We use custom controls
         events: studentCalendarEvents,
         eventDisplay: 'block',
         height: getStudentCalendarHeight(),
-        expandRows: true,
+        expandRows: !mobileCal,
         views: {
             dayGridMonth: {
-                dayMaxEvents: false,
-                dayMaxEventRows: false
+                dayMaxEvents: mobileCal ? 2 : false,
+                dayMaxEventRows: mobileCal ? 2 : false,
+                showNonCurrentDates: false
             }
         },
         dayHeaderFormat: window.matchMedia('(max-width: 768px)').matches ? { weekday: 'short' } : { weekday: 'long' },
@@ -1254,6 +1394,47 @@ function initFullCalendar() {
             minute: '2-digit',
             omitZeroMinute: false,
             meridiem: 'short'
+        },
+
+        moreLinkClick: function (arg) {
+            if (arg && arg.jsEvent) {
+                arg.jsEvent.preventDefault();
+                arg.jsEvent.stopPropagation();
+            }
+            if (typeof eventifyCloseFullCalendarPopovers === 'function') {
+                eventifyCloseFullCalendarPopovers();
+            }
+            openStudentDayEventsList(arg);
+        },
+
+        moreLinkContent: function (arg) {
+            var hiddenCount = studentDayEventsHiddenUniqueCount(arg);
+            if (hiddenCount <= 0) {
+                return '';
+            }
+            return '+' + hiddenCount + ' more';
+        },
+
+        moreLinkDidMount: function (arg) {
+            if (!arg || !arg.el) {
+                return;
+            }
+            var hiddenCount = studentDayEventsHiddenUniqueCount(arg);
+            if (hiddenCount <= 0) {
+                arg.el.style.display = 'none';
+                return;
+            }
+            arg.el.textContent = '+' + hiddenCount + ' more';
+        },
+
+        dateClick: function (info) {
+            if (!calendar || calendar.view.type !== 'dayGridMonth') {
+                return;
+            }
+            if (info.jsEvent && info.jsEvent.target && info.jsEvent.target.closest('.fc-event, .fc-more-link')) {
+                return;
+            }
+            openStudentDayEventsList({ date: info.date, allSegs: collectStudentDayEventSegs(info.date) });
         },
 
         // Click event -> show details in modal (read-only for students)
@@ -1274,6 +1455,7 @@ function initFullCalendar() {
         // Update title when view changes and sync mini calendar
         datesSet: function(info) {
             updateCalendarTitle(info);
+            syncStudentUpcomingEventsToCalendar(info);
             // Use the calendar focus date, not the visible-range start.
             const focus = calendar.getDate ? calendar.getDate() : new Date();
             currentDate = new Date(focus);
@@ -1293,9 +1475,19 @@ function initFullCalendar() {
     var calContainer = calendarEl.closest('.calendar-container');
     function syncStudentCalendarHeight() {
         if (!calendar) return;
+        var mobileCal = isStudentMobileView();
         var h = getStudentCalendarHeight();
         try {
             calendar.setOption('height', h);
+            calendar.setOption('expandRows', !mobileCal);
+            calendar.setOption('dayMaxEvents', mobileCal ? 2 : false);
+            calendar.setOption('views', {
+                dayGridMonth: {
+                    dayMaxEvents: mobileCal ? 2 : false,
+                    dayMaxEventRows: mobileCal ? 2 : false,
+                    showNonCurrentDates: false
+                }
+            });
             calendar.updateSize();
         } catch (e) { /* ignore */ }
     }
@@ -1322,6 +1514,11 @@ function initFullCalendar() {
     currentDate = new Date(focus);
     selectedDate = new Date(focus);
     if (renderMiniCalendar) renderMiniCalendar();
+    requestAnimationFrame(function () {
+        if (calendar && calendar.view) {
+            syncStudentUpcomingEventsToCalendar({ view: calendar.view });
+        }
+    });
 }
 
 function studentFormatDeptLabel(stored) {
@@ -1715,6 +1912,294 @@ function initUrgentFeedbackPrompt() {
     }, 650);
 }
 
+function studentEventOccursInRange(scheduleDatesCsv, rangeStart, rangeEnd) {
+    if (!scheduleDatesCsv || !rangeStart || !rangeEnd) {
+        return false;
+    }
+    var startMs = rangeStart.getTime();
+    var endMs = rangeEnd.getTime();
+    return String(scheduleDatesCsv).split(',').some(function (ymd) {
+        ymd = String(ymd || '').trim().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+            return false;
+        }
+        var parts = ymd.split('-');
+        var day = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        day.setHours(12, 0, 0, 0);
+        var ms = day.getTime();
+        return ms >= startMs && ms <= endMs;
+    });
+}
+
+var studentDayEventsModalMap = {};
+
+function studentEventUniqueKey(ev) {
+    if (!ev) {
+        return '';
+    }
+    var props = ev.extendedProps || {};
+    var eventId = props.event_id != null ? parseInt(String(props.event_id), 10) : 0;
+    if (eventId > 0) {
+        return 'event-' + eventId;
+    }
+    if (ev.id != null && String(ev.id) !== '') {
+        return 'fc-' + String(ev.id);
+    }
+    if (ev.title != null && String(ev.title) !== '') {
+        return 'title-' + String(ev.title);
+    }
+    return '';
+}
+
+function collectStudentDayEventSegs(date) {
+    if (!calendar || !date) {
+        return [];
+    }
+    var dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    var segs = [];
+    calendar.getEvents().forEach(function (ev) {
+        if (!ev || !ev.start) {
+            return;
+        }
+        var evEnd = ev.end;
+        if (ev.allDay) {
+            if (!evEnd) {
+                evEnd = new Date(ev.start.getTime());
+                evEnd.setDate(evEnd.getDate() + 1);
+            }
+            if (ev.start < dayEnd && evEnd > dayStart) {
+                segs.push({ event: ev });
+            }
+            return;
+        }
+        if (ev.start >= dayStart && ev.start < dayEnd) {
+            segs.push({ event: ev });
+        }
+    });
+    return segs;
+}
+
+function studentDayEventsFromSegs(segs) {
+    var events = [];
+    var seen = {};
+    (segs || []).forEach(function (seg) {
+        if (!seg || !seg.event) {
+            return;
+        }
+        var key = studentEventUniqueKey(seg.event);
+        if (!key) {
+            key = 'idx-' + events.length;
+        }
+        if (seen[key]) {
+            return;
+        }
+        seen[key] = true;
+        events.push(seg.event);
+    });
+    events.sort(function (a, b) {
+        var as = a.start instanceof Date ? a.start.getTime() : 0;
+        var bs = b.start instanceof Date ? b.start.getTime() : 0;
+        if (as !== bs) {
+            return as - bs;
+        }
+        return String(a.title || '').localeCompare(String(b.title || ''));
+    });
+    return events;
+}
+
+function studentDayEventsHiddenUniqueCount(arg) {
+    if (!arg) {
+        return 0;
+    }
+    var allUnique = studentDayEventsFromSegs(arg.allSegs);
+    var visibleUnique = studentDayEventsFromSegs(arg.segs);
+    if (allUnique.length > visibleUnique.length) {
+        return allUnique.length - visibleUnique.length;
+    }
+    var hiddenUnique = studentDayEventsFromSegs(arg.hiddenSegs);
+    return hiddenUnique.length;
+}
+
+function initStudentDayEventsModal() {
+    var modalEl = document.getElementById('studentDayEventsModal');
+    var listEl = document.getElementById('studentDayEventsModalList');
+    if (!modalEl || !listEl) {
+        return;
+    }
+    if (modalEl.parentNode !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    if (listEl.dataset.bound !== '1') {
+        listEl.dataset.bound = '1';
+        listEl.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-student-day-event-id]');
+            if (!btn) {
+                return;
+            }
+            var eventId = btn.getAttribute('data-student-day-event-id');
+            var fcEvent = studentDayEventsModalMap[eventId];
+            if (!fcEvent) {
+                return;
+            }
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                var inst = bootstrap.Modal.getInstance(modalEl);
+                if (inst) {
+                    inst.hide();
+                }
+            }
+            window.setTimeout(function () {
+                showStudentEventDetails(fcEvent);
+            }, 280);
+        });
+    }
+    if (modalEl.dataset.bound !== '1') {
+        modalEl.dataset.bound = '1';
+        modalEl.addEventListener('shown.bs.modal', function () {
+            modalEl.scrollTop = 0;
+            document.body.classList.add('student-day-events-modal-open');
+            if (typeof eventifyCloseFullCalendarPopovers === 'function') {
+                eventifyCloseFullCalendarPopovers();
+            }
+            var bodyEl = modalEl.querySelector('.student-day-events-modal__body');
+            if (bodyEl) {
+                bodyEl.scrollTop = 0;
+            }
+        });
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            document.body.classList.remove('student-day-events-modal-open');
+        });
+    }
+}
+
+function formatStudentDayEventTime(fcEvent) {
+    if (!fcEvent) {
+        return '';
+    }
+    if (fcEvent.allDay) {
+        return 'All day';
+    }
+    if (fcEvent.start instanceof Date && !isNaN(fcEvent.start.getTime())) {
+        return fcEvent.start.toLocaleTimeString(undefined, {
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    }
+    return '';
+}
+
+function openStudentDayEventsList(arg) {
+    if (!arg || !arg.date) {
+        return;
+    }
+    if (typeof eventifyCloseFullCalendarPopovers === 'function') {
+        eventifyCloseFullCalendarPopovers();
+    }
+
+    var combinedSegs = Array.isArray(arg.allSegs) ? arg.allSegs.slice() : [];
+    if (arg.date) {
+        collectStudentDayEventSegs(arg.date).forEach(function (seg) {
+            combinedSegs.push(seg);
+        });
+    }
+    var events = studentDayEventsFromSegs(combinedSegs);
+    if (!events.length) {
+        events = studentDayEventsFromSegs(collectStudentDayEventSegs(arg.date));
+    }
+    if (!events.length) {
+        return;
+    }
+
+    studentDayEventsModalMap = {};
+    var listEl = document.getElementById('studentDayEventsModalList');
+    var titleEl = document.getElementById('studentDayEventsModalTitle');
+    var countEl = document.getElementById('studentDayEventsModalCount');
+    var modalEl = document.getElementById('studentDayEventsModal');
+    if (!listEl || !modalEl) {
+        return;
+    }
+
+    if (titleEl) {
+        titleEl.textContent = arg.date.toLocaleDateString(undefined, {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+    if (countEl) {
+        countEl.textContent = events.length + (events.length === 1 ? ' event' : ' events');
+    }
+
+    listEl.innerHTML = events.map(function (ev, index) {
+        var mapKey = String(ev.id || ('idx-' + index));
+        studentDayEventsModalMap[mapKey] = ev;
+        var time = formatStudentDayEventTime(ev);
+        var title = escapeHtmlStudent(ev.title || 'Event');
+        var timeHtml = escapeHtmlStudent(time);
+        return (
+            '<button type="button" class="student-day-events-modal__item" data-student-day-event-id="' +
+            escapeHtmlStudent(mapKey) +
+            '" role="listitem">' +
+            '<span class="student-day-events-modal__time">' + timeHtml + '</span>' +
+            '<span class="student-day-events-modal__name">' + title + '</span>' +
+            '<i class="fas fa-chevron-right student-day-events-modal__chev" aria-hidden="true"></i>' +
+            '</button>'
+        );
+    }).join('');
+
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+}
+
+function syncStudentUpcomingEventsToCalendar(info) {
+    var list = document.getElementById('studentUpcomingEventsList');
+    if (!list || !calendar) {
+        return;
+    }
+    var view = (info && info.view) || calendar.view;
+    if (!view || !view.activeStart || !view.activeEnd) {
+        return;
+    }
+
+    var rangeStart = new Date(view.activeStart.getTime());
+    var rangeEnd = new Date(view.activeEnd.getTime());
+    rangeEnd.setMilliseconds(rangeEnd.getMilliseconds() - 1);
+
+    if (view.type === 'dayGridMonth') {
+        var focus = calendar.getDate ? calendar.getDate() : new Date();
+        rangeStart = new Date(focus.getFullYear(), focus.getMonth(), 1);
+        rangeEnd = new Date(focus.getFullYear(), focus.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
+    var items = list.querySelectorAll('.event-item[data-schedule-dates]');
+    var shown = 0;
+    var limit = 5;
+    items.forEach(function (item) {
+        var matches = studentEventOccursInRange(item.getAttribute('data-schedule-dates'), rangeStart, rangeEnd);
+        var visible = matches && shown < limit;
+        item.hidden = !visible;
+        item.style.display = visible ? '' : 'none';
+        if (visible) {
+            shown += 1;
+        }
+    });
+
+    var emptyEl = document.getElementById('studentUpcomingMonthEmpty');
+    if (emptyEl) {
+        emptyEl.hidden = shown > 0;
+    }
+    var headingEl = document.getElementById('studentUpcomingEventsHeading');
+    if (headingEl && view.type === 'dayGridMonth') {
+        var focusTitle = calendar.view && calendar.view.title ? calendar.view.title : '';
+        headingEl.textContent = focusTitle ? ('Upcoming in ' + focusTitle) : 'Upcoming Events';
+    } else if (headingEl) {
+        headingEl.textContent = 'Upcoming Events';
+    }
+}
+
 // ===============================
 // CALENDAR TITLE UPDATE
 // ===============================
@@ -1802,6 +2287,9 @@ function closeProfileModal() {
     if (modal) {
         modal.style.display = 'none';
     }
+    document.querySelectorAll('.student-app-tabbar__btn[data-student-nav="profile"].is-active').forEach(function (btn) {
+        btn.classList.remove('is-active');
+    });
 }
 
 // Close modal when clicking outside

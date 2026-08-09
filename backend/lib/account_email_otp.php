@@ -2,6 +2,17 @@
 
 require_once __DIR__ . '/email_sender.php';
 
+function eventify_normalize_email(string $email): string
+{
+    $email = trim($email);
+    if ($email === '') {
+        return '';
+    }
+    // Strip zero-width / BOM characters sometimes pasted from mobile keyboards.
+    $email = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}\x{00A0}]/u', '', $email) ?? $email;
+    return strtolower($email);
+}
+
 function eventify_account_otp_table_ready(mysqli $conn): bool
 {
     static $ready = null;
@@ -62,7 +73,7 @@ function eventify_account_otp_table_ready(mysqli $conn): bool
 function eventify_can_issue_email_otp(mysqli $conn, string $purpose, string $email): array
 {
     $purpose = $purpose === 'reactivate' ? 'reactivate' : 'register';
-    $email = trim(strtolower($email));
+    $email = eventify_normalize_email($email);
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return ['ok' => false, 'error' => 'Invalid email'];
     }
@@ -110,7 +121,7 @@ function eventify_create_email_otp(mysqli $conn, string $purpose, string $email,
     }
 
     $purpose = $purpose === 'reactivate' ? 'reactivate' : 'register';
-    $email = trim(strtolower($email));
+    $email = eventify_normalize_email($email);
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return ['ok' => false, 'error' => 'Invalid email'];
     }
@@ -198,7 +209,7 @@ function eventify_set_verify_otp_flash(string $purpose, string $email, ?string $
     }
     $_SESSION['eventify_verify_otp_flash'] = [
         'purpose' => $purpose === 'reactivate' ? 'reactivate' : 'register',
-        'email' => strtolower(trim($email)),
+        'email' => eventify_normalize_email($email),
         'success' => $success !== null && $success !== '' ? $success : null,
         'error' => $error !== null && $error !== '' ? $error : null,
     ];
@@ -210,7 +221,7 @@ function eventify_consume_verify_otp_flash(string $purpose, string $email): arra
         session_start();
     }
     $purpose = $purpose === 'reactivate' ? 'reactivate' : 'register';
-    $email = strtolower(trim($email));
+    $email = eventify_normalize_email($email);
     $flash = $_SESSION['eventify_verify_otp_flash'] ?? null;
     unset($_SESSION['eventify_verify_otp_flash']);
     if (!is_array($flash)) {

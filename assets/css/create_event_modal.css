@@ -151,7 +151,51 @@
     flex-wrap: wrap;
     gap: 0.4rem;
     align-items: center;
+}
+
+#createEventModal .ce-loc-search-wrap,
+#eventDaySessionsModal .eds-loc-search-wrap {
+    position: relative;
     margin-bottom: 0.5rem;
+}
+
+.eventify-loc-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 0.15rem);
+    z-index: 1400;
+    max-height: min(220px, 42vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--ce-border, rgba(27, 74, 27, 0.18));
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+}
+
+.eventify-loc-results .list-group-item,
+.eventify-loc-results__item {
+    border: 0;
+    border-bottom: 1px solid rgba(27, 74, 27, 0.08);
+    padding: 0.65rem 0.8rem;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.eventify-loc-results .list-group-item:last-child,
+.eventify-loc-results__item:last-child {
+    border-bottom: 0;
+}
+
+.eventify-loc-results .list-group-item-action:hover,
+.eventify-loc-results .list-group-item-action:focus,
+.eventify-loc-results__item:hover,
+.eventify-loc-results__item:focus {
+    background: rgba(61, 138, 53, 0.08);
+    color: var(--ce-text, #1b4a1b);
 }
 
 #createEventModal .ce-loc-toolbar__search {
@@ -295,6 +339,35 @@
 
 #createEventModal .event-end-time-panel {
     font-size: 0.8125rem;
+    padding-inline: 0.2rem;
+    overflow-x: visible;
+}
+
+#createEventModal .esc-bulk-times__toggle {
+    border-color: var(--ce-border);
+    background: var(--ce-cream-2);
+}
+
+#createEventModal .esc-bulk-times__toggle:hover {
+    border-color: rgba(61, 138, 53, 0.35);
+    background: rgba(61, 138, 53, 0.06);
+}
+
+#createEventModal .esc-bulk-times__toggle:has(.js-same-time-all:checked) {
+    border-color: rgba(61, 138, 53, 0.45);
+    background: rgba(61, 138, 53, 0.1);
+}
+
+#createEventModal .esc-bulk-times__toggle-text {
+    color: var(--ce-text);
+}
+
+#createEventModal .esc-bulk-times__checkbox {
+    accent-color: var(--ce-green);
+}
+
+#createEventModal .esc-bulk-times__count {
+    color: var(--ce-muted);
 }
 
 #createEventModal .event-end-time-panel .form-control,

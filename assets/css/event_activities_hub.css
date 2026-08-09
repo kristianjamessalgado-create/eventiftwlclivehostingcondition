@@ -1218,6 +1218,34 @@ button.eah-tb-btn {
     margin: 0.25rem 0 0.5rem;
 }
 
+.eah-detail-edit-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 0.65rem;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid #fbbf24;
+    border-radius: 999px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.eah-detail-edit-link:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #78350f;
+}
+
+.eah-detail-edit-locked {
+    font-size: 0.8125rem;
+    color: #64748b;
+    margin-bottom: 0.65rem;
+}
+
 .eah-stub-card { padding: 0.85rem 1rem; }
 
 .eah-info-item {

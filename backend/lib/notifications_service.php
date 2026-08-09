@@ -274,18 +274,25 @@ function eventify_event_schedule_fields_changed(array $before, array $after): ar
 {
     $dateChanged = substr(trim((string) ($before['date'] ?? '')), 0, 10)
         !== substr(trim((string) ($after['date'] ?? '')), 0, 10);
+    $endDateChanged = substr(trim((string) ($before['end_date'] ?? '')), 0, 10)
+        !== substr(trim((string) ($after['end_date'] ?? '')), 0, 10);
     $startChanged = eventify_normalize_event_time_value($before['start_time'] ?? '')
         !== eventify_normalize_event_time_value($after['start_time'] ?? '');
     $endChanged = eventify_normalize_event_time_value($before['end_time'] ?? '')
         !== eventify_normalize_event_time_value($after['end_time'] ?? '');
     $locChanged = trim((string) ($before['location'] ?? '')) !== trim((string) ($after['location'] ?? ''));
+    $titleChanged = trim((string) ($before['title'] ?? '')) !== trim((string) ($after['title'] ?? ''));
+    $descChanged = trim((string) ($before['description'] ?? '')) !== trim((string) ($after['description'] ?? ''));
 
     return [
         'date' => $dateChanged,
+        'end_date' => $endDateChanged,
         'start_time' => $startChanged,
         'end_time' => $endChanged,
         'location' => $locChanged,
-        'any' => $dateChanged || $startChanged || $endChanged || $locChanged,
+        'title' => $titleChanged,
+        'description' => $descChanged,
+        'any' => $dateChanged || $endDateChanged || $startChanged || $endChanged || $locChanged || $titleChanged || $descChanged,
     ];
 }
 
@@ -297,9 +304,22 @@ function eventify_fetch_event_notify_row(mysqli $conn, int $eventId): ?array
     if ($eventId < 1) {
         return null;
     }
+
+    $cols = ['id', 'title', 'date', 'start_time', 'end_time', 'location', 'department', 'status'];
+    if (function_exists('eventify_events_has_end_date') && eventify_events_has_end_date($conn)) {
+        $cols[] = 'end_date';
+    }
+    if (function_exists('eventify_events_select_has_registration_mode') && eventify_events_select_has_registration_mode($conn)) {
+        $cols[] = 'registration_mode';
+    } elseif (@$conn->query("SHOW COLUMNS FROM events WHERE Field = 'registration_mode'")?->num_rows >= 1) {
+        $cols[] = 'registration_mode';
+    }
+    if (function_exists('eventify_events_has_target_sections') && eventify_events_has_target_sections($conn)) {
+        $cols[] = 'target_sections';
+    }
+
     $stmt = $conn->prepare(
-        'SELECT id, title, date, start_time, end_time, location, department, status, registration_mode
-         FROM events WHERE id = ? LIMIT 1'
+        'SELECT ' . implode(', ', $cols) . ' FROM events WHERE id = ? LIMIT 1'
     );
     if (!$stmt) {
         return null;
@@ -308,7 +328,13 @@ function eventify_fetch_event_notify_row(mysqli $conn, int $eventId): ?array
     $stmt->execute();
     $event = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    return $event ?: null;
+    if (!$event) {
+        return null;
+    }
+    if (function_exists('eventify_event_attach_audience_fields')) {
+        $event = eventify_event_attach_audience_fields($conn, $event);
+    }
+    return $event;
 }
 
 function eventify_event_already_published_notified(mysqli $conn, int $eventId): bool
@@ -340,7 +366,8 @@ function eventify_notify_student_ids(
     string $title,
     string $message,
     ?int $eventId = null,
-    ?int $announcementId = null
+    ?int $announcementId = null,
+    bool $deferPush = false
 ): int {
     @ignore_user_abort(true);
     if (function_exists('set_time_limit')) {
@@ -362,9 +389,9 @@ function eventify_notify_student_ids(
 
     foreach ($delivered as $rid) {
         try {
-            eventify_push_notify_user($conn, $rid, $type, $title, $message, $eventId);
+            eventify_push_notify_user($conn, $rid, $type, $title, $message, $eventId, $deferPush);
         } catch (Throwable $e) {
-            // Keep going — other devices should still get push.
+            error_log('[EVENTIFY push] notify_student_ids user=' . $rid . ' ' . $e->getMessage());
         }
     }
 
@@ -467,18 +494,19 @@ function eventify_notify_students_event_details_changed(
     array $before,
     array $after,
     string $mode = 'live',
-    bool $forceIgnoreChangeCheck = false
+    bool $forceIgnoreChangeCheck = false,
+    bool $deferPush = false
 ): int {
     if ($eventId < 1) {
         return 0;
     }
 
     $afterRow = $after;
-    if (!isset($afterRow['title']) || !isset($afterRow['department'])) {
-        $fresh = eventify_fetch_event_notify_row($conn, $eventId);
-        if ($fresh) {
-            $afterRow = array_merge($fresh, $afterRow);
-        }
+    $fresh = eventify_fetch_event_notify_row($conn, $eventId);
+    if ($fresh) {
+        $afterRow = array_merge($fresh, $afterRow);
+    } elseif (function_exists('eventify_event_attach_audience_fields')) {
+        $afterRow = eventify_event_attach_audience_fields($conn, $afterRow);
     }
 
     $changes = eventify_event_schedule_fields_changed($before, $afterRow);
@@ -514,6 +542,15 @@ function eventify_notify_students_event_details_changed(
             $changedBits[] = 'Venue: ' . $loc;
         }
     }
+    if ($forceIgnoreChangeCheck || $changes['title']) {
+        $changedTitle = trim((string) ($afterRow['title'] ?? ''));
+        if ($changedTitle !== '') {
+            $changedBits[] = 'Title: ' . $changedTitle;
+        }
+    }
+    if ($forceIgnoreChangeCheck || $changes['description']) {
+        $changedBits[] = 'Description updated';
+    }
     if ($changedBits === [] && $summary !== '') {
         $changedBits[] = $summary;
     }
@@ -533,11 +570,15 @@ function eventify_notify_students_event_details_changed(
         }
     } else {
         $notifType = 'event_update';
-        $notifTitle = $mode === 'live_refresh' ? 'Event details updated' : 'Schedule or venue updated';
+        $notifTitle = $mode === 'live_refresh' ? 'Event details updated' : 'Event updated';
         $message = '"' . $eventLabel . '" was updated. '
             . $detailText
             . '. Open your calendar for details.';
         $recipientIds = eventify_student_ids_for_event_audience($conn, $afterRow);
+        $registeredIds = eventify_student_ids_registered_for_event($conn, $eventId);
+        if ($registeredIds !== []) {
+            $recipientIds = array_values(array_unique(array_merge($recipientIds, $registeredIds)));
+        }
     }
 
     if ($recipientIds === []) {
@@ -550,6 +591,8 @@ function eventify_notify_students_event_details_changed(
         $notifType,
         $notifTitle,
         $message,
-        $eventId
+        $eventId,
+        null,
+        $deferPush
     );
 }

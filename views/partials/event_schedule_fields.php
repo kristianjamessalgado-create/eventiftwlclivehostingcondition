@@ -24,7 +24,7 @@ $calendarId = $idPrefix . 'ScheduleClickCalendar';
 $calendarWrapId = $idPrefix . 'ScheduleCalendarWrap';
 $hintId = $idPrefix . 'ScheduleModeHint';
 $minDate = date('Y-m-d');
-$scheduleCss = (defined('BASE_URL') ? BASE_URL : '') . '/assets/css/event_schedule_picker.css';
+$scheduleCss = (defined('BASE_URL') ? BASE_URL : '') . '/assets/css/event_schedule_picker.css?v=3';
 $startDateInputId = $idPrefix === 'ce' ? 'ceDate' : ($idPrefix === 'standalone' ? 'date' : $idPrefix . 'Date');
 ?>
 <link rel="stylesheet" href="<?= htmlspecialchars($scheduleCss) ?>">

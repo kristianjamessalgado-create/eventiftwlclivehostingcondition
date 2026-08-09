@@ -130,6 +130,274 @@ function eventify_events_has_end_time_na(mysqli $conn): bool
     return $cache;
 }
 
+function eventify_events_has_checkin_times(mysqli $conn, bool $fresh = false): bool
+{
+    static $cache = null;
+    if ($fresh) {
+        $cache = null;
+    }
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = false;
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM events WHERE Field = 'checkin_start_time'");
+        if ($col && $col->num_rows >= 1) {
+            $cache = true;
+        }
+    } catch (Throwable $e) {
+        // keep false
+    }
+    return $cache;
+}
+
+/**
+ * Add optional attendance window columns when hosting DB has not run migrations yet.
+ */
+function eventify_events_ensure_checkin_times(mysqli $conn): bool
+{
+    if (eventify_events_has_checkin_times($conn)) {
+        return true;
+    }
+    try {
+        $conn->query(
+            "ALTER TABLE events
+             ADD COLUMN checkin_start_time time DEFAULT NULL AFTER end_time_na,
+             ADD COLUMN checkin_end_time time DEFAULT NULL AFTER checkin_start_time"
+        );
+    } catch (Throwable $e) {
+        /* column may already exist or host disallows ALTER */
+    }
+    if (eventify_event_schedule_dates_table_exists($conn) && !eventify_schedule_dates_have_checkin_time_columns($conn)) {
+        try {
+            $conn->query(
+                "ALTER TABLE event_schedule_dates
+                 ADD COLUMN checkin_start_time time DEFAULT NULL AFTER end_time_na,
+                 ADD COLUMN checkin_end_time time DEFAULT NULL AFTER checkin_start_time"
+            );
+        } catch (Throwable $e) {
+            /* ignore */
+        }
+    }
+
+    return eventify_events_has_checkin_times($conn, true);
+}
+
+function eventify_schedule_dates_have_checkin_time_columns(mysqli $conn): bool
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = false;
+    if (!eventify_event_schedule_dates_table_exists($conn)) {
+        return false;
+    }
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM event_schedule_dates WHERE Field = 'checkin_start_time'");
+        if ($col && $col->num_rows >= 1) {
+            $cache = true;
+        }
+    } catch (Throwable $e) {
+        // keep false
+    }
+    return $cache;
+}
+
+/**
+ * @return array{checkin_start_time: ?string, checkin_end_time: ?string}
+ */
+function eventify_parse_event_checkin_times_from_request(array $post): array
+{
+    $start = trim((string) ($post['checkin_start_time'] ?? ''));
+    $end = trim((string) ($post['checkin_end_time'] ?? ''));
+    $out = ['checkin_start_time' => null, 'checkin_end_time' => null];
+    if ($start !== '' && preg_match('/^\d{2}:\d{2}$/', $start)) {
+        $out['checkin_start_time'] = $start;
+    }
+    if ($end !== '' && preg_match('/^\d{2}:\d{2}$/', $end)) {
+        $out['checkin_end_time'] = $end;
+    }
+
+    return $out;
+}
+
+function eventify_validate_event_checkin_times(
+    ?string $checkinStart,
+    ?string $checkinEnd,
+    ?string $eventStart,
+    ?string $eventEnd
+): ?string {
+    if ($checkinStart !== null && $checkinEnd !== null && $checkinStart >= $checkinEnd) {
+        return 'Attendance end time must be after attendance start time.';
+    }
+    if ($checkinStart !== null && $eventStart !== null && $checkinStart > $eventStart) {
+        return 'Attendance cannot open after the event start time.';
+    }
+    if ($checkinEnd !== null && $eventEnd !== null && $checkinEnd > $eventEnd) {
+        return 'Attendance cannot close after the event end time.';
+    }
+
+    return null;
+}
+
+function eventify_save_event_checkin_times(
+    mysqli $conn,
+    int $eventId,
+    ?string $checkinStart,
+    ?string $checkinEnd
+): void {
+    if ($eventId < 1 || !eventify_events_has_checkin_times($conn)) {
+        return;
+    }
+    $stmt = $conn->prepare('UPDATE events SET checkin_start_time = ?, checkin_end_time = ? WHERE id = ?');
+    if (!$stmt) {
+        return;
+    }
+    $stmt->bind_param('ssi', $checkinStart, $checkinEnd, $eventId);
+    $stmt->execute();
+    $stmt->close();
+}
+
+function eventify_events_has_attendance_mode(mysqli $conn, bool $fresh = false): bool
+{
+    static $cache = null;
+    if ($fresh) {
+        $cache = null;
+    }
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = false;
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM events WHERE Field = 'attendance_mode'");
+        if ($col && $col->num_rows >= 1) {
+            $cache = true;
+        }
+    } catch (Throwable $e) {
+        // keep false
+    }
+    return $cache;
+}
+
+function eventify_events_ensure_attendance_mode(mysqli $conn): bool
+{
+    if (eventify_events_has_attendance_mode($conn)) {
+        return true;
+    }
+    try {
+        @$conn->query(
+            "ALTER TABLE events
+             ADD COLUMN attendance_mode enum('single','time_in_out') NOT NULL DEFAULT 'single' AFTER checkin_end_time,
+             ADD COLUMN checkout_end_time time DEFAULT NULL AFTER attendance_mode"
+        );
+    } catch (Throwable $e) {
+        /* ignore */
+    }
+    try {
+        @$conn->query(
+            "ALTER TABLE event_day_sessions
+             ADD COLUMN attendance_mode enum('single','time_in_out') NOT NULL DEFAULT 'single' AFTER checkin_end_time,
+             ADD COLUMN checkout_end_time time DEFAULT NULL AFTER attendance_mode"
+        );
+    } catch (Throwable $e) {
+        /* ignore */
+    }
+    try {
+        @$conn->query(
+            'ALTER TABLE event_day_session_attendance ADD COLUMN checked_out_at timestamp NULL DEFAULT NULL AFTER checked_in_at'
+        );
+    } catch (Throwable $e) {
+        /* ignore */
+    }
+
+    return eventify_events_has_attendance_mode($conn, true);
+}
+
+function eventify_parse_attendance_mode_from_request(array $post): string
+{
+    $mode = strtolower(trim((string) ($post['attendance_mode'] ?? 'single')));
+    return $mode === 'time_in_out' ? 'time_in_out' : 'single';
+}
+
+/** @return ?string H:i or null */
+function eventify_parse_checkout_end_time_from_request(array $post): ?string
+{
+    $t = trim((string) ($post['checkout_end_time'] ?? ''));
+    if ($t === '') {
+        return null;
+    }
+    if (!preg_match('/^\d{2}:\d{2}$/', $t)) {
+        return null;
+    }
+    return $t;
+}
+
+function eventify_entity_uses_time_in_out(array $entity): bool
+{
+    return strtolower(trim((string) ($entity['attendance_mode'] ?? 'single'))) === 'time_in_out';
+}
+
+function eventify_validate_checkout_end_time(?string $checkoutEnd, ?string $eventEnd): ?string
+{
+    if ($checkoutEnd === null || $eventEnd === null || $eventEnd === '') {
+        return null;
+    }
+    if ($checkoutEnd < $eventEnd) {
+        return 'Time-out closes must be at or after the event end time.';
+    }
+    return null;
+}
+
+function eventify_save_event_attendance_settings(
+    mysqli $conn,
+    int $eventId,
+    string $attendanceMode,
+    ?string $checkoutEnd
+): void {
+    if ($eventId < 1) {
+        return;
+    }
+    eventify_events_ensure_attendance_mode($conn);
+    if (!eventify_events_has_attendance_mode($conn)) {
+        return;
+    }
+    $mode = $attendanceMode === 'time_in_out' ? 'time_in_out' : 'single';
+    $stmt = $conn->prepare('UPDATE events SET attendance_mode = ?, checkout_end_time = ? WHERE id = ?');
+    if (!$stmt) {
+        return;
+    }
+    $stmt->bind_param('ssi', $mode, $checkoutEnd, $eventId);
+    $stmt->execute();
+    $stmt->close();
+}
+
+/**
+ * @param array<string, mixed> $day
+ * @param array<string, mixed>|null $parentEvent
+ * @return array{open: string, close: string}
+ */
+function eventify_schedule_day_checkin_bounds(array $day, ?array $parentEvent = null): array
+{
+    $day = is_array($day) ? $day : [];
+    $eventStart = trim((string) ($day['start_time'] ?? ''));
+    $eventEnd = !empty($day['end_time_na']) ? '' : trim((string) ($day['end_time'] ?? ''));
+
+    $checkinStart = trim((string) ($day['checkin_start_time'] ?? ''));
+    $checkinEnd = trim((string) ($day['checkin_end_time'] ?? ''));
+    if ($checkinStart === '' && is_array($parentEvent)) {
+        $checkinStart = trim((string) ($parentEvent['checkin_start_time'] ?? ''));
+    }
+    if ($checkinEnd === '' && is_array($parentEvent)) {
+        $checkinEnd = trim((string) ($parentEvent['checkin_end_time'] ?? ''));
+    }
+
+    return [
+        'open' => $checkinStart !== '' ? $checkinStart : $eventStart,
+        'close' => $checkinEnd !== '' ? $checkinEnd : $eventEnd,
+    ];
+}
+
 function eventify_schedule_dates_have_end_time_columns(mysqli $conn): bool
 {
     static $cache = null;
@@ -350,6 +618,9 @@ function eventify_load_schedule_days_map(mysqli $conn, array $eventIds): array
     if ($hasEndCols) {
         $cols .= ', end_time, end_time_na';
     }
+    if (eventify_schedule_dates_have_checkin_time_columns($conn)) {
+        $cols .= ', checkin_start_time, checkin_end_time';
+    }
     $sql = "SELECT {$cols} FROM event_schedule_dates WHERE event_id IN ($placeholders) ORDER BY schedule_date ASC";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
@@ -370,6 +641,12 @@ function eventify_load_schedule_days_map(mysqli $conn, array $eventIds): array
                 'start_time' => $hasStartCols ? (trim((string) ($row['start_time'] ?? '')) ?: null) : null,
                 'end_time' => $hasEndCols ? (trim((string) ($row['end_time'] ?? '')) ?: null) : null,
                 'end_time_na' => $hasEndCols && !empty($row['end_time_na']),
+                'checkin_start_time' => eventify_schedule_dates_have_checkin_time_columns($conn)
+                    ? (trim((string) ($row['checkin_start_time'] ?? '')) ?: null)
+                    : null,
+                'checkin_end_time' => eventify_schedule_dates_have_checkin_time_columns($conn)
+                    ? (trim((string) ($row['checkin_end_time'] ?? '')) ?: null)
+                    : null,
             ];
         }
     }
@@ -510,6 +787,40 @@ function eventify_schedule_dates_consecutive_segments(array $dates): array
     return $segments;
 }
 
+/**
+ * Split a consecutive date run at month boundaries so month view only shows in-month bars.
+ *
+ * @param list<string> $segment
+ * @return list<list<string>>
+ */
+function eventify_split_segment_by_month(array $segment): array
+{
+    $segment = array_values(array_filter(array_map(static function ($d) {
+        return substr(trim((string) $d), 0, 10);
+    }, $segment)));
+    if (count($segment) <= 1) {
+        return [$segment];
+    }
+
+    $runs = [];
+    $current = [$segment[0]];
+    $currentMonth = substr($segment[0], 0, 7);
+    for ($i = 1, $n = count($segment); $i < $n; $i++) {
+        $ymd = $segment[$i];
+        $month = substr($ymd, 0, 7);
+        if ($month === $currentMonth) {
+            $current[] = $ymd;
+            continue;
+        }
+        $runs[] = $current;
+        $current = [$ymd];
+        $currentMonth = $month;
+    }
+    $runs[] = $current;
+
+    return $runs;
+}
+
 /** Non-consecutive picked days (intramurals-style) — may still use connected bars per consecutive run. */
 function eventify_event_has_specific_schedule(array $e): bool
 {
@@ -629,7 +940,7 @@ function eventify_calendar_colors_for_lifecycle_state(string $state): array
 }
 
 /**
- * Calendar pill color for one day of an event (today = green only while that day's window is still open).
+ * Calendar pill color for one day of an event (gold before start, green while in progress).
  *
  * @param array<string, mixed>|null $scheduleDay schedule_date, start_time, end_time, end_time_na
  */
@@ -655,8 +966,20 @@ function eventify_calendar_lifecycle_state_for_day(string $status, string $ymd, 
         return 'closed';
     }
 
-    if ($status === 'active' && is_array($scheduleDay) && eventify_schedule_day_has_ended($scheduleDay)) {
+    $dayRow = is_array($scheduleDay) ? $scheduleDay : [
+        'schedule_date' => $day,
+        'start_time' => $startTime ?? '',
+    ];
+    if (!isset($dayRow['schedule_date']) || trim((string) $dayRow['schedule_date']) === '') {
+        $dayRow['schedule_date'] = $day;
+    }
+
+    if ($status === 'active' && eventify_schedule_day_has_ended($dayRow)) {
         return 'closed';
+    }
+
+    if ($status === 'active' && !eventify_schedule_day_has_started($dayRow)) {
+        return 'upcoming';
     }
 
     return 'active';
@@ -740,7 +1063,7 @@ function eventify_event_fullcalendar_single_day_entry(
                 'start_time' => $dayStart ?? ($e['start_time'] ?? ''),
                 'end_time' => $dayEnd ?? '',
                 'end_time_na' => $dayEndNa,
-            ], new DateTimeImmutable('now', eventify_calendar_app_timezone())),
+            ], new DateTimeImmutable('now', eventify_calendar_app_timezone()), $e),
         ]),
     ];
     if ($groupId !== null) {
@@ -803,38 +1126,41 @@ function eventify_event_fullcalendar_segment_entries(
     $entries = [];
 
     foreach (eventify_schedule_dates_consecutive_segments($scheduleDates) as $segment) {
-        if (count($segment) >= 2) {
-            $segmentStart = $segment[0];
-            $segmentEnd = $segment[count($segment) - 1];
-            $dt = DateTime::createFromFormat('Y-m-d', $segmentEnd);
-            $exclusiveEnd = $dt ? $dt->modify('+1 day')->format('Y-m-d') : null;
-            $entry = [
-                'id' => $eid > 0 ? ($eid . '-' . $segmentStart . '_' . $segmentEnd) : ($segmentStart . '_' . $segmentEnd),
-                'title' => $title,
-                'start' => $segmentStart,
-                'end' => $exclusiveEnd,
-                'allDay' => true,
-                'classNames' => ['eventify-fc-range-event'],
-                'extendedProps' => array_merge($baseProps, [
-                    'event_id' => $eid,
-                    'schedule_date_ymd' => $segmentStart,
-                    'segment_dates' => $segment,
-                    'segment_day_states' => eventify_calendar_segment_day_states($e, $segment, $baseProps),
-                    'calendar_range_multiday' => true,
-                    'start_time' => $daysByYmd[$segmentStart]['start_time'] ?? ($e['start_time'] ?? null),
-                    'end_time' => $daysByYmd[$segmentEnd]['end_time'] ?? null,
-                    'end_time_na' => !empty($daysByYmd[$segmentEnd]['end_time_na']),
-                ]),
-            ];
-            if ($groupId !== null) {
-                $entry['groupId'] = $groupId;
+        $monthSegments = eventify_split_segment_by_month($segment);
+        foreach ($monthSegments as $monthSeg) {
+            if (count($monthSeg) >= 2) {
+                $segmentStart = $monthSeg[0];
+                $segmentEnd = $monthSeg[count($monthSeg) - 1];
+                $dt = DateTime::createFromFormat('Y-m-d', $segmentEnd);
+                $exclusiveEnd = $dt ? $dt->modify('+1 day')->format('Y-m-d') : null;
+                $entry = [
+                    'id' => $eid > 0 ? ($eid . '-' . $segmentStart . '_' . $segmentEnd) : ($segmentStart . '_' . $segmentEnd),
+                    'title' => $title,
+                    'start' => $segmentStart,
+                    'end' => $exclusiveEnd,
+                    'allDay' => true,
+                    'classNames' => ['eventify-fc-range-event'],
+                    'extendedProps' => array_merge($baseProps, [
+                        'event_id' => $eid,
+                        'schedule_date_ymd' => $segmentStart,
+                        'segment_dates' => $monthSeg,
+                        'segment_day_states' => eventify_calendar_segment_day_states($e, $monthSeg, $baseProps),
+                        'calendar_range_multiday' => true,
+                        'start_time' => $daysByYmd[$segmentStart]['start_time'] ?? ($e['start_time'] ?? null),
+                        'end_time' => $daysByYmd[$segmentEnd]['end_time'] ?? null,
+                        'end_time_na' => !empty($daysByYmd[$segmentEnd]['end_time_na']),
+                    ]),
+                ];
+                if ($groupId !== null) {
+                    $entry['groupId'] = $groupId;
+                }
+                $entries[] = $entry;
+                continue;
             }
-            $entries[] = $entry;
-            continue;
-        }
 
-        foreach ($segment as $ymd) {
-            $entries[] = eventify_event_fullcalendar_single_day_entry($e, $ymd, $title, $baseProps, $daysByYmd);
+            foreach ($monthSeg as $ymd) {
+                $entries[] = eventify_event_fullcalendar_single_day_entry($e, $ymd, $title, $baseProps, $daysByYmd);
+            }
         }
     }
 
@@ -1094,6 +1420,107 @@ function eventify_event_effective_end_datetime(array $e): ?DateTimeImmutable
     return $dayOnly ? $dayOnly->setTime(23, 59, 59) : null;
 }
 
+/**
+ * First scheduled start moment for an event (first day + start time).
+ */
+function eventify_event_effective_start_datetime(array $e): ?DateTimeImmutable
+{
+    $firstYmd = '';
+    $firstStartTime = '';
+    $scheduleDays = $e['schedule_days'] ?? [];
+    if (is_array($scheduleDays) && $scheduleDays !== []) {
+        usort($scheduleDays, static function ($a, $b) {
+            return strcmp(
+                substr(trim((string) ($a['schedule_date'] ?? '')), 0, 10),
+                substr(trim((string) ($b['schedule_date'] ?? '')), 0, 10)
+            );
+        });
+        $firstDay = $scheduleDays[0];
+        if (is_array($firstDay)) {
+            $firstYmd = substr(trim((string) ($firstDay['schedule_date'] ?? '')), 0, 10);
+            $firstStartTime = trim((string) ($firstDay['start_time'] ?? ''));
+        }
+    }
+    if ($firstYmd === '') {
+        $firstYmd = substr(trim((string) ($e['date'] ?? '')), 0, 10);
+        $firstStartTime = trim((string) ($e['start_time'] ?? ''));
+    }
+    if ($firstYmd === '') {
+        return null;
+    }
+    if ($firstStartTime === '') {
+        $dt = DateTimeImmutable::createFromFormat('Y-m-d', $firstYmd, eventify_calendar_app_timezone());
+        return $dt instanceof DateTimeImmutable ? $dt->setTime(0, 0, 0) : null;
+    }
+    return eventify_calendar_datetime($firstYmd, $firstStartTime, eventify_calendar_app_timezone());
+}
+
+/** Whether an active event's current-day start time has passed (or first day start for single-day events). */
+function eventify_event_has_started(array $e, ?DateTimeInterface $now = null): bool
+{
+    if (strtolower(trim((string) ($e['status'] ?? ''))) !== 'active') {
+        return false;
+    }
+    if (!eventify_event_is_upcoming($e, $now)) {
+        return false;
+    }
+
+    $tz = eventify_calendar_app_timezone();
+    $nowDt = $now instanceof DateTimeInterface
+        ? DateTimeImmutable::createFromInterface($now)->setTimezone($tz)
+        : new DateTimeImmutable('now', $tz);
+    $todayYmd = $nowDt->format('Y-m-d');
+
+    $scheduleDays = $e['schedule_days'] ?? [];
+    if (is_array($scheduleDays) && $scheduleDays !== []) {
+        foreach ($scheduleDays as $day) {
+            if (!is_array($day)) {
+                continue;
+            }
+            $ymd = substr(trim((string) ($day['schedule_date'] ?? '')), 0, 10);
+            if ($ymd !== $todayYmd) {
+                continue;
+            }
+            $startTime = trim((string) ($day['start_time'] ?? ''));
+            if ($startTime === '') {
+                $startTime = trim((string) ($e['start_time'] ?? ''));
+            }
+            if ($startTime === '') {
+                return true;
+            }
+            $startDt = eventify_calendar_datetime($ymd, $startTime, $tz);
+            return $startDt instanceof DateTimeImmutable && $nowDt >= $startDt;
+        }
+        $firstStart = eventify_event_effective_start_datetime($e);
+        return $firstStart instanceof DateTimeImmutable && $nowDt >= $firstStart->setTimezone($tz);
+    }
+
+    $start = eventify_event_effective_start_datetime($e);
+    if ($start instanceof DateTimeInterface) {
+        return $nowDt >= $start->setTimezone($tz);
+    }
+
+    $startYmd = substr(trim((string) ($e['date'] ?? '')), 0, 10);
+    return $startYmd !== '' && $todayYmd >= $startYmd;
+}
+
+/**
+ * Status props for FullCalendar extendedProps (display label vs ticket/check-in eligibility).
+ *
+ * @return array{event_is_live: bool, event_has_started: bool, event_status_label: string, event_status_badge: string}
+ */
+function eventify_event_calendar_status_props(array $e): array
+{
+    $ui = eventify_event_status_ui($e);
+
+    return [
+        'event_is_live' => eventify_event_is_live($e),
+        'event_has_started' => eventify_event_has_started($e),
+        'event_status_label' => $ui['label'],
+        'event_status_badge' => $ui['badge'],
+    ];
+}
+
 function eventify_calendar_app_timezone(): DateTimeZone
 {
     $tzId = defined('EVENTIFY_APP_TIMEZONE') ? (string) EVENTIFY_APP_TIMEZONE : 'Asia/Manila';
@@ -1130,7 +1557,7 @@ function eventify_event_allows_checkin(array $e, ?DateTimeInterface $now = null)
             if ($ymd !== $todayYmd) {
                 continue;
             }
-            return eventify_schedule_day_allows_checkin_now($day, $now);
+            return eventify_schedule_day_allows_checkin_now($day, $now, $e);
         }
         return false;
     }
@@ -1147,7 +1574,7 @@ function eventify_event_allows_checkin(array $e, ?DateTimeInterface $now = null)
         'end_time_na' => !empty($e['end_time_na']),
         'schedule_date' => $todayYmd,
     ];
-    return eventify_schedule_day_allows_checkin_now($dayTimes, $now);
+    return eventify_schedule_day_allows_checkin_now($dayTimes, $now, $e);
 }
 
 /**
@@ -1231,20 +1658,23 @@ function eventify_event_checkin_unavailable_reason(array $e, ?DateTimeInterface 
             'start_time' => trim((string) ($e['start_time'] ?? '')),
             'end_time' => !empty($e['end_time_na']) ? '' : trim((string) ($e['end_time'] ?? '')),
             'end_time_na' => !empty($e['end_time_na']),
+            'checkin_start_time' => trim((string) ($e['checkin_start_time'] ?? '')),
+            'checkin_end_time' => trim((string) ($e['checkin_end_time'] ?? '')),
         ];
     }
 
-    $start = trim((string) ($dayRow['start_time'] ?? ''));
-    $end = !empty($dayRow['end_time_na']) ? '' : trim((string) ($dayRow['end_time'] ?? ''));
-    if ($start !== '') {
-        $stDt = eventify_calendar_datetime($todayYmd, $start, $tz);
-        if ($stDt instanceof DateTimeImmutable && $now < $stDt) {
-            return 'Check-in opens today at ' . $stDt->format('g:i A') . '.';
+    $bounds = eventify_schedule_day_checkin_bounds($dayRow, $e);
+    $openTime = $bounds['open'];
+    $closeTime = $bounds['close'];
+    if ($openTime !== '') {
+        $openDt = eventify_calendar_datetime($todayYmd, $openTime, $tz);
+        if ($openDt instanceof DateTimeImmutable && $now < $openDt) {
+            return 'Attendance opens today at ' . $openDt->format('g:i A') . '.';
         }
     }
-    if ($end !== '') {
-        $etDt = eventify_calendar_datetime($todayYmd, $end, $tz);
-        if ($etDt instanceof DateTimeImmutable && $now > $etDt) {
+    if ($closeTime !== '') {
+        $closeDt = eventify_calendar_datetime($todayYmd, $closeTime, $tz);
+        if ($closeDt instanceof DateTimeImmutable && $now > $closeDt) {
             $nextDay = null;
             foreach ($displayDates as $ymd) {
                 if ($ymd > $todayYmd) {
@@ -1253,10 +1683,10 @@ function eventify_event_checkin_unavailable_reason(array $e, ?DateTimeInterface 
                 }
             }
             if ($nextDay !== null) {
-                return 'Check-in for today ended at ' . $etDt->format('g:i A')
+                return 'Attendance for today ended at ' . $closeDt->format('g:i A')
                     . '. Come back on ' . date('M j, Y', strtotime($nextDay)) . '.';
             }
-            return 'Check-in for today ended at ' . $etDt->format('g:i A') . '.';
+            return 'Attendance for today ended at ' . $closeDt->format('g:i A') . '.';
         }
     }
 
@@ -1303,29 +1733,32 @@ function eventify_event_today_checkin_window_label(array $e, ?DateTimeInterface 
             'start_time' => trim((string) ($e['start_time'] ?? '')),
             'end_time' => !empty($e['end_time_na']) ? '' : trim((string) ($e['end_time'] ?? '')),
             'end_time_na' => !empty($e['end_time_na']),
+            'checkin_start_time' => trim((string) ($e['checkin_start_time'] ?? '')),
+            'checkin_end_time' => trim((string) ($e['checkin_end_time'] ?? '')),
         ];
     }
 
-    $start = trim((string) ($dayRow['start_time'] ?? ''));
-    $end = !empty($dayRow['end_time_na']) ? '' : trim((string) ($dayRow['end_time'] ?? ''));
-    $startLabel = '';
-    $endLabel = '';
-    if ($start !== '') {
-        $stDt = eventify_calendar_datetime($todayYmd, $start, $tz);
-        $startLabel = $stDt instanceof DateTimeImmutable ? $stDt->format('g:i A') : $start;
+    $bounds = eventify_schedule_day_checkin_bounds($dayRow, $e);
+    $openTime = $bounds['open'];
+    $closeTime = $bounds['close'];
+    $openLabel = '';
+    $closeLabel = '';
+    if ($openTime !== '') {
+        $openDt = eventify_calendar_datetime($todayYmd, $openTime, $tz);
+        $openLabel = $openDt instanceof DateTimeImmutable ? $openDt->format('g:i A') : $openTime;
     }
-    if ($end !== '') {
-        $etDt = eventify_calendar_datetime($todayYmd, $end, $tz);
-        $endLabel = $etDt instanceof DateTimeImmutable ? $etDt->format('g:i A') : $end;
+    if ($closeTime !== '') {
+        $closeDt = eventify_calendar_datetime($todayYmd, $closeTime, $tz);
+        $closeLabel = $closeDt instanceof DateTimeImmutable ? $closeDt->format('g:i A') : $closeTime;
     }
-    if ($startLabel !== '' && $endLabel !== '') {
-        return $startLabel . ' – ' . $endLabel;
+    if ($openLabel !== '' && $closeLabel !== '') {
+        return $openLabel . ' – ' . $closeLabel;
     }
-    if ($startLabel !== '') {
-        return 'from ' . $startLabel;
+    if ($openLabel !== '') {
+        return 'from ' . $openLabel;
     }
-    if ($endLabel !== '') {
-        return 'until ' . $endLabel;
+    if ($closeLabel !== '') {
+        return 'until ' . $closeLabel;
     }
 
     return 'any time today';
@@ -1369,9 +1802,10 @@ function eventify_event_checkin_student_details(array $e, ?DateTimeInterface $no
 }
 
 /**
- * @param array<string, mixed> $day schedule_date, start_time, end_time, end_time_na
+ * @param array<string, mixed> $day schedule_date, start_time, end_time, end_time_na, checkin_start_time, checkin_end_time
+ * @param array<string, mixed>|null $parentEvent
  */
-function eventify_schedule_day_allows_checkin_now(array $day, DateTimeImmutable $now): bool
+function eventify_schedule_day_allows_checkin_now(array $day, DateTimeImmutable $now, ?array $parentEvent = null): bool
 {
     $ymd = substr(trim((string) ($day['schedule_date'] ?? '')), 0, 10);
     if ($ymd === '' || $ymd !== $now->format('Y-m-d')) {
@@ -1381,25 +1815,58 @@ function eventify_schedule_day_allows_checkin_now(array $day, DateTimeImmutable 
         return false;
     }
     $tz = $now->getTimezone();
-    $start = trim((string) ($day['start_time'] ?? ''));
-    $endNa = !empty($day['end_time_na']);
-    $end = $endNa ? '' : trim((string) ($day['end_time'] ?? ''));
-    if ($start === '' && $end === '') {
+    $bounds = eventify_schedule_day_checkin_bounds($day, $parentEvent);
+    $openTime = $bounds['open'];
+    $closeTime = $bounds['close'];
+    if ($openTime === '' && $closeTime === '') {
         return true;
     }
-    if ($start !== '') {
-        $st = eventify_calendar_datetime($ymd, $start, $tz);
-        if ($st !== null && $now < $st) {
+    if ($openTime !== '') {
+        $openDt = eventify_calendar_datetime($ymd, $openTime, $tz);
+        if ($openDt !== null && $now < $openDt) {
             return false;
         }
     }
-    if ($end !== '') {
-        $et = eventify_calendar_datetime($ymd, $end, $tz);
-        if ($et !== null && $now > $et) {
+    if ($closeTime !== '') {
+        $closeDt = eventify_calendar_datetime($ymd, $closeTime, $tz);
+        if ($closeDt !== null && $now > $closeDt) {
             return false;
         }
     }
     return true;
+}
+
+/**
+ * Whether a schedule day's start time has passed (same calendar day).
+ *
+ * @param array<string, mixed>|null $day
+ */
+function eventify_schedule_day_has_started(?array $day, ?DateTimeInterface $now = null): bool
+{
+    if (!is_array($day)) {
+        return false;
+    }
+    $tz = eventify_calendar_app_timezone();
+    $now = $now instanceof DateTimeInterface
+        ? DateTimeImmutable::createFromInterface($now)->setTimezone($tz)
+        : new DateTimeImmutable('now', $tz);
+    $ymd = substr(trim((string) ($day['schedule_date'] ?? '')), 0, 10);
+    if ($ymd === '') {
+        return false;
+    }
+    $todayYmd = $now->format('Y-m-d');
+    if ($ymd > $todayYmd) {
+        return false;
+    }
+    if ($ymd < $todayYmd) {
+        return true;
+    }
+    $start = trim((string) ($day['start_time'] ?? ''));
+    if ($start === '') {
+        return true;
+    }
+    $st = eventify_calendar_datetime($ymd, $start, $tz);
+    return $st instanceof DateTimeImmutable && $now >= $st;
 }
 
 /**
@@ -1506,11 +1973,14 @@ function eventify_event_is_live(array $e, ?DateTimeInterface $now = null): bool
 function eventify_event_status_ui(array $e): array
 {
     $st = strtolower(trim((string) ($e['status'] ?? '')));
-    if ($st === 'active' && eventify_event_is_live($e)) {
-        return ['label' => 'Active', 'badge' => 'success', 'is_live' => true];
-    }
     if ($st === 'active') {
-        return ['label' => 'Ended', 'badge' => 'warning', 'is_live' => false];
+        if (eventify_event_ended_for_feedback($e)) {
+            return ['label' => 'Ended', 'badge' => 'warning', 'is_live' => false];
+        }
+        if (!eventify_event_has_started($e)) {
+            return ['label' => 'Upcoming', 'badge' => 'warning', 'is_live' => true];
+        }
+        return ['label' => 'Active', 'badge' => 'success', 'is_live' => true];
     }
     if (in_array($st, ['closed', 'completed'], true)) {
         return ['label' => 'Closed', 'badge' => 'secondary', 'is_live' => false];

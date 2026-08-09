@@ -1,6 +1,14 @@
 <?php
 /** @var bool $daySessionsHaveGeo */
 $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
+if (!isset($organizer_department_choices) || !is_array($organizer_department_choices)) {
+    if (is_file(__DIR__ . '/../../config/organizer_departments.php')) {
+        require_once __DIR__ . '/../../config/organizer_departments.php';
+    }
+    $organizer_department_choices = function_exists('eventify_organizer_department_choices')
+        ? eventify_organizer_department_choices()
+        : [];
+}
 ?>
 <div class="modal fade" id="eventDaySessionsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable eds-modal-dialog">
@@ -111,21 +119,25 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
               </div>
             </div>
 
+            <?php include __DIR__ . '/event_session_audience_fields.php'; ?>
+
             <div class="eds-form-section">
               <p class="eds-form-section__label">Venue</p>
               <div class="row g-2">
                 <div class="col-12">
                   <?php if ($daySessionsHaveGeo): ?>
                   <label class="form-label eds-form-label">Map location <span class="eds-required">*</span></label>
-                  <p class="eds-form-help mb-2">Search, tap the map, or use your device location.</p>
+                  <p class="eds-form-help mb-2">Start typing an address — suggestions appear below. You can also tap the map or use your device location.</p>
                   <input type="hidden" id="edsLatitude" value="">
                   <input type="hidden" id="edsLongitude" value="">
-                  <div class="eds-loc-toolbar">
-                    <input type="search" id="edsLocSearch" class="form-control eds-form-control eds-loc-toolbar__search" placeholder="Search place or address" autocomplete="off">
-                    <button type="button" class="btn eds-btn-outline btn-sm" id="edsLocSearchBtn">Search</button>
-                    <button type="button" class="btn eds-btn-gold btn-sm" id="edsLocUseGps" title="Use GPS"><i class="fas fa-location-crosshairs"></i></button>
+                  <div class="eds-loc-search-wrap">
+                    <div class="eds-loc-toolbar">
+                      <input type="search" id="edsLocSearch" class="form-control eds-form-control eds-loc-toolbar__search" placeholder="Search place or address" autocomplete="off" aria-autocomplete="list" aria-controls="edsLocResults" aria-expanded="false">
+                      <button type="button" class="btn eds-btn-outline btn-sm" id="edsLocSearchBtn">Search</button>
+                      <button type="button" class="btn eds-btn-gold btn-sm" id="edsLocUseGps" title="Use GPS"><i class="fas fa-location-crosshairs"></i></button>
+                    </div>
+                    <div id="edsLocResults" class="list-group eventify-loc-results eds-loc-results" role="listbox" aria-label="Address suggestions" hidden></div>
                   </div>
-                  <div id="edsLocResults" class="list-group mb-2 organizer-loc-results eds-loc-results" style="display:none;"></div>
                   <div id="edsLocationMap" class="event-location-map eds-location-map mb-2"></div>
                   <?php else: ?>
                   <input type="hidden" id="edsLatitude" value="">
@@ -147,6 +159,36 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
                 <div class="col-md-4">
                   <label class="form-label eds-form-label" for="edsEndTime">End time</label>
                   <input type="time" class="form-control eds-form-control" id="edsEndTime">
+                </div>
+                <div class="col-12">
+                  <p class="eds-form-section__label mb-1" style="font-size:0.68rem;">Attendance check-in window</p>
+                  <p class="eds-form-help mb-2">Optional. Set when students can scan the activity QR. Leave blank to use the activity start and end times.</p>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label eds-form-label" for="edsCheckinStartTime">Attendance opens</label>
+                  <input type="time" class="form-control eds-form-control" id="edsCheckinStartTime">
+                  <small class="eds-form-help">Example: 3:30 PM for a 4:00 PM start (early check-in).</small>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label eds-form-label" for="edsCheckinEndTime">Time-in closes</label>
+                  <input type="time" class="form-control eds-form-control" id="edsCheckinEndTime">
+                  <small class="eds-form-help">When the time-in window closes (before activity ends).</small>
+                </div>
+                <div class="col-12">
+                  <p class="eds-form-section__label mb-1" style="font-size:0.68rem;">Attendance type</p>
+                  <div class="form-check mb-1">
+                    <input class="form-check-input" type="radio" name="eds_attendance_mode" id="edsAttendanceModeSingle" value="single" checked>
+                    <label class="form-check-label" for="edsAttendanceModeSingle">Single check-in (one scan)</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="eds_attendance_mode" id="edsAttendanceModeInOut" value="time_in_out">
+                    <label class="form-check-label" for="edsAttendanceModeInOut">Time in &amp; time out (two scans, same QR)</label>
+                  </div>
+                </div>
+                <div class="col-md-6" id="edsCheckoutEndWrap" style="display:none;">
+                  <label class="form-label eds-form-label" for="edsCheckoutEndTime">Time-out closes</label>
+                  <input type="time" class="form-control eds-form-control" id="edsCheckoutEndTime">
+                  <small class="eds-form-help">Time-out opens when the activity ends. Leave blank for until 11:59 PM.</small>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label eds-form-label" for="edsContactName">Contact person <span class="eds-optional">(optional)</span></label>

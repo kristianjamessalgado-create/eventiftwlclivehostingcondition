@@ -60,6 +60,10 @@ try {
 }
 
 $eventsHasEndDate = eventify_events_has_end_date($conn);
+$eventsHasCheckinTimes = function_exists('eventify_events_ensure_checkin_times')
+    && eventify_events_ensure_checkin_times($conn);
+$eventsHasAttendanceMode = function_exists('eventify_events_ensure_attendance_mode')
+    && eventify_events_ensure_attendance_mode($conn);
 eventify_event_schedule_dates_ensure_table($conn);
 eventify_ticketing_ensure_registration_mode_column($conn);
 
@@ -98,6 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $end_time_na = !empty($endParsed['end_time_na']);
     $dayEndTimes = eventify_parse_schedule_day_end_times_from_request($_POST);
     $dayStartTimes = eventify_parse_schedule_day_start_times_from_request($_POST);
+    $checkinParsed = eventify_parse_event_checkin_times_from_request($_POST);
+    $checkin_start_param = $checkinParsed['checkin_start_time'];
+    $checkin_end_param = $checkinParsed['checkin_end_time'];
+    $attendance_mode_param = eventify_parse_attendance_mode_from_request($_POST);
+    $checkout_end_param = eventify_parse_checkout_end_time_from_request($_POST);
     $location = trim($_POST['location'] ?? '');
     $registration_mode = eventify_parse_registration_mode_from_request($_POST);
     $max_capacity_raw = trim($_POST['max_capacity'] ?? '');
@@ -239,6 +248,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if (!$error && $end_time_na === false && $end_time === '' && ($_POST['end_time_option'] ?? '') === 'time') {
                 $error = "Please enter an end time or choose Not applicable.";
+            }
+
+            if (!$error) {
+                $checkinErr = eventify_validate_event_checkin_times(
+                    $checkin_start_param,
+                    $checkin_end_param,
+                    $start_time !== '' ? $start_time : null,
+                    (!$end_time_na && $end_time !== '') ? $end_time : null
+                );
+                if ($checkinErr) {
+                    $error = $checkinErr;
+                }
+            }
+
+            if (!$error && $attendance_mode_param === 'time_in_out') {
+                $checkoutErr = eventify_validate_checkout_end_time(
+                    $checkout_end_param,
+                    (!$end_time_na && $end_time !== '') ? $end_time : null
+                );
+                if ($checkoutErr) {
+                    $error = $checkoutErr;
+                }
+            } elseif ($attendance_mode_param !== 'time_in_out') {
+                $checkout_end_param = null;
             }
 
             // Check if start date is in the past
@@ -398,6 +431,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $upNa->execute();
                                 $upNa->close();
                             }
+                        }
+                        eventify_save_event_checkin_times($conn, $newEventId, $checkin_start_param, $checkin_end_param);
+                        if ($eventsHasAttendanceMode) {
+                            eventify_save_event_attendance_settings($conn, $newEventId, $attendance_mode_param, $checkout_end_param);
                         }
                         $upMode = $conn->prepare('UPDATE events SET registration_mode = ? WHERE id = ?');
                         if ($upMode) {
@@ -1047,6 +1084,28 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
                     </div>
                 </div>
 
+                <?php
+                if ($eventsHasCheckinTimes) {
+                    $checkinFieldsPartial = __DIR__ . '/../../views/partials/event_checkin_time_fields.php';
+                    if (is_file($checkinFieldsPartial)) {
+                        $idPrefix = 'standalone';
+                        $postedCheckinStart = $_SERVER['REQUEST_METHOD'] === 'POST' ? trim((string) ($_POST['checkin_start_time'] ?? '')) : '';
+                        $postedCheckinEnd = $_SERVER['REQUEST_METHOD'] === 'POST' ? trim((string) ($_POST['checkin_end_time'] ?? '')) : '';
+                        include $checkinFieldsPartial;
+                    }
+                    if ($eventsHasAttendanceMode) {
+                        $idPrefix = 'standalone';
+                        $postedAttendanceMode = $_SERVER['REQUEST_METHOD'] === 'POST'
+                            ? eventify_parse_attendance_mode_from_request($_POST)
+                            : 'single';
+                        $postedCheckoutEnd = $_SERVER['REQUEST_METHOD'] === 'POST'
+                            ? trim((string) ($_POST['checkout_end_time'] ?? ''))
+                            : '';
+                        include __DIR__ . '/../../views/partials/event_attendance_mode_fields.php';
+                    }
+                }
+                ?>
+
                 <div class="form-group">
                     <label for="location">
                         Location <span class="required">*</span>
@@ -1192,8 +1251,8 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
         document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
     }
     </script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=3"></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=4"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=21"></script>
 
     <script>
         function showMessageModal(msg) {

@@ -29,7 +29,11 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../lib/event_ticketing.php';
 
-eventify_run_dashboard_maintenance($conn);
+try {
+    eventify_run_dashboard_maintenance($conn);
+} catch (Throwable $e) {
+    // Keep admin dashboard available if reminder/maintenance fails on hosting.
+}
 if (function_exists('eventify_sections_schema_ensure')) {
     eventify_sections_schema_ensure($conn);
 }
@@ -73,12 +77,28 @@ try {
 }
 
 // Fetch admin info (for header/profile)
-$stmt = $conn->prepare("SELECT name, email, profile_picture FROM users WHERE id = ?");
-$stmt->bind_param("i", $session_user_id);
-$stmt->execute();
-$stmt->bind_result($db_name, $db_email, $db_profile_picture);
-$stmt->fetch();
-$stmt->close();
+$db_name = 'Admin';
+$db_email = '';
+$db_profile_picture = null;
+$stmt = $conn->prepare('SELECT name, email, profile_picture FROM users WHERE id = ? LIMIT 1');
+if ($stmt) {
+    $stmt->bind_param('i', $session_user_id);
+    if ($stmt->execute()) {
+        $stmt->bind_result($db_name, $db_email, $db_profile_picture);
+        $stmt->fetch();
+    }
+    $stmt->close();
+} else {
+    $fallback = $conn->prepare('SELECT name, email FROM users WHERE id = ? LIMIT 1');
+    if ($fallback) {
+        $fallback->bind_param('i', $session_user_id);
+        if ($fallback->execute()) {
+            $fallback->bind_result($db_name, $db_email);
+            $fallback->fetch();
+        }
+        $fallback->close();
+    }
+}
 
 $admin_name  = $db_name ?: 'Admin';
 $admin_email = $db_email ?: '';
@@ -439,6 +459,8 @@ try {
     $eventsHasGeo = false;
 }
 $eventsHasEndDate = eventify_events_has_end_date($conn);
+$eventsHasCheckinTimes = function_exists('eventify_events_ensure_checkin_times')
+    && eventify_events_ensure_checkin_times($conn);
 
 // Pending events waiting more than 24 hours (dashboard reminder widget)
 $stalePendingEvents = [];
@@ -564,6 +586,7 @@ $admin_analytics_panel_open = ($admin_panel === 'analytics');
 $admin_upcoming_panel_open = ($admin_panel === 'upcoming');
 $admin_announcements_panel_open = ($admin_panel === 'announcements');
 $admin_focus_pending_event_id = max(0, (int) ($_GET['focus_event'] ?? 0));
+$admin_open_event_id = max(0, (int) ($_GET['event_id'] ?? 0));
 $admin_dashboard_panel_open = $admin_events_panel_open
     || $admin_users_panel_open
     || $admin_messages_panel_open

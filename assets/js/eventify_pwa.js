@@ -125,7 +125,7 @@
         if (!('serviceWorker' in navigator)) {
             return Promise.resolve();
         }
-        return navigator.serviceWorker.register(baseUrl() + '/sw-student.js?v=12', {
+        return navigator.serviceWorker.register(baseUrl() + '/sw-student.js?v=13', {
             scope: baseUrl() + '/',
             updateViaCache: 'none'
         }).catch(function () { /* dev / http */ });

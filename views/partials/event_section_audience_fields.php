@@ -8,10 +8,12 @@
  *   $sectionFieldIdPrefix (string) e.g. 'ce', 'edit', 'standalone'
  *   $postedSections (list<string>|null)
  *   $newSectionValue (string)
+ *   $parentEventSections (list<string>|null) — when set, sub-activity choices match the main event
  */
 $sectionFieldIdPrefix = preg_replace('/[^a-zA-Z0-9_]/', '', (string) ($sectionFieldIdPrefix ?? 'sec')) ?: 'sec';
 $postedSections = is_array($postedSections ?? null) ? $postedSections : [];
 $newSectionValue = (string) ($newSectionValue ?? '');
+$parentEventSections = is_array($parentEventSections ?? null) ? $parentEventSections : [];
 
 $classSections = [];
 if (isset($conn) && $conn instanceof mysqli) {
@@ -25,7 +27,15 @@ if (isset($conn) && $conn instanceof mysqli) {
         $classSections = eventify_list_class_sections($conn);
     }
 }
-if ($classSections === []) {
+if ($parentEventSections !== []) {
+    $classSections = [];
+    foreach ($parentEventSections as $psLab) {
+        $psLab = trim((string) $psLab);
+        if ($psLab !== '') {
+            $classSections[] = ['id' => 0, 'label' => $psLab];
+        }
+    }
+} elseif ($classSections === []) {
     if (!empty($adminClassSections) && is_array($adminClassSections)) {
         $classSections = $adminClassSections;
     } elseif (!empty($dashboardClassSections) && is_array($dashboardClassSections)) {
@@ -109,7 +119,7 @@ $newId = $sectionFieldIdPrefix . 'NewSection';
     <?php endforeach; ?>
   </div>
   <?php else: ?>
-  <p class="text-muted small mb-2">No saved sections yet — type one below (e.g. BSIT4201). Admin can also add sections under All users.</p>
+  <p class="text-muted small mb-2 eds-section-empty-msg">No saved sections yet — type one below (e.g. BSIT4201). Admin can also add sections under All users.</p>
   <?php endif; ?>
   <div class="mb-0">
     <label class="form-label small mb-1" for="<?= htmlspecialchars($newId) ?>">Or type a section name</label>

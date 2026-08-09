@@ -125,11 +125,12 @@ $peerLabel = 'Organizers';
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=35">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=2">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=6">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
-<body class="admin-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="adminSidebar" data-eventify-calendar="calendar" data-eventify-main=".admin-dashboard .main-content">
+<body class="admin-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="adminSidebar" data-eventify-calendar="calendar" data-eventify-main=".admin-dashboard .main-content" data-eventify-pull-refresh="1">
 
 <nav class="adm-navbar">
     <div class="d-flex align-items-center">
@@ -715,6 +716,7 @@ $adminCreateOrganizerOptions = $adminCreateOrganizerOptions ?? [];
 $organizer_department_choices = $organizer_department_choices ?? [];
 $eventsHasGeo = !empty($eventsHasGeo);
 $eventsHasEndDate = !empty($eventsHasEndDate);
+$eventsHasCheckinTimes = !empty($eventsHasCheckinTimes);
 include __DIR__ . '/../views/partials/create_event_modal.php';
 ?>
 <?php include __DIR__ . '/../views/partials/logout_confirm_modal.php'; ?>
@@ -956,6 +958,7 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
         <p class="efy-form-help mb-0"><strong>Created at:</strong> <span id="eventCreatedAt"></span></p>
       </div>
       <div class="modal-footer efy-modal__footer flex-wrap gap-2">
+        <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
         <a href="#" id="eventEditLink" class="btn btn-outline-primary btn-sm" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</a>
         <a href="#" id="eventQrLink" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> QR</a>
         <a href="#" id="eventAttendanceLink" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
@@ -1129,6 +1132,7 @@ window.__adminChartFeedback = <?= json_encode(['labels' => $feedbackStats['ratin
 window.BASE_URL = <?= json_encode(BASE_URL) ?>;
 window.currentRole = 'admin';
 window.__adminFocusPendingEventId = <?= json_encode((int) ($admin_focus_pending_event_id ?? 0)) ?>;
+window.__adminOpenEventId = <?= json_encode((int) ($admin_open_event_id ?? 0)) ?>;
 window.__adminOpenModal = <?= json_encode($openModal) ?>;
 window.__adminSettings = <?= json_encode($adminSettings ?? []) ?>;
 window.__adminCsrfToken = <?= json_encode(function_exists('csrf_token') ? csrf_token() : '') ?>;
@@ -1145,7 +1149,7 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
     $eid = (int) ($e['id'] ?? 0);
     $ownerId = (int) ($e['organizer_id'] ?? 0);
     $ownedByMe = $ownerId > 0 && $ownerId === (int) $session_user_id;
-    return [
+    return array_merge([
         'description'         => $e['description'] ?? '',
         'location'            => $e['location'] ?? '',
         'created_at'          => $e['created_at'] ?? '',
@@ -1171,7 +1175,7 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
         'checkin_count'       => (int) ($checkinCountByEvent[$eid] ?? 0),
         'admin_can_close'     => strtolower((string) ($e['status'] ?? '')) === 'active',
         'admin_can_delete'    => true,
-    ];
+    ], function_exists('eventify_event_calendar_status_props') ? eventify_event_calendar_status_props($e) : []);
 }), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP); ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
@@ -1187,18 +1191,19 @@ if (typeof window.L === 'undefined') {
 window.BASE_URL = window.BASE_URL || <?= json_encode(BASE_URL) ?>;
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=4"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=21"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=6"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=30"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=9"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=31"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=11"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=26"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=27"></script>
 </body>
 </html>

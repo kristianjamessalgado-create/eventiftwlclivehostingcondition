@@ -150,6 +150,20 @@
                 href: baseUrl() + '/backend/auth/dashboard_multimedia.php?panel=photo_approvals'
             };
         }
+        if (role === 'organizer' && eid > 0) {
+            return {
+                label: 'View event',
+                mode: 'href',
+                href: baseUrl() + '/backend/auth/dashboardorganizer.php?panel=events&event_id=' + eid + '&open_modal=eventDetails'
+            };
+        }
+        if ((role === 'admin' || role === 'super_admin') && eid > 0) {
+            return {
+                label: 'View event',
+                mode: 'href',
+                href: baseUrl() + '/backend/admin/dashboard.php?panel=home&event_id=' + eid + '&open_modal=eventDetails'
+            };
+        }
         if (eid > 0) {
             if (role === 'student') {
                 return {
@@ -198,14 +212,14 @@
                     finish();
                 }
             }, { once: true });
-            var inst = bootstrap.Modal.getInstance(el);
-            if (inst) {
-                inst.hide();
-            }
+            var inst = bootstrap.Modal.getInstance(el) || bootstrap.Modal.getOrCreateInstance(el);
+            inst.hide();
         });
 
         if (waiting === 0) {
             window.setTimeout(finish, 50);
+        } else {
+            window.setTimeout(finish, 600);
         }
     }
 

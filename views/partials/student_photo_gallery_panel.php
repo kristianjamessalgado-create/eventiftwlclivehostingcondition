@@ -136,12 +136,75 @@ $viewingEvent = $student_photos_event_id > 0;
                 </button>
             </div>
         <?php elseif (!$viewingEvent): ?>
-            <div class="student-photo-gallery-grid">
+            <?php
+                $galleryYears = [];
+                foreach ($student_photo_galleries as $gRow) {
+                    if (!empty($gRow['date'])) {
+                        $galleryYears[date('Y', strtotime((string) $gRow['date']))] = true;
+                    }
+                }
+                krsort($galleryYears, SORT_NUMERIC);
+                $galleryYears = array_keys($galleryYears);
+            ?>
+            <div class="student-photo-gallery-filters" id="studentPhotoGalleryFilters">
+                <div class="student-photo-gallery-filters__search-wrap">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input
+                        type="search"
+                        class="student-photo-gallery-filters__search"
+                        id="studentPhotoGallerySearch"
+                        placeholder="Search event name or location…"
+                        autocomplete="off"
+                        aria-label="Search photo galleries"
+                    >
+                </div>
+                <div class="student-photo-gallery-filters__row">
+                    <?php if (count($galleryYears) > 1): ?>
+                        <label class="student-photo-gallery-filters__field">
+                            <span class="student-photo-gallery-filters__label">Year</span>
+                            <select class="student-photo-gallery-filters__select" id="studentPhotoGalleryYear" aria-label="Filter galleries by year">
+                                <option value="all">All years</option>
+                                <?php foreach ($galleryYears as $galleryYear): ?>
+                                    <option value="<?= htmlspecialchars((string) $galleryYear) ?>"><?= htmlspecialchars((string) $galleryYear) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                    <?php endif; ?>
+                    <label class="student-photo-gallery-filters__field">
+                        <span class="student-photo-gallery-filters__label">Sort</span>
+                        <select class="student-photo-gallery-filters__select" id="studentPhotoGallerySort" aria-label="Sort photo galleries">
+                            <option value="newest">Newest photos</option>
+                            <option value="date-desc">Event date (newest)</option>
+                            <option value="date-asc">Event date (oldest)</option>
+                            <option value="title">Title A–Z</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="student-photo-gallery-filters__status" id="studentPhotoGalleryFilterStatus" aria-live="polite">
+                    Showing <?= $galleryCount ?> <?= $galleryCount === 1 ? 'gallery' : 'galleries' ?>
+                </p>
+            </div>
+            <div class="student-dash-panel__empty student-photo-gallery-filters__empty" id="studentPhotoGalleryFilterEmpty" hidden>
+                <div class="student-dash-panel__empty-icon" aria-hidden="true"><i class="fas fa-filter"></i></div>
+                <h3 class="student-dash-panel__empty-title">No galleries match</h3>
+                <p class="student-dash-panel__empty-text mb-0">Try a different search or clear your filters.</p>
+                <button type="button" class="student-dash-panel__empty-cta" id="studentPhotoGalleryFilterClear">
+                    <i class="fas fa-times me-1"></i> Clear filters
+                </button>
+            </div>
+            <div class="student-photo-gallery-grid" id="studentPhotoGalleryGrid">
                 <?php foreach ($student_photo_galleries as $i => $g): ?>
                     <?php
                         $gid = (int) ($g['id'] ?? 0);
                         $count = (int) ($g['photo_count'] ?? 0);
                         $cover = (string) ($g['cover'] ?? '');
+                        $title = (string) ($g['title'] ?? 'Event');
+                        $location = (string) ($g['location'] ?? '');
+                        $dateRaw = !empty($g['date']) ? substr((string) $g['date'], 0, 10) : '';
+                        $galleryYear = $dateRaw !== '' ? date('Y', strtotime($dateRaw)) : '';
+                        $latestTs = !empty($g['latest_photo'])
+                            ? strtotime((string) $g['latest_photo'])
+                            : ($dateRaw !== '' ? strtotime($dateRaw) : 0);
                         $staggerStyle = '--panel-stagger: ' . min($i, 8) * 0.035 . 's';
                     ?>
                     <a
@@ -150,6 +213,11 @@ $viewingEvent = $student_photos_event_id > 0;
                         href="<?= htmlspecialchars($photosPanelUrl . '&event_id=' . $gid) ?>"
                         data-student-panel="photos"
                         data-student-photos-event="<?= $gid ?>"
+                        data-gallery-title="<?= htmlspecialchars(mb_strtolower($title)) ?>"
+                        data-gallery-location="<?= htmlspecialchars(mb_strtolower($location)) ?>"
+                        data-gallery-date="<?= htmlspecialchars($dateRaw) ?>"
+                        data-gallery-year="<?= htmlspecialchars($galleryYear) ?>"
+                        data-gallery-latest="<?= (int) $latestTs ?>"
                     >
                         <div class="student-photo-gallery-card__cover">
                             <?php if ($cover !== ''): ?>
@@ -162,13 +230,13 @@ $viewingEvent = $student_photos_event_id > 0;
                             </span>
                         </div>
                         <div class="student-photo-gallery-card__body">
-                            <h3 class="student-photo-gallery-card__title"><?= htmlspecialchars((string) ($g['title'] ?? 'Event')) ?></h3>
+                            <h3 class="student-photo-gallery-card__title"><?= htmlspecialchars($title) ?></h3>
                             <div class="student-photo-gallery-card__meta">
                                 <?php if (!empty($g['date'])): ?>
                                     <span><i class="fas fa-calendar-day" aria-hidden="true"></i> <?= htmlspecialchars(date('M j, Y', strtotime((string) $g['date']))) ?></span>
                                 <?php endif; ?>
                                 <?php if (!empty($g['location'])): ?>
-                                    <span><i class="fas fa-map-marker-alt" aria-hidden="true"></i> <?= htmlspecialchars(mb_strimwidth((string) $g['location'], 0, 32, '…')) ?></span>
+                                    <span><i class="fas fa-map-marker-alt" aria-hidden="true"></i> <?= htmlspecialchars(mb_strimwidth($location, 0, 32, '…')) ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>

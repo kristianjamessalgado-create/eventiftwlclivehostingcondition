@@ -209,6 +209,45 @@
         });
     }
 
+    function initCreateEventPublishConfirm() {
+        var form = document.getElementById('createEventModalForm');
+        if (!form || form.getAttribute('data-create-mode') !== 'admin') {
+            return;
+        }
+        var confirmModalEl = document.getElementById('confirmCreateEventPublishModal');
+        var confirmYesBtn = document.getElementById('confirmCreateEventPublishYes');
+        if (!confirmModalEl || !confirmYesBtn || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            return;
+        }
+
+        var confirmModal = bootstrap.Modal.getOrCreateInstance(confirmModalEl);
+        var publishConfirmed = false;
+
+        confirmYesBtn.addEventListener('click', function () {
+            publishConfirmed = true;
+            confirmModal.hide();
+            form.requestSubmit();
+        });
+
+        confirmModalEl.addEventListener('hidden.bs.modal', function () {
+            if (!publishConfirmed) {
+                publishConfirmed = false;
+            }
+        });
+
+        form.addEventListener('submit', function (e) {
+            if (publishConfirmed) {
+                publishConfirmed = false;
+                return;
+            }
+            if (e.defaultPrevented) {
+                return;
+            }
+            e.preventDefault();
+            confirmModal.show();
+        });
+    }
+
     function initOpenCreateFromMyEvents() {
         var openFromMyEvents = document.getElementById('openCreateEventFromMyEvents');
         var createModal = document.getElementById('createEventModal');
@@ -235,6 +274,7 @@
         initCreateEventDeptAudience();
         initCreateEventLocationPicker();
         initCreateEventFormValidation();
+        initCreateEventPublishConfirm();
         initOpenCreateFromMyEvents();
         maybeOpenCreateFromQuery();
     });

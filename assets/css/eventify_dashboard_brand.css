@@ -546,6 +546,187 @@ body, html:has(body.student-dashboard) {
 }
 
 /* =============================================================================
+   §7  iOS / iPhone — safe area + tappable top chrome
+   Fixes notch overlap and invisible layers blocking navbar / calendar controls.
+============================================================================= */
+:root,
+body.organizer-dashboard,
+body.admin-dashboard,
+body.student-dashboard,
+body.multimedia-dashboard {
+    --efy-navbar-base-h: 64px;
+    --efy-safe-top: env(safe-area-inset-top, 0px);
+    --efy-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --efy-safe-left: env(safe-area-inset-left, 0px);
+    --efy-safe-right: env(safe-area-inset-right, 0px);
+    --efy-navbar-total-h: calc(var(--efy-navbar-base-h) + var(--efy-safe-top));
+}
+
+body.organizer-dashboard,
+body.admin-dashboard {
+    --eventify-cal-navbar-h: var(--efy-navbar-total-h);
+}
+
+body.admin-dashboard {
+    --admin-navbar-h: var(--efy-navbar-total-h);
+}
+
+body.student-dashboard {
+    --student-navbar-height: var(--efy-navbar-total-h);
+}
+
+body.multimedia-dashboard {
+    --mm-navbar-h: var(--efy-navbar-total-h);
+}
+
+body.organizer-dashboard .top-navbar,
+body.student-dashboard .top-navbar,
+body.multimedia-dashboard .top-navbar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: var(--efy-navbar-total-h) !important;
+    min-height: var(--efy-navbar-total-h) !important;
+    padding-top: var(--efy-safe-top) !important;
+    padding-left: calc(12px + var(--efy-safe-left)) !important;
+    padding-right: calc(12px + var(--efy-safe-right)) !important;
+    box-sizing: border-box !important;
+    z-index: 1200 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    -webkit-transform: translateZ(0);
+    isolation: isolate;
+}
+
+body.admin-dashboard .adm-navbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1200 !important;
+    min-height: var(--efy-navbar-total-h) !important;
+    box-sizing: border-box !important;
+    padding-top: calc(0.65rem + var(--efy-safe-top)) !important;
+    padding-left: calc(0.75rem + var(--efy-safe-left)) !important;
+    padding-right: calc(0.75rem + var(--efy-safe-right)) !important;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    isolation: isolate;
+}
+
+body.organizer-dashboard .dashboard-layout {
+    margin-top: var(--efy-navbar-total-h) !important;
+    height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+    min-height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+    max-height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+}
+
+body.student-dashboard .dashboard-layout {
+    margin-top: var(--efy-navbar-total-h) !important;
+}
+
+@media (max-width: 768px) {
+    body.student-dashboard .dashboard-layout {
+        height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+        max-height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    body.student-dashboard .main-content {
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        touch-action: pan-y;
+    }
+}
+
+body.organizer-dashboard .top-navbar .nav-btn,
+body.student-dashboard .top-navbar .nav-btn,
+body.multimedia-dashboard .top-navbar .nav-btn,
+body.admin-dashboard .adm-navbar .nav-btn,
+body.organizer-dashboard .top-navbar .brand-logo,
+body.student-dashboard .top-navbar .brand-logo,
+body.multimedia-dashboard .top-navbar .brand-logo,
+body.admin-dashboard .adm-brand {
+    position: relative;
+    z-index: 1;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 768px) {
+    body.organizer-dashboard,
+    body.admin-dashboard,
+    body.student-dashboard,
+    body.multimedia-dashboard {
+        min-height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
+        overflow-x: hidden;
+    }
+
+    body.organizer-dashboard .sidebar-backdrop,
+    body.admin-dashboard .sidebar-backdrop,
+    body.student-dashboard .sidebar-backdrop,
+    body.multimedia-dashboard .sidebar-backdrop {
+        top: var(--efy-navbar-total-h) !important;
+    }
+
+    body.organizer-dashboard #organizerSidebar,
+    body.admin-dashboard #adminSidebar,
+    body.admin-dashboard .sidebar,
+    body.student-dashboard .sidebar,
+    body.student-dashboard #studentSidebar,
+    body.multimedia-dashboard #mmSidebar {
+        top: var(--efy-navbar-total-h) !important;
+        height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+        max-height: calc(100dvh - var(--efy-navbar-total-h)) !important;
+    }
+
+    body.organizer-dashboard:not(.organizer-sidebar-open) #organizerSidebar,
+    body.admin-dashboard:not(.admin-sidebar-open) #adminSidebar,
+    body.admin-dashboard:not(.admin-sidebar-open) .sidebar,
+    body.student-dashboard:not(.student-sidebar-open) .sidebar,
+    body.student-dashboard:not(.student-sidebar-open) #studentSidebar,
+    body.multimedia-dashboard:not(.mm-sidebar-open) #mmSidebar {
+        pointer-events: none !important;
+    }
+
+    body.organizer-dashboard .main-content,
+    body.admin-dashboard .main-content,
+    body.student-dashboard .main-content,
+    body.multimedia-dashboard .main-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    body.organizer-dashboard .eventify-dashboard-cal-controls,
+    body.admin-dashboard .eventify-dashboard-cal-controls,
+    body.student-dashboard .calendar-controls,
+    body.organizer-dashboard .eventify-dashboard-cal-legend,
+    body.admin-dashboard .eventify-dashboard-cal-legend {
+        position: relative;
+        z-index: 2;
+        touch-action: manipulation;
+    }
+
+    body.organizer-dashboard .eventify-dashboard-cal-controls button,
+    body.admin-dashboard .eventify-dashboard-cal-controls button,
+    body.student-dashboard .calendar-controls button,
+    body.organizer-dashboard .eventify-dashboard-cal-controls select,
+    body.admin-dashboard .eventify-dashboard-cal-controls select,
+    body.student-dashboard .calendar-controls select {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
+    }
+}
+
+/* =============================================================================
    §8  BOOTSTRAP 5 UTILITY CHEAT-SHEET (optional inline in PHP markup)
    Use when you need one-off accents without new CSS rules:
    — bg:  style="background-color:#0A3C26"  →  class="bg-efy-nav" (custom)

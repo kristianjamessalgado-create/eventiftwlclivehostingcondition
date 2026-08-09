@@ -18,6 +18,7 @@ if ($auth_error !== '' && stripos($auth_error, 'access denied') !== false) {
 }
 $verify_purpose = (($_GET['verify_purpose'] ?? $_GET['purpose'] ?? 'register') === 'reactivate') ? 'reactivate' : 'register';
 $verify_email = strtolower(trim((string)($_GET['verify_email'] ?? $_GET['email'] ?? '')));
+$reactivate_email = strtolower(trim((string)($_GET['reactivate_email'] ?? '')));
 if ($auth_modal === 'verify' && $verify_email !== '') {
     require_once __DIR__ . '/backend/lib/account_email_otp.php';
     $verifyFlash = eventify_consume_verify_otp_flash($verify_purpose, $verify_email);
@@ -666,6 +667,7 @@ html.eventify-splash-pending body { overflow: hidden; }
       window.AUTH_SUCCESS = <?= json_encode($auth_success) ?>;
       window.VERIFY_PURPOSE = <?= json_encode($verify_purpose) ?>;
       window.VERIFY_EMAIL = <?= json_encode($verify_email) ?>;
+      window.REACTIVATE_EMAIL = <?= json_encode($reactivate_email) ?>;
     </script>
 </section>
 
@@ -721,7 +723,7 @@ html.eventify-splash-pending body { overflow: hidden; }
                 <label class="auth-label sr-only" for="loginModalEmail">Email</label>
                 <div class="auth-field-icon">
                     <i class="fas fa-user auth-field-icon__lead" aria-hidden="true"></i>
-                    <input type="email" name="email" id="loginModalEmail" class="auth-input" placeholder="Email address" required autocomplete="username email">
+                    <input type="email" name="email" id="loginModalEmail" class="auth-input" placeholder="Email address" required autocomplete="username email" value="<?= htmlspecialchars($reactivate_email) ?>">
                 </div>
             </div>
             <div class="auth-input-wrap auth-password-wrap">
@@ -751,7 +753,7 @@ html.eventify-splash-pending body { overflow: hidden; }
             <button
                 type="button"
                 class="auth-btn-secondary auth-reactivate-otp-btn"
-                onclick="openVerifyModal({ purpose: 'reactivate' })"
+                onclick="openVerifyModal({ purpose: 'reactivate', email: (document.getElementById('loginModalEmail') && document.getElementById('loginModalEmail').value) || (window.REACTIVATE_EMAIL || '') })"
             >
                 <i class="fas fa-key" aria-hidden="true"></i>
                 Verify reactivation OTP
@@ -1129,6 +1131,6 @@ html.eventify-splash-pending body { overflow: hidden; }
 <!-- JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/index.js?v=24"></script>
+<script src="<?= BASE_URL ?>/assets/js/index.js?v=25"></script>
 </body>
 </html>

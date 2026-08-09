@@ -41,7 +41,7 @@ eventify_users_ensure_student_profile_fields($conn);
 // Attendees: students who checked in (status = present)
 $attendees = [];
 $st = $conn->prepare("
-    SELECT r.time_in, u.name, u.user_id AS student_school_id,
+    SELECT r.time_in, r.time_out, u.name, u.user_id AS student_school_id,
            u.student_course, u.student_year_level, u.student_academic_year, u.department
     FROM registrations r
     JOIN users u ON r.user_id = u.id
@@ -61,7 +61,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="event_attendance_' . (int)$event['id'] . '.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['#', 'Student Name', 'Student ID', 'Course', 'Year level', 'School year (AY)', 'Department / college', 'Check-in time']);
+    fputcsv($out, ['#', 'Student Name', 'Student ID', 'Course', 'Year level', 'School year (AY)', 'Department / college', 'Time in', 'Time out']);
     $i = 1;
     foreach ($attendees as $row) {
         $rawDept = trim((string) ($row['department'] ?? ''));
@@ -79,6 +79,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $row['student_academic_year'] ?? '',
             $deptLabel,
             $row['time_in'] ?? '',
+            $row['time_out'] ?? '',
         ]);
     }
     fclose($out);
@@ -205,7 +206,8 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
                                 <th>Year level</th>
                                 <th>School year (AY)</th>
                                 <th>Department</th>
-                                <th>Check-in time</th>
+                                <th>Time in</th>
+                                <th>Time out</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -226,6 +228,7 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
                                     <td><?= $ay !== '' ? htmlspecialchars($ay) : '—' ?></td>
                                     <td><?= htmlspecialchars($deptDisp) ?></td>
                                     <td><?= $a['time_in'] ? date('M j, Y g:i A', strtotime($a['time_in'])) : '—' ?></td>
+                                    <td><?= !empty($a['time_out']) ? date('M j, Y g:i A', strtotime($a['time_out'])) : '—' ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

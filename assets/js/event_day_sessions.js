@@ -711,6 +711,9 @@
             } else if (s.rsvp_count != null && s.rsvp_count > 0) {
                 html += '<div class="eds-session-card__meta">' + escapeHtml(String(s.rsvp_count)) + ' RSVP\'d</div>';
             }
+            if (showOrganizerTools && s.audience_label) {
+                html += '<div class="eds-session-card__meta"><i class="fas fa-users" aria-hidden="true"></i> ' + escapeHtml(s.audience_label) + '</div>';
+            }
             if (s.latitude != null && s.longitude != null) {
                 html += '<div class="eds-session-card__map-link"><a href="https://www.openstreetmap.org/?mlat=' +
                     encodeURIComponent(s.latitude) + '&mlon=' + encodeURIComponent(s.longitude) +
@@ -759,9 +762,167 @@
         sessions: [],
         ticketTypes: [],
         editingId: null,
+        pendingEditSessionId: 0,
         scheduleEditable: true,
-        scheduleLockMessage: ''
+        scheduleLockMessage: '',
+        parentEventAudience: null
     };
+
+    function applyParentAudienceFromResponse(data) {
+        if (data && data.parent_event_audience) {
+            state.parentEventAudience = data.parent_event_audience;
+            updateParentAudienceHint();
+            syncActivitySectionChoices([]);
+        }
+    }
+
+    function sectionMatchKey(label) {
+        return String(label || '').trim().toLowerCase();
+    }
+
+    function parseTargetSectionsStored(stored) {
+        var raw = String(stored || '').trim();
+        if (!raw) {
+            return [];
+        }
+        if (raw.charAt(0) === '[') {
+            try {
+                var arr = JSON.parse(raw);
+                if (!Array.isArray(arr)) {
+                    return [];
+                }
+                return arr.map(function (x) {
+                    return String(x || '').trim();
+                }).filter(Boolean);
+            } catch (e) {
+                return [];
+            }
+        }
+        return [raw];
+    }
+
+    function getParentEventSectionList() {
+        var aud = state.parentEventAudience;
+        if (aud && Array.isArray(aud.target_sections_list) && aud.target_sections_list.length) {
+            return aud.target_sections_list.slice();
+        }
+        if (aud && aud.target_sections) {
+            return parseTargetSectionsStored(aud.target_sections);
+        }
+        if (Array.isArray(global.__eahParentEventSections) && global.__eahParentEventSections.length) {
+            return global.__eahParentEventSections.slice();
+        }
+        return [];
+    }
+
+    function collectActivitySectionChoices(extraSections) {
+        var labels = [];
+        var seen = {};
+        function add(label) {
+            var lab = String(label || '').trim();
+            if (!lab) {
+                return;
+            }
+            var key = sectionMatchKey(lab);
+            if (seen[key]) {
+                return;
+            }
+            seen[key] = true;
+            labels.push(lab);
+        }
+        var parentList = getParentEventSectionList();
+        if (parentList.length) {
+            parentList.forEach(add);
+            (extraSections || []).forEach(add);
+            return labels;
+        }
+        if (Array.isArray(global.__adminClassSections)) {
+            global.__adminClassSections.forEach(function (sec) {
+                add(typeof sec === 'string' ? sec : (sec && sec.label ? sec.label : ''));
+            });
+        }
+        (extraSections || []).forEach(add);
+        return labels;
+    }
+
+    function getSectionAudienceBlock() {
+        return document.getElementById('edsSectionAudience');
+    }
+
+    function getSectionNewFieldWrap(sectionBlock) {
+        if (!sectionBlock) {
+            return null;
+        }
+        var newField = sectionBlock.querySelector('input[name="new_section"]');
+        return newField ? newField.closest('.mb-0') : null;
+    }
+
+    function syncActivitySectionChoices(checkedSections) {
+        var sectionBlock = getSectionAudienceBlock();
+        if (!sectionBlock) {
+            return;
+        }
+        var labels = collectActivitySectionChoices(checkedSections);
+        var checkedKeys = {};
+        (checkedSections || []).forEach(function (lab) {
+            checkedKeys[sectionMatchKey(lab)] = true;
+        });
+        var listEl = sectionBlock.querySelector('.ce-dept-checkbox-list');
+        var emptyMsg = sectionBlock.querySelector('.eds-section-empty-msg');
+        var newFieldWrap = getSectionNewFieldWrap(sectionBlock);
+
+        if (!labels.length) {
+            if (listEl) {
+                listEl.remove();
+            }
+            if (!emptyMsg) {
+                emptyMsg = document.createElement('p');
+                emptyMsg.className = 'text-muted small mb-2 eds-section-empty-msg';
+                emptyMsg.textContent = 'No saved sections yet — type one below (e.g. BSIT4201). Admin can also add sections under All users.';
+                if (newFieldWrap) {
+                    sectionBlock.insertBefore(emptyMsg, newFieldWrap);
+                } else {
+                    sectionBlock.appendChild(emptyMsg);
+                }
+            }
+            return;
+        }
+
+        if (emptyMsg) {
+            emptyMsg.remove();
+        }
+        if (!listEl) {
+            listEl = document.createElement('div');
+            listEl.className = 'ce-dept-checkbox-list mb-2';
+            listEl.style.maxHeight = '160px';
+            listEl.style.overflowY = 'auto';
+            if (newFieldWrap) {
+                sectionBlock.insertBefore(listEl, newFieldWrap);
+            } else {
+                sectionBlock.appendChild(listEl);
+            }
+        }
+        listEl.innerHTML = '';
+        labels.forEach(function (lab, idx) {
+            var sid = 'eds_sec_' + idx + '_' + sectionMatchKey(lab).replace(/[^a-z0-9]+/g, '').slice(0, 8);
+            var row = document.createElement('div');
+            row.className = 'form-check';
+            var cb = document.createElement('input');
+            cb.className = 'form-check-input';
+            cb.type = 'checkbox';
+            cb.name = 'section[]';
+            cb.value = lab;
+            cb.id = sid;
+            cb.checked = !!checkedKeys[sectionMatchKey(lab)];
+            var lbl = document.createElement('label');
+            lbl.className = 'form-check-label';
+            lbl.setAttribute('for', sid);
+            lbl.textContent = lab;
+            row.appendChild(cb);
+            row.appendChild(lbl);
+            listEl.appendChild(row);
+        });
+    }
 
     function applyScheduleEditableFromResponse(data) {
         if (!data || typeof data.schedule_editable === 'undefined') {
@@ -933,6 +1094,7 @@
             state.ticketTypes = data.ticket_types;
             syncTicketTypeOptions(state.ticketTypes);
         }
+        applyParentAudienceFromResponse(data);
     }
 
     function toggleInlineTicketType(show) {
@@ -1128,6 +1290,12 @@
             longitude: document.getElementById('edsLongitude'),
             startTime: document.getElementById('edsStartTime'),
             endTime: document.getElementById('edsEndTime'),
+            checkinStartTime: document.getElementById('edsCheckinStartTime'),
+            checkinEndTime: document.getElementById('edsCheckinEndTime'),
+            attendanceModeSingle: document.getElementById('edsAttendanceModeSingle'),
+            attendanceModeInOut: document.getElementById('edsAttendanceModeInOut'),
+            checkoutEndTime: document.getElementById('edsCheckoutEndTime'),
+            checkoutEndWrap: document.getElementById('edsCheckoutEndWrap'),
             category: document.getElementById('edsCategory'),
             status: document.getElementById('edsStatus'),
             maxCapacity: document.getElementById('edsMaxCapacity'),
@@ -1141,6 +1309,219 @@
             hubBtn: document.getElementById('edsActivitiesHubBtn'),
             cancelEdit: document.getElementById('edsCancelEditBtn')
         };
+    }
+
+    function getAudienceEls() {
+        return {
+            inherit: document.getElementById('edsAudienceInherit'),
+            customWrap: document.getElementById('edsAudienceCustom'),
+            parentHint: document.getElementById('edsParentAudienceHint'),
+            deptAll: document.getElementById('edsDeptAll'),
+            form: document.getElementById('eventDaySessionForm')
+        };
+    }
+
+    function syncAudienceInheritUi() {
+        var els = getAudienceEls();
+        if (!els.inherit || !els.customWrap) {
+            return;
+        }
+        var inherit = !!els.inherit.checked;
+        els.customWrap.style.display = inherit ? 'none' : '';
+        els.customWrap.querySelectorAll('input, select, textarea, button').forEach(function (node) {
+            if (node === els.inherit) {
+                return;
+            }
+            node.disabled = inherit;
+        });
+    }
+
+    function updateParentAudienceHint() {
+        var hint = document.getElementById('edsParentAudienceHint');
+        var inheritLabel = document.getElementById('edsAudienceInheritLabel');
+        var aud = state.parentEventAudience;
+        var eventTitle = aud && aud.event_title ? String(aud.event_title).trim() : '';
+        var eventPhrase = eventTitle !== '' ? '"' + eventTitle + '"' : 'the whole event';
+        if (inheritLabel) {
+            inheritLabel.textContent = eventTitle !== ''
+                ? ('Same as ' + eventPhrase)
+                : 'Same as the whole event';
+        }
+        if (!hint) {
+            return;
+        }
+        if (!aud) {
+            hint.textContent = eventTitle !== ''
+                ? ('Uses the same students who can see ' + eventPhrase + '.')
+                : 'Uses the same students who can see the whole event (for example, Intramurals).';
+            return;
+        }
+        var audienceParts = [];
+        if (aud.department_label) {
+            audienceParts.push(aud.department_label);
+        }
+        if (aud.sections_label) {
+            audienceParts.push(aud.sections_label);
+        }
+        var audienceText = audienceParts.length ? audienceParts.join(' · ') : 'all matching students';
+        hint.textContent = eventTitle !== ''
+            ? (eventPhrase + ' is open to: ' + audienceText + '. Leave the box checked to match that for this activity.')
+            : ('Whole event audience: ' + audienceText + '. Leave the box checked to match that for this activity.');
+    }
+
+    function resetAudienceForm() {
+        var els = getAudienceEls();
+        if (els.inherit) {
+            els.inherit.checked = true;
+        }
+        if (els.deptAll) {
+            els.deptAll.checked = false;
+        }
+        if (els.form) {
+            els.form.querySelectorAll('.eds-dept-specific').forEach(function (cb) {
+                cb.checked = false;
+            });
+            var newSec = els.form.querySelector('input[name="new_section"]');
+            if (newSec) {
+                newSec.value = '';
+            }
+        }
+        syncActivitySectionChoices([]);
+        syncAudienceInheritUi();
+        updateParentAudienceHint();
+    }
+
+    function fillAudienceForm(session) {
+        var els = getAudienceEls();
+        if (!els.inherit) {
+            return;
+        }
+        var inherit = session && session.audience_inherit !== false;
+        els.inherit.checked = inherit;
+        if (els.deptAll) {
+            els.deptAll.checked = false;
+        }
+        if (els.form) {
+            els.form.querySelectorAll('.eds-dept-specific').forEach(function (cb) {
+                cb.checked = false;
+            });
+            var newSec = els.form.querySelector('input[name="new_section"]');
+            if (newSec) {
+                newSec.value = '';
+            }
+        }
+        var secList = [];
+        if (!inherit && session) {
+            secList = Array.isArray(session.audience_sections) ? session.audience_sections.slice() : [];
+        }
+        syncActivitySectionChoices(secList);
+        if (!inherit && session) {
+            var deptList = Array.isArray(session.audience_departments) ? session.audience_departments : [];
+            if (deptList.indexOf('ALL') >= 0 && els.deptAll) {
+                els.deptAll.checked = true;
+            } else if (els.form) {
+                deptList.forEach(function (deptVal) {
+                    els.form.querySelectorAll('.eds-dept-specific').forEach(function (cb) {
+                        if (cb.value === deptVal) {
+                            cb.checked = true;
+                        }
+                    });
+                });
+            }
+            if (els.form && secList.length) {
+                var secKeys = {};
+                secList.forEach(function (lab) {
+                    secKeys[sectionMatchKey(lab)] = true;
+                });
+                els.form.querySelectorAll('input[name="section[]"]').forEach(function (cb) {
+                    if (secKeys[sectionMatchKey(cb.value)]) {
+                        cb.checked = true;
+                    }
+                });
+            }
+        }
+        syncAudienceInheritUi();
+        updateParentAudienceHint();
+    }
+
+    function appendAudienceToFormData(body) {
+        var els = getAudienceEls();
+        if (!els.inherit) {
+            body.append('audience_inherit', '1');
+            return;
+        }
+        if (els.inherit.checked) {
+            body.append('audience_inherit', '1');
+            return;
+        }
+        body.append('audience_inherit', '0');
+        if (!els.form) {
+            return;
+        }
+        if (els.deptAll && els.deptAll.checked) {
+            body.append('department[]', 'ALL');
+        }
+        els.form.querySelectorAll('.eds-dept-specific:checked').forEach(function (cb) {
+            body.append('department[]', cb.value);
+        });
+        els.form.querySelectorAll('input[name="section[]"]:checked').forEach(function (cb) {
+            body.append('section[]', cb.value);
+        });
+        var newSec = els.form.querySelector('input[name="new_section"]');
+        if (newSec && String(newSec.value || '').trim() !== '') {
+            body.append('new_section', newSec.value);
+        }
+    }
+
+    function audienceCustomSelectionValid() {
+        var els = getAudienceEls();
+        if (!els.inherit || els.inherit.checked || !els.form) {
+            return true;
+        }
+        var anyDept = (els.deptAll && els.deptAll.checked)
+            || Array.prototype.some.call(els.form.querySelectorAll('.eds-dept-specific'), function (cb) {
+                return cb.checked;
+            });
+        var anySec = Array.prototype.some.call(els.form.querySelectorAll('input[name="section[]"]'), function (cb) {
+            return cb.checked;
+        });
+        var newSec = els.form.querySelector('input[name="new_section"]');
+        var typedSec = newSec && String(newSec.value || '').trim() !== '';
+        return anyDept || anySec || typedSec;
+    }
+
+    function initSessionAudienceUi() {
+        var els = getAudienceEls();
+        if (!els.inherit || !els.form) {
+            return;
+        }
+        els.inherit.addEventListener('change', syncAudienceInheritUi);
+        if (els.deptAll) {
+            els.deptAll.addEventListener('change', function () {
+                if (els.deptAll.checked) {
+                    els.form.querySelectorAll('.eds-dept-specific').forEach(function (cb) {
+                        cb.checked = false;
+                    });
+                }
+            });
+        }
+        els.form.querySelectorAll('.eds-dept-specific').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (cb.checked && els.deptAll) {
+                    els.deptAll.checked = false;
+                }
+            });
+        });
+        syncAudienceInheritUi();
+        updateParentAudienceHint();
+    }
+
+    function syncEdsAttendanceModeUi() {
+        var els = getManageEls();
+        var inOut = els.attendanceModeInOut && els.attendanceModeInOut.checked;
+        if (els.checkoutEndWrap) {
+            els.checkoutEndWrap.style.display = inOut ? '' : 'none';
+        }
     }
 
     function resetExtraFields(els) {
@@ -1170,6 +1551,16 @@
         }
         syncTicketTypeOptions(state.ticketTypes, []);
         updateAccessModeUi();
+        if (els.attendanceModeSingle) {
+            els.attendanceModeSingle.checked = true;
+        }
+        if (els.attendanceModeInOut) {
+            els.attendanceModeInOut.checked = false;
+        }
+        if (els.checkoutEndTime) {
+            els.checkoutEndTime.value = '';
+        }
+        syncEdsAttendanceModeUi();
     }
 
     function nextSortOrderForDay() {
@@ -1220,7 +1611,14 @@
         if (els.endTime) {
             els.endTime.value = '';
         }
+        if (els.checkinStartTime) {
+            els.checkinStartTime.value = '';
+        }
+        if (els.checkinEndTime) {
+            els.checkinEndTime.value = '';
+        }
         resetExtraFields(els);
+        resetAudienceForm();
         if (els.cancelEdit) {
             els.cancelEdit.style.display = 'none';
         }
@@ -1267,6 +1665,23 @@
         if (els.endTime) {
             els.endTime.value = session.end_time ? String(session.end_time).slice(0, 5) : '';
         }
+        if (els.checkinStartTime) {
+            els.checkinStartTime.value = session.checkin_start_time ? String(session.checkin_start_time).slice(0, 5) : '';
+        }
+        if (els.checkinEndTime) {
+            els.checkinEndTime.value = session.checkin_end_time ? String(session.checkin_end_time).slice(0, 5) : '';
+        }
+        var mode = String(session.attendance_mode || 'single').toLowerCase();
+        if (els.attendanceModeSingle) {
+            els.attendanceModeSingle.checked = mode !== 'time_in_out';
+        }
+        if (els.attendanceModeInOut) {
+            els.attendanceModeInOut.checked = mode === 'time_in_out';
+        }
+        if (els.checkoutEndTime) {
+            els.checkoutEndTime.value = session.checkout_end_time ? String(session.checkout_end_time).slice(0, 5) : '';
+        }
+        syncEdsAttendanceModeUi();
         if (els.category) {
             els.category.value = session.category || '';
         }
@@ -1303,6 +1718,7 @@
             : (session.ticket_type_id || []);
         syncTicketTypeOptions(state.ticketTypes, selectedTicketIds);
         updateAccessModeUi();
+        fillAudienceForm(session);
         if (els.cancelEdit) {
             els.cancelEdit.style.display = 'inline-block';
         }
@@ -1342,7 +1758,10 @@
         listEl.innerHTML = renderSessionsList(state.sessions, { canEdit: false, canRsvp: global.currentRole === 'student' });
         bindRsvpActions(listEl);
         if (manageBtn) {
-            manageBtn.style.display = global.currentRole === 'organizer' ? 'inline-block' : 'none';
+            var canManage = global.currentRole === 'organizer'
+                || global.currentRole === 'admin'
+                || global.currentRole === 'super_admin';
+            manageBtn.style.display = canManage ? 'inline-block' : 'none';
         }
         var hubLink = document.getElementById('eventDaySessionsHubLink');
         if (hubLink && state.eventId) {
@@ -1435,16 +1854,7 @@
         }
         els.list.querySelectorAll('.js-eds-edit').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                var sid = parseInt(btn.getAttribute('data-session-id'), 10);
-                var session = state.sessions.find(function (s) {
-                    return s.id === sid;
-                });
-                if (session) {
-                    fillForm(session);
-                    if (els.form) {
-                        els.form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                }
+                openEditSessionInModal(btn.getAttribute('data-session-id'));
             });
         });
         els.list.querySelectorAll('.js-eds-delete').forEach(function (btn) {
@@ -1500,11 +1910,30 @@
         });
     }
 
+    function openEditSessionInModal(sessionId) {
+        var sid = parseInt(sessionId, 10);
+        if (!sid) {
+            return;
+        }
+        var els = getManageEls();
+        var session = state.sessions.find(function (s) {
+            return s.id === sid;
+        });
+        if (!session) {
+            return;
+        }
+        fillForm(session);
+        if (els.form) {
+            els.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
     function openManageModal() {
         var els = getManageEls();
         if (!els.modal || !state.eventId || !state.scheduleDate) {
             return;
         }
+        var pendingEditId = state.pendingEditSessionId || 0;
         setScheduleDate(state.scheduleDate, false);
         syncScheduleDatePicker();
         if (els.hubBtn && state.eventId) {
@@ -1523,6 +1952,10 @@
             }
             refreshManageList();
             applyDefaultSortOrder();
+            if (pendingEditId) {
+                state.pendingEditSessionId = 0;
+                openEditSessionInModal(pendingEditId);
+            }
         });
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             bootstrap.Modal.getOrCreateInstance(els.modal).show();
@@ -1549,6 +1982,16 @@
         }
         body.append('start_time', els.startTime ? els.startTime.value : '');
         body.append('end_time', els.endTime ? els.endTime.value : '');
+        if (els.checkinStartTime) {
+            body.append('checkin_start_time', els.checkinStartTime.value);
+        }
+        if (els.checkinEndTime) {
+            body.append('checkin_end_time', els.checkinEndTime.value);
+        }
+        body.append('attendance_mode', (els.attendanceModeInOut && els.attendanceModeInOut.checked) ? 'time_in_out' : 'single');
+        if (els.checkoutEndTime && els.attendanceModeInOut && els.attendanceModeInOut.checked) {
+            body.append('checkout_end_time', els.checkoutEndTime.value);
+        }
         if (els.category) {
             body.append('category', els.category.value);
         }
@@ -1581,6 +2024,7 @@
         if (state.editingId) {
             body.append('session_id', String(state.editingId));
         }
+        appendAudienceToFormData(body);
         body.append('csrf_token', csrfToken());
         fetch(baseUrl() + '/backend/auth/event_day_sessions_api.php', {
             method: 'POST',
@@ -1673,9 +2117,24 @@
                 if (!ok) {
                     return;
                 }
+                if (!audienceCustomSelectionValid()) {
+                    showEdsMessageModal('Choose at least one department, All departments, or a class section for this activity.', {
+                        title: 'Who can join?',
+                        icon: 'fa-users'
+                    });
+                    return;
+                }
                 submitActivityForm(els);
             });
         });
+        initSessionAudienceUi();
+        ['edsAttendanceModeSingle', 'edsAttendanceModeInOut'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', syncEdsAttendanceModeUi);
+            }
+        });
+        syncEdsAttendanceModeUi();
         if (els.accessMode) {
             els.accessMode.addEventListener('change', updateAccessModeUi);
         }
@@ -1699,9 +2158,17 @@
         }
     }
 
-    function openManageForHub(eventId, scheduleDate) {
+    function openManageForHub(eventId, scheduleDate, editSessionId) {
         state.eventId = parseInt(eventId, 10) || 0;
         state.scheduleDate = String(scheduleDate || '').slice(0, 10);
+        state.pendingEditSessionId = parseInt(editSessionId, 10) || 0;
+        if (Array.isArray(global.__eahParentEventSections)) {
+            state.parentEventAudience = {
+                target_sections_list: global.__eahParentEventSections.slice()
+            };
+        } else {
+            state.parentEventAudience = null;
+        }
         var hubDates = global.__eahEventScheduleDates;
         if (Array.isArray(hubDates) && hubDates.length) {
             state.scheduleDates = hubDates.map(function (d) {

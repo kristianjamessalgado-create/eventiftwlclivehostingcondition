@@ -48,7 +48,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Student Dashboard - EVENTIFY</title>
 
     
@@ -63,12 +63,13 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=3">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=19">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=24">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=4">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=2">
     <link rel="manifest" href="<?= BASE_URL; ?>/manifest-student.php">
     <?php if (!empty($eventifyVapidPublicKey ?? '')): ?>
     <meta name="eventify-vapid-key" content="<?= htmlspecialchars($eventifyVapidPublicKey, ENT_QUOTES, 'UTF-8') ?>">
@@ -80,7 +81,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
     <meta name="apple-mobile-web-app-title" content="EVENTIFY">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/pwa_student.css?v=5">
 </head>
-<body class="student-dashboard student-dashboard--app" data-eventify-keyboard-scroll data-eventify-sidebar="studentSidebar" data-eventify-calendar="student-calendar" data-eventify-layout="root" data-eventify-main=".student-dashboard .main-content">
+<body class="student-dashboard student-dashboard--app" data-eventify-keyboard-scroll data-eventify-sidebar="studentSidebar" data-eventify-calendar="student-calendar" data-eventify-layout="root" data-eventify-main=".student-dashboard .main-content" data-eventify-pull-refresh="1">
 
 
 <nav class="top-navbar">
@@ -94,10 +95,10 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
         </button>
     </div>
     <div class="navbar-right">
-        <a class="nav-btn" href="<?= BASE_URL ?>/activities_hub.php" title="My registrations" aria-label="My registrations">
+        <a class="nav-btn student-nav-desktop-only" href="<?= BASE_URL ?>/activities_hub.php" title="My registrations" aria-label="My registrations">
             <i class="fas fa-th-large"></i>
         </a>
-        <button type="button" class="nav-btn" id="topCalendarShortcutBtn" title="Go to today">
+        <button type="button" class="nav-btn student-nav-desktop-only" id="topCalendarShortcutBtn" title="Go to today">
             <i class="fas fa-calendar"></i>
         </button>
         <div class="dropdown">
@@ -501,15 +502,27 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
         <?php endif; ?>
 
         <!-- Upcoming Events List (at top for quick scan) -->
-        <div class="upcoming-events-section">
-            <h3 class="section-heading">Upcoming Events</h3>
+        <div class="upcoming-events-section" id="studentUpcomingEventsSection">
+            <h3 class="section-heading" id="studentUpcomingEventsHeading">Upcoming Events</h3>
             <?php if (!empty($upcoming_events)): ?>
-                <div class="events-list">
-                    <?php foreach (array_slice($upcoming_events, 0, 5) as $event): ?>
-                        <div class="event-item student-event-link" data-event-id="<?= isset($event['id']) ? (int)$event['id'] : '' ?>" role="button">
+                <div class="events-list" id="studentUpcomingEventsList">
+                    <?php foreach ($upcoming_events as $event): ?>
+                        <?php
+                            $eventDisplayDates = function_exists('eventify_event_calendar_display_dates')
+                                ? eventify_event_calendar_display_dates($event)
+                                : [substr((string) ($event['date'] ?? ''), 0, 10)];
+                            $eventDisplayDates = array_values(array_filter($eventDisplayDates));
+                            $badgeDate = $eventDisplayDates[0] ?? substr((string) ($event['date'] ?? ''), 0, 10);
+                        ?>
+                        <div
+                            class="event-item student-event-link"
+                            data-event-id="<?= isset($event['id']) ? (int)$event['id'] : '' ?>"
+                            data-schedule-dates="<?= htmlspecialchars(implode(',', $eventDisplayDates)) ?>"
+                            role="button"
+                        >
                             <div class="event-date-badge">
-                                <span class="event-month"><?= date('M', strtotime($event['date'])) ?></span>
-                                <span class="event-day"><?= date('d', strtotime($event['date'])) ?></span>
+                                <span class="event-month"><?= $badgeDate !== '' ? date('M', strtotime($badgeDate)) : '' ?></span>
+                                <span class="event-day"><?= $badgeDate !== '' ? date('d', strtotime($badgeDate)) : '' ?></span>
                             </div>
                             <div class="event-details">
                                 <h4 class="event-title"><?= htmlspecialchars($event['title'] ?? 'Untitled') ?></h4>
@@ -524,6 +537,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                         </div>
                     <?php endforeach; ?>
                 </div>
+                <p class="no-events student-upcoming-month-empty" id="studentUpcomingMonthEmpty" hidden>No upcoming events this month.</p>
             <?php else: ?>
                 <p class="no-events">No upcoming events for your department.</p>
             <?php endif; ?>
@@ -995,6 +1009,9 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
   <button type="button" class="student-app-tabbar__btn" data-student-nav="calendar" data-scroll-target="#studentCalendarSection">
     <i class="fas fa-calendar"></i><span>Calendar</span>
   </button>
+  <button type="button" class="student-app-tabbar__btn" data-student-nav="profile" title="Profile" aria-label="Profile">
+    <i class="fas fa-user"></i><span>Profile</span>
+  </button>
   <button type="button" class="student-app-tabbar__btn<?= $student_attendance_panel_open ? ' is-active' : '' ?>" data-student-panel="attendance" title="Check-in history" aria-label="Check-in history">
     <i class="fas fa-clipboard-check"></i><span>History</span>
   </button>
@@ -1070,6 +1087,32 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
   </div>
 </div>
 
+<!-- All events on a calendar day (+more link) -->
+<div class="modal fade" id="studentDayEventsModal" tabindex="-1" aria-labelledby="studentDayEventsModalLabel" aria-hidden="true">
+  <div class="modal-dialog student-day-events-modal__dialog modal-fullscreen-sm-down">
+    <div class="modal-content efy-modal efy-modal--compact student-day-events-modal__content">
+      <div class="modal-header efy-modal__header student-day-events-modal__header">
+        <div>
+          <span class="efy-modal__eyebrow">Calendar</span>
+          <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="studentDayEventsModalLabel">
+            <i class="fas fa-calendar-day" aria-hidden="true"></i>
+            <span id="studentDayEventsModalTitle">Events</span>
+          </h5>
+          <p class="student-day-events-modal__count mb-0" id="studentDayEventsModalCount"></p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body efy-modal__body efy-modal__body--compact student-day-events-modal__body">
+        <p class="student-day-events-modal__hint">Tap an event for full details. Scroll to see all events on this day.</p>
+        <div class="student-day-events-modal__list" id="studentDayEventsModalList" role="list"></div>
+      </div>
+      <div class="modal-footer efy-modal__footer student-day-events-modal__footer">
+        <button type="button" class="btn efy-btn-muted w-100" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Cancel RSVP Confirmation Modal -->
 <div class="modal fade" id="cancelRsvpConfirmModal" tabindex="-1" aria-labelledby="cancelRsvpConfirmModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -1139,8 +1182,9 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=10"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=22"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=29"></script>
 <script>window.__myTicketsBootstrap = <?= json_encode($student_tickets_bootstrap, JSON_UNESCAPED_UNICODE) ?>;</script>
 
 <script>

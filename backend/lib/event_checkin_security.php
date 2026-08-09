@@ -433,6 +433,240 @@ function eventify_checkin_main_signup_gap(mysqli $conn, array $event, int $userI
     ];
 }
 
+function eventify_attendance_session_has_checkout_column(mysqli $conn): bool
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = false;
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM event_day_session_attendance WHERE Field = 'checked_out_at'");
+        if ($col && $col->num_rows >= 1) {
+            $cache = true;
+        }
+    } catch (Throwable $e) {
+        // keep false
+    }
+    return $cache;
+}
+
+/** @return array{time_in: ?string, time_out: ?string, present: bool} */
+function eventify_load_main_event_attendance(mysqli $conn, int $userId, int $eventId): array
+{
+    $empty = ['time_in' => null, 'time_out' => null, 'present' => false];
+    if ($userId < 1 || $eventId < 1) {
+        return $empty;
+    }
+    $stmt = $conn->prepare("SELECT time_in, time_out, status FROM registrations WHERE user_id = ? AND event_id = ? LIMIT 1");
+    if (!$stmt) {
+        return $empty;
+    }
+    $stmt->bind_param('ii', $userId, $eventId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$row) {
+        return $empty;
+    }
+    return [
+        'time_in' => !empty($row['time_in']) ? (string) $row['time_in'] : null,
+        'time_out' => !empty($row['time_out']) ? (string) $row['time_out'] : null,
+        'present' => strtolower((string) ($row['status'] ?? '')) === 'present' || !empty($row['time_in']),
+    ];
+}
+
+/** @return array{checked_in_at: ?string, checked_out_at: ?string, present: bool} */
+function eventify_load_session_attendance(mysqli $conn, int $userId, int $sessionId): array
+{
+    $empty = ['checked_in_at' => null, 'checked_out_at' => null, 'present' => false];
+    if ($userId < 1 || $sessionId < 1) {
+        return $empty;
+    }
+    try {
+        $chk = $conn->query("SHOW TABLES LIKE 'event_day_session_attendance'");
+        if (!$chk || $chk->num_rows < 1) {
+            return $empty;
+        }
+    } catch (Throwable $e) {
+        return $empty;
+    }
+    $hasOut = eventify_attendance_session_has_checkout_column($conn);
+    $sql = $hasOut
+        ? 'SELECT checked_in_at, checked_out_at FROM event_day_session_attendance WHERE user_id = ? AND session_id = ? LIMIT 1'
+        : 'SELECT checked_in_at FROM event_day_session_attendance WHERE user_id = ? AND session_id = ? LIMIT 1';
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return $empty;
+    }
+    $stmt->bind_param('ii', $userId, $sessionId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$row) {
+        return $empty;
+    }
+    return [
+        'checked_in_at' => !empty($row['checked_in_at']) ? (string) $row['checked_in_at'] : null,
+        'checked_out_at' => $hasOut && !empty($row['checked_out_at']) ? (string) $row['checked_out_at'] : null,
+        'present' => !empty($row['checked_in_at']),
+    ];
+}
+
+/** @return array{open: string, close: string} */
+function eventify_entity_checkout_bounds(array $entity, ?string $dayYmd = null): array
+{
+    $end = trim((string) ($entity['end_time'] ?? ''));
+    if (!empty($entity['end_time_na'])) {
+        $end = '';
+    }
+    $checkoutEnd = trim((string) ($entity['checkout_end_time'] ?? ''));
+    return [
+        'open' => $end,
+        'close' => $checkoutEnd !== '' ? $checkoutEnd : '23:59',
+    ];
+}
+
+function eventify_entity_checkout_window_open(array $entity, ?DateTimeInterface $now = null, ?string $dayYmd = null): bool
+{
+    if (!function_exists('eventify_calendar_app_timezone')) {
+        require_once __DIR__ . '/event_calendar.php';
+    }
+    $tz = eventify_calendar_app_timezone();
+    $now = $now instanceof DateTimeInterface
+        ? DateTimeImmutable::createFromInterface($now)->setTimezone($tz)
+        : new DateTimeImmutable('now', $tz);
+    $dayYmd = $dayYmd ?? $now->format('Y-m-d');
+
+    $scheduleDays = $entity['schedule_days'] ?? null;
+    if (is_array($scheduleDays) && $scheduleDays !== []) {
+        foreach ($scheduleDays as $day) {
+            if (!is_array($day)) {
+                continue;
+            }
+            $ymd = substr(trim((string) ($day['schedule_date'] ?? '')), 0, 10);
+            if ($ymd === $dayYmd) {
+                $entity = array_merge($entity, $day);
+                break;
+            }
+        }
+    } elseif (!empty($entity['date'])) {
+        $startYmd = substr(trim((string) $entity['date']), 0, 10);
+        $endYmd = function_exists('eventify_event_resolve_end_date')
+            ? eventify_event_resolve_end_date($entity)
+            : $startYmd;
+        if ($dayYmd < $startYmd || ($endYmd !== '' && $dayYmd > $endYmd)) {
+            return false;
+        }
+    }
+
+    if (!function_exists('eventify_session_datetime')) {
+        require_once __DIR__ . '/event_day_sessions.php';
+    }
+    $bounds = eventify_entity_checkout_bounds($entity, $dayYmd);
+    $openTime = $bounds['open'];
+    $closeTime = $bounds['close'];
+    if ($openTime === '') {
+        return true;
+    }
+    $openDt = eventify_session_datetime($dayYmd, $openTime);
+    if ($openDt instanceof DateTimeImmutable && $now < $openDt) {
+        return false;
+    }
+    if ($closeTime !== '') {
+        $closeDt = eventify_session_datetime($dayYmd, $closeTime);
+        if ($closeDt instanceof DateTimeImmutable && $now > $closeDt) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @return array{phase: string, label: string, can_submit: bool, message: string}
+ *   phase: unavailable|time_in|time_out|complete
+ */
+function eventify_main_event_scan_state(array $event, array $attendance, ?DateTimeInterface $now = null): array
+{
+    if (!eventify_entity_uses_time_in_out($event)) {
+        if (!function_exists('eventify_event_allows_checkin')) {
+            require_once __DIR__ . '/event_calendar.php';
+        }
+        if ($attendance['present']) {
+            return ['phase' => 'complete', 'label' => 'Checked in', 'can_submit' => false, 'message' => 'You already confirmed attendance for this event.'];
+        }
+        if (!eventify_event_allows_checkin($event, $now)) {
+            $reason = eventify_event_checkin_unavailable_reason($event, $now) ?? 'Check-in is not available right now.';
+            return ['phase' => 'unavailable', 'label' => 'Check-in', 'can_submit' => false, 'message' => $reason];
+        }
+        return ['phase' => 'time_in', 'label' => 'Confirm attendance', 'can_submit' => true, 'message' => 'Tap confirm to record your attendance.'];
+    }
+
+    if ($attendance['time_in'] && $attendance['time_out']) {
+        return ['phase' => 'complete', 'label' => 'Complete', 'can_submit' => false, 'message' => 'Your time in and time out are recorded.'];
+    }
+    if (!$attendance['time_in']) {
+        if (!function_exists('eventify_event_allows_checkin')) {
+            require_once __DIR__ . '/event_calendar.php';
+        }
+        if (!eventify_event_allows_checkin($event, $now)) {
+            $reason = eventify_event_checkin_unavailable_reason($event, $now) ?? 'Time-in is not available right now.';
+            return ['phase' => 'unavailable', 'label' => 'Time in', 'can_submit' => false, 'message' => $reason];
+        }
+        return ['phase' => 'time_in', 'label' => 'Confirm time in', 'can_submit' => true, 'message' => 'Scan to record when you arrive. Scan again later to time out.'];
+    }
+    if (!eventify_entity_checkout_window_open($event, $now)) {
+        return [
+            'phase' => 'unavailable',
+            'label' => 'Time out',
+            'can_submit' => false,
+            'message' => 'You are timed in. Time-out opens when the event ends (or at the configured time-out window).',
+        ];
+    }
+    return ['phase' => 'time_out', 'label' => 'Confirm time out', 'can_submit' => true, 'message' => 'You are timed in. Tap confirm to record your departure.'];
+}
+
+/**
+ * @return array{phase: string, label: string, can_submit: bool, message: string}
+ */
+function eventify_activity_scan_state(array $session, array $attendance, ?DateTimeInterface $now = null): array
+{
+    if (!function_exists('eventify_session_allows_checkin')) {
+        require_once __DIR__ . '/event_day_sessions.php';
+    }
+    if (!eventify_entity_uses_time_in_out($session)) {
+        if ($attendance['present']) {
+            return ['phase' => 'complete', 'label' => 'Checked in', 'can_submit' => false, 'message' => 'You already checked in to this activity.'];
+        }
+        if (!eventify_session_allows_checkin($session, $now)) {
+            $details = eventify_session_checkin_student_details($session, $now);
+            return ['phase' => 'unavailable', 'label' => 'Check-in', 'can_submit' => false, 'message' => $details['reason'] ?? 'Check-in is not available right now.'];
+        }
+        return ['phase' => 'time_in', 'label' => 'Confirm check-in', 'can_submit' => true, 'message' => 'Tap confirm to record your attendance.'];
+    }
+
+    if ($attendance['checked_in_at'] && $attendance['checked_out_at']) {
+        return ['phase' => 'complete', 'label' => 'Complete', 'can_submit' => false, 'message' => 'Your time in and time out are recorded for this activity.'];
+    }
+    if (!$attendance['checked_in_at']) {
+        if (!eventify_session_allows_checkin($session, $now)) {
+            $details = eventify_session_checkin_student_details($session, $now);
+            return ['phase' => 'unavailable', 'label' => 'Time in', 'can_submit' => false, 'message' => $details['reason'] ?? 'Time-in is not available right now.'];
+        }
+        return ['phase' => 'time_in', 'label' => 'Confirm time in', 'can_submit' => true, 'message' => 'Scan to record when you arrive. Scan again later to time out.'];
+    }
+    $dayYmd = substr(trim((string) ($session['schedule_date'] ?? '')), 0, 10);
+    if (!eventify_entity_checkout_window_open($session, $now, $dayYmd)) {
+        return [
+            'phase' => 'unavailable',
+            'label' => 'Time out',
+            'can_submit' => false,
+            'message' => 'You are timed in. Time-out opens when the activity ends (or at the configured time-out window).',
+        ];
+    }
+    return ['phase' => 'time_out', 'label' => 'Confirm time out', 'can_submit' => true, 'message' => 'You are timed in. Tap confirm to record your departure.'];
+}
+
 /**
  * Process main event check-in POST (device lock + present status).
  *
@@ -457,9 +691,18 @@ function eventify_process_main_event_checkin(mysqli $conn, array $event, int $us
         }
     }
 
-    $signupGap = eventify_checkin_main_signup_gap($conn, $event, $userId);
-    if ($signupGap['needed']) {
-        return ['ok' => false, 'error' => $signupGap['message']];
+    $attendance = eventify_load_main_event_attendance($conn, $userId, $eventId);
+    $scanState = eventify_main_event_scan_state($event, $attendance);
+    if (!$scanState['can_submit']) {
+        return ['ok' => false, 'error' => $scanState['message']];
+    }
+    $isTimeOut = $scanState['phase'] === 'time_out';
+
+    if (!$isTimeOut) {
+        $signupGap = eventify_checkin_main_signup_gap($conn, $event, $userId);
+        if ($signupGap['needed']) {
+            return ['ok' => false, 'error' => $signupGap['message']];
+        }
     }
 
     $geoRequired = eventify_event_checkin_geo_required($event);
@@ -495,15 +738,26 @@ function eventify_process_main_event_checkin(mysqli $conn, array $event, int $us
             throw new RuntimeException($lock['error'] ?? 'Device lock failed.');
         }
 
-        $stmt = $conn->prepare("INSERT INTO registrations (user_id, event_id, status, time_in) VALUES (?, ?, 'present', NOW()) ON DUPLICATE KEY UPDATE status = 'present', time_in = NOW()");
+        if ($isTimeOut) {
+            $stmt = $conn->prepare("UPDATE registrations SET time_out = NOW() WHERE user_id = ? AND event_id = ? AND time_in IS NOT NULL AND time_out IS NULL");
+        } else {
+            $stmt = $conn->prepare("INSERT INTO registrations (user_id, event_id, status, time_in) VALUES (?, ?, 'present', NOW()) ON DUPLICATE KEY UPDATE status = 'present', time_in = IF(time_in IS NULL, NOW(), time_in)");
+        }
         if (!$stmt) {
             throw new RuntimeException('Could not record attendance.');
         }
         $stmt->bind_param('ii', $userId, $eventId);
         $stmt->execute();
+        if ($stmt->affected_rows < 1 && $isTimeOut) {
+            $stmt->close();
+            throw new RuntimeException('Could not record time-out. You may have already timed out.');
+        }
         $stmt->close();
         $conn->commit();
-        return ['ok' => true];
+        return [
+            'ok' => true,
+            'action' => $isTimeOut ? 'time_out' : 'time_in',
+        ];
     } catch (Throwable $e) {
         try {
             $conn->rollback();
@@ -529,14 +783,23 @@ function eventify_process_activity_checkin(mysqli $conn, array $session, int $us
         require_once __DIR__ . '/../../config/student_sections.php';
     }
     if (function_exists('eventify_student_event_audience_gate')) {
-        $audEvent = [
+        $parentEvent = [
             'id' => $eventId,
             'department' => $session['event_department'] ?? $session['department'] ?? null,
-            'target_sections' => $session['event_target_sections'] ?? $session['target_sections'] ?? null,
+            'target_sections' => $session['event_target_sections'] ?? null,
         ];
-        $aud = eventify_student_event_audience_gate($conn, $userId, $audEvent);
+        $aud = eventify_student_event_audience_gate($conn, $userId, $parentEvent);
         if (!$aud['ok']) {
             return ['ok' => false, 'error' => $aud['error'] ?? 'This event is not available for your account.'];
+        }
+        require_once __DIR__ . '/event_day_sessions.php';
+        $sessionGate = [
+            'department' => $session['department'] ?? null,
+            'target_sections' => $session['target_sections'] ?? null,
+        ];
+        $student = eventify_load_student_audience_profile($conn, $userId);
+        if (!eventify_student_may_access_session($sessionGate, $parentEvent, $student)) {
+            return ['ok' => false, 'error' => 'This activity is not available for your department or class section.'];
         }
     }
 
@@ -552,6 +815,13 @@ function eventify_process_activity_checkin(mysqli $conn, array $session, int $us
     if (eventify_session_checkin_requires_rsvp($session) && !eventify_student_has_session_rsvp($conn, $userId, $sessionId)) {
         return ['ok' => false, 'error' => 'RSVP for this activity in the Activities hub first, then check in at the venue.'];
     }
+
+    $attendance = eventify_load_session_attendance($conn, $userId, $sessionId);
+    $scanState = eventify_activity_scan_state($session, $attendance);
+    if (!$scanState['can_submit']) {
+        return ['ok' => false, 'error' => $scanState['message']];
+    }
+    $isTimeOut = $scanState['phase'] === 'time_out';
 
     $geoRequired = eventify_session_checkin_geo_required($session);
     $parsed = eventify_checkin_parse_security_post($post, $geoRequired);
@@ -586,15 +856,28 @@ function eventify_process_activity_checkin(mysqli $conn, array $session, int $us
             throw new RuntimeException($lock['error'] ?? 'Device lock failed.');
         }
 
-        $ins = $conn->prepare('INSERT INTO event_day_session_attendance (session_id, user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE checked_in_at = CURRENT_TIMESTAMP');
+        eventify_events_ensure_attendance_mode($conn);
+        $hasOutCol = eventify_attendance_session_has_checkout_column($conn);
+        if ($isTimeOut && $hasOutCol) {
+            $ins = $conn->prepare('UPDATE event_day_session_attendance SET checked_out_at = CURRENT_TIMESTAMP WHERE session_id = ? AND user_id = ? AND checked_in_at IS NOT NULL AND checked_out_at IS NULL');
+        } else {
+            $ins = $conn->prepare('INSERT INTO event_day_session_attendance (session_id, user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE checked_in_at = IF(checked_in_at IS NULL, CURRENT_TIMESTAMP, checked_in_at)');
+        }
         if (!$ins) {
             throw new RuntimeException('Could not record check-in.');
         }
         $ins->bind_param('ii', $sessionId, $userId);
         $ins->execute();
+        if ($ins->affected_rows < 1 && $isTimeOut) {
+            $ins->close();
+            throw new RuntimeException('Could not record time-out. You may have already timed out.');
+        }
         $ins->close();
         $conn->commit();
-        return ['ok' => true];
+        return [
+            'ok' => true,
+            'action' => $isTimeOut ? 'time_out' : 'time_in',
+        ];
     } catch (Throwable $e) {
         try {
             $conn->rollback();

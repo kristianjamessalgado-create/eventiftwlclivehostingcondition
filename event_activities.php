@@ -150,6 +150,20 @@ $_SESSION['eventify_main_hub_event_id'] = $eventId;
 
 $viewerId = in_array($role, ['student', 'organizer'], true) ? $userId : null;
 
+$eventsForAttach = [$event];
+eventify_events_attach_schedule_dates($conn, $eventsForAttach);
+$event = $eventsForAttach[0];
+$eventScheduleDates = eventify_event_calendar_display_dates($event);
+if ($eventScheduleDates === []) {
+    $d = substr((string) ($event['date'] ?? ''), 0, 10);
+    if ($d !== '') {
+        $eventScheduleDates = [$d];
+    }
+}
+if ($eventScheduleDates !== []) {
+    eventify_realign_event_day_sessions_to_event_schedule($conn, $eventId, $eventScheduleDates);
+}
+
 $allSessions = eventify_load_event_day_sessions($conn, $eventId, null, $viewerId);
 
 $byCategory = eventify_group_sessions_by_category($allSessions);
@@ -176,7 +190,7 @@ $todaySessions = array_values(array_filter($allSessions, static function ($s) us
 
 $hubUrl = BASE_URL . '/event_activities.php?id=' . $eventId;
 
-$isOrganizer = eventify_user_can_manage_owned_event($role, $userId, $event);
+$isOrganizer = eventify_user_can_manage_event_activities($role, $userId, $event);
 
 $isStudent = $role === 'student';
 
@@ -207,22 +221,11 @@ if ($isStudent && $event) {
 $csrfToken = function_exists('csrf_token') ? csrf_token() : '';
 
 $daySessionsHaveGeo = false;
-$eventScheduleDates = [];
 $defaultActivityDay = '';
 $openAddActivity = isset($_GET['open_add_activity']) && (string) $_GET['open_add_activity'] === '1';
 
 if ($isOrganizer) {
     $daySessionsHaveGeo = eventify_day_sessions_have_geo_columns($conn);
-    $eventsForAttach = [$event];
-    eventify_events_attach_schedule_dates($conn, $eventsForAttach);
-    $event = $eventsForAttach[0];
-    $eventScheduleDates = eventify_event_calendar_display_dates($event);
-    if ($eventScheduleDates === []) {
-        $d = substr((string) ($event['date'] ?? ''), 0, 10);
-        if ($d !== '') {
-            $eventScheduleDates = [$d];
-        }
-    }
     $defaultActivityDay = $dayFilter !== '' && in_array($dayFilter, $eventScheduleDates, true)
         ? $dayFilter
         : (in_array($todayYmd, $eventScheduleDates, true) ? $todayYmd : ($eventScheduleDates[0] ?? ''));
@@ -551,12 +554,8 @@ function eah_sort_sessions_by_time(array $sessions): array
 
 function eah_session_start_label(array $s): string
 {
-    $raw = trim((string) ($s['start_time'] ?? ''));
-    if ($raw === '') {
-        return 'TBA';
-    }
-    $ts = strtotime('1970-01-01 ' . substr($raw, 0, 8));
-    return $ts ? date('g:i A', $ts) : 'TBA';
+    $label = eventify_format_session_time_range($s['start_time'] ?? null, null);
+    return $label !== '' ? $label : 'TBA';
 }
 
 /** @param array<string, mixed> $s */
@@ -842,13 +841,13 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <link rel="manifest" href="<?= BASE_URL ?>/manifest-student.php">
     <?php endif; ?>
 
-    <title>Activities — <?= eah_h($event['title']) ?> | EVENTIFY</title>
+    <title><?= in_array($role, ['admin', 'super_admin'], true) ? 'Admin — ' : ($isOrganizer ? 'Manage — ' : ($isStudent ? 'Student — ' : '')) ?>Activities — <?= eah_h($event['title']) ?> | EVENTIFY</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=48">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=49">
     <?php if ($isStudent || $isOrganizer): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
     <?php endif; ?>
@@ -876,8 +875,8 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
             </button>
             <?php endif; ?>
             <?php if ($isOrganizer): ?>
-            <button type="button" class="eah-topbar__action eah-topbar__action--create<?= $eventHasEditableScheduleDay ? '' : ' d-none' ?>" id="eahTopbarAddActivity" title="Add activity">
-                <i class="fas fa-plus me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Add activity</span>
+            <button type="button" class="eah-topbar__action eah-topbar__action--create<?= $eventHasEditableScheduleDay ? '' : ' d-none' ?>" id="eahTopbarAddActivity" title="<?= count($allSessions) > 0 ? 'Manage activities' : 'Add activity' ?>">
+                <i class="fas fa-<?= count($allSessions) > 0 ? 'pen-to-square' : 'plus' ?> me-1" aria-hidden="true"></i><span class="d-none d-sm-inline"><?= count($allSessions) > 0 ? 'Manage activities' : 'Add activity' ?></span>
             </button>
             <?php endif; ?>
             <a class="eah-topbar__action" href="<?= eah_h($activitiesHubListUrl) ?>" aria-label="<?= $isStudent ? 'My registrations — browse all events' : 'Activities hub — browse all events' ?>">
@@ -1247,6 +1246,10 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
 
                 <h2 class="eah-detail-stub__title"><?= eah_h($ds['title']) ?></h2>
 
+                <?php if ($isOrganizer && !$eventHasEditableScheduleDay && $scheduleLockMessage !== ''): ?>
+                <p class="eah-detail-edit-locked mb-0"><i class="fas fa-lock me-1" aria-hidden="true"></i><?= eah_h($scheduleLockMessage) ?></p>
+                <?php endif; ?>
+
                 <div class="eah-detail-stub__badges">
                     <?php if ($isLive): ?><span class="eah-badge eah-badge-live">Live now</span><?php endif; ?>
                     <?php if ($status === 'completed'): ?><span class="eah-badge eah-badge-ended">Ended early</span><?php endif; ?>
@@ -1531,6 +1534,14 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
             <?php elseif ($isOrganizer): ?>
                 <div class="eah-detail-sticky__organizer">
                     <div class="eah-organizer-bar">
+                        <?php if ($eventHasEditableScheduleDay): ?>
+                        <button type="button" class="eah-organizer-bar__btn eah-organizer-bar__btn--secondary js-eah-edit-activity"
+                            data-session-id="<?= (int) ($ds['id'] ?? 0) ?>"
+                            data-schedule-date="<?= eah_h(substr((string) ($ds['schedule_date'] ?? ''), 0, 10)) ?>">
+                            <i class="fas fa-pen" aria-hidden="true"></i>
+                            <span>Edit activity</span>
+                        </button>
+                        <?php endif; ?>
                         <a class="eah-organizer-bar__btn eah-organizer-bar__btn--primary" href="<?= eah_h(BASE_URL . '/activity_qr.php?id=' . (int) $ds['id']) ?>" target="_blank" rel="noopener">
                             <i class="fas fa-qrcode" aria-hidden="true"></i>
                             <span>Check-in QR</span>
@@ -2036,6 +2047,18 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
 <?php endif; ?>
 
 <?php if ($isOrganizer): ?>
+<?php
+if (!isset($organizer_department_choices) || !is_array($organizer_department_choices)) {
+    require_once __DIR__ . '/config/organizer_departments.php';
+    $organizer_department_choices = eventify_organizer_department_choices();
+}
+if (!function_exists('eventify_parse_target_sections_list')) {
+    require_once __DIR__ . '/config/student_sections.php';
+}
+$parentEventSections = function_exists('eventify_parse_target_sections_list')
+    ? eventify_parse_target_sections_list($event['target_sections'] ?? null)
+    : [];
+?>
 <?php include __DIR__ . '/views/partials/event_day_sessions_modal.php'; ?>
 <?php if ($eventCanEndEarly): ?>
 <div class="modal fade" id="eahEndEventModal" tabindex="-1" aria-labelledby="eahEndEventModalLabel" aria-hidden="true">
@@ -2169,7 +2192,7 @@ window.__eahActivityTokenMap = <?= json_encode($studentActivityTokenMap, JSON_UN
 <?php if ($isOrganizer): ?>
 <script>
 window.csrfToken = <?= json_encode($csrfToken) ?>;
-window.currentRole = 'organizer';
+window.currentRole = <?= json_encode($role) ?>;
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 window.EVENTIFY_SESSIONS_HAVE_GEO = <?= $daySessionsHaveGeo ? 'true' : 'false' ?>;
 window.EVENTIFY_RELOAD_HUB_ON_SESSION_SAVE = true;
@@ -2179,6 +2202,7 @@ window.__eahOpenAddActivity = <?= $openAddActivity ? 'true' : 'false' ?>;
 window.__eahScheduleEditable = <?= $eventScheduleEditable ? 'true' : 'false' ?>;
 window.__eahHasEditableScheduleDay = <?= $eventHasEditableScheduleDay ? 'true' : 'false' ?>;
 window.__eahScheduleLockMessage = <?= json_encode($scheduleLockMessage) ?>;
+window.__eahParentEventSections = <?= json_encode(array_values($parentEventSections), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
@@ -2187,30 +2211,47 @@ if (typeof window.L === 'undefined') {
 }
 </script>
 <script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=15"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=21"></script>
 <script>
 (function () {
     function getActivityDay() {
         var el = document.getElementById('eahAddActivityDay');
         return el ? String(el.value || '').slice(0, 10) : '';
     }
-    function openAddActivity() {
+    function openManageActivities(editSessionId) {
         if (typeof window.eventifyOpenDaySessionsManage !== 'function') {
             return;
         }
         if (window.__eahHasEditableScheduleDay === false) {
             return;
         }
-        window.eventifyOpenDaySessionsManage(window.__eahEventId, getActivityDay());
+        window.eventifyOpenDaySessionsManage(window.__eahEventId, getActivityDay(), editSessionId || 0);
     }
     ['eahTopbarAddActivity', 'eahDrawerAddActivity', 'eahHeroAddActivity', 'eahEmptyAddActivity'].forEach(function (id) {
         var btn = document.getElementById(id);
         if (btn) {
-            btn.addEventListener('click', openAddActivity);
+            btn.addEventListener('click', function () {
+                openManageActivities(0);
+            });
         }
     });
+    document.querySelectorAll('.js-eah-edit-activity').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var sid = parseInt(btn.getAttribute('data-session-id'), 10);
+            var day = String(btn.getAttribute('data-schedule-date') || getActivityDay()).slice(0, 10);
+            if (typeof window.eventifyOpenDaySessionsManage !== 'function') {
+                return;
+            }
+            if (window.__eahHasEditableScheduleDay === false) {
+                return;
+            }
+            window.eventifyOpenDaySessionsManage(window.__eahEventId, day, sid);
+        });
+    });
     if (window.__eahOpenAddActivity && window.__eahHasEditableScheduleDay !== false) {
-        document.addEventListener('DOMContentLoaded', openAddActivity);
+        document.addEventListener('DOMContentLoaded', function () {
+            openManageActivities(0);
+        });
     }
     var endModalEl = document.getElementById('eahEndEventModal');
     var endConfirm = document.getElementById('eahEndEventConfirm');
@@ -2397,7 +2438,7 @@ window.__eahMainEventId = <?= (int) $eventId ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=15"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=21"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_main_rsvp.js"></script>
 
 <?php endif; ?>

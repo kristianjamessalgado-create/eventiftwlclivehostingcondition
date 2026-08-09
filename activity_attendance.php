@@ -50,17 +50,30 @@ eventify_users_ensure_student_profile_fields($conn);
 
 $attendees = [];
 $tableOk = false;
+$hasOutCol = false;
 $chk = $conn->query("SHOW TABLES LIKE 'event_day_session_attendance'");
 if ($chk && $chk->num_rows > 0) {
     $tableOk = true;
-    $st = $conn->prepare(
-        'SELECT a.checked_in_at, u.name, u.user_id AS student_school_id,
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM event_day_session_attendance WHERE Field = 'checked_out_at'");
+        $hasOutCol = $col && $col->num_rows > 0;
+    } catch (Throwable $e) {
+        $hasOutCol = false;
+    }
+    $sql = $hasOutCol
+        ? 'SELECT a.checked_in_at, a.checked_out_at, u.name, u.user_id AS student_school_id,
                 u.student_course, u.student_year_level, u.student_academic_year, u.department
          FROM event_day_session_attendance a
          JOIN users u ON u.id = a.user_id
          WHERE a.session_id = ?
          ORDER BY a.checked_in_at ASC'
-    );
+        : 'SELECT a.checked_in_at, u.name, u.user_id AS student_school_id,
+                u.student_course, u.student_year_level, u.student_academic_year, u.department
+         FROM event_day_session_attendance a
+         JOIN users u ON u.id = a.user_id
+         WHERE a.session_id = ?
+         ORDER BY a.checked_in_at ASC';
+    $st = $conn->prepare($sql);
     if ($st) {
         $st->bind_param('i', $session_id);
         $st->execute();
@@ -88,7 +101,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $safeTitle = preg_replace('/[^a-zA-Z0-9_-]+/', '_', (string) ($session['title'] ?? 'activity'));
     header('Content-Disposition: attachment; filename="activity_attendance_' . $session_id . '_' . $safeTitle . '.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['#', 'Student Name', 'Student ID', 'Course', 'Year level', 'School year (AY)', 'Department / college', 'Check-in time']);
+    fputcsv($out, ['#', 'Student Name', 'Student ID', 'Course', 'Year level', 'School year (AY)', 'Department / college', 'Time in', 'Time out']);
     $i = 1;
     foreach ($attendees as $attRow) {
         $rawDept = trim((string) ($attRow['department'] ?? ''));
@@ -97,7 +110,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             : (function_exists('eventify_format_department_label')
                 ? eventify_format_department_label($rawDept)
                 : $rawDept);
-        fputcsv($out, [
+        $row = [
             $i++,
             $attRow['name'] ?? '',
             $attRow['student_school_id'] ?? '',
@@ -106,7 +119,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $attRow['student_academic_year'] ?? '',
             $deptLabel,
             $attRow['checked_in_at'] ?? '',
-        ]);
+        ];
+        if ($hasOutCol) {
+            $row[] = $attRow['checked_out_at'] ?? '';
+        }
+        fputcsv($out, $row);
     }
     fclose($out);
     $conn->close();
@@ -246,7 +263,8 @@ $pageTitle = htmlspecialchars((string) ($session['title'] ?? 'Activity')) . ' â€
                                 <th>Year level</th>
                                 <th>School year (AY)</th>
                                 <th>Department</th>
-                                <th>Check-in time</th>
+                                <th>Time in</th>
+                                <?php if ($hasOutCol): ?><th>Time out</th><?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -267,6 +285,9 @@ $pageTitle = htmlspecialchars((string) ($session['title'] ?? 'Activity')) . ' â€
                                     <td><?= $ay !== '' ? htmlspecialchars($ay) : 'â€”' ?></td>
                                     <td><?= htmlspecialchars($deptDisp) ?></td>
                                     <td><?= !empty($a['checked_in_at']) ? date('M j, Y g:i A', strtotime($a['checked_in_at'])) : 'â€”' ?></td>
+                                    <?php if ($hasOutCol): ?>
+                                    <td><?= !empty($a['checked_out_at']) ? date('M j, Y g:i A', strtotime($a['checked_out_at'])) : 'â€”' ?></td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

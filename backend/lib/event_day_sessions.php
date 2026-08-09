@@ -87,6 +87,74 @@ function eventify_day_sessions_have_enhanced_columns(mysqli $conn): bool
     return $cache;
 }
 
+function eventify_day_sessions_have_checkin_time_columns(mysqli $conn): bool
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = false;
+    if (!eventify_event_day_sessions_table_exists($conn)) {
+        return false;
+    }
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM event_day_sessions WHERE Field = 'checkin_start_time'");
+        if ($col && $col->num_rows >= 1) {
+            $cache = true;
+        }
+    } catch (Throwable $e) {
+        $cache = false;
+    }
+    return $cache;
+}
+
+function eventify_day_sessions_have_attendance_mode_columns(mysqli $conn): bool
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = false;
+    if (!eventify_event_day_sessions_table_exists($conn)) {
+        return false;
+    }
+    try {
+        $col = $conn->query("SHOW COLUMNS FROM event_day_sessions WHERE Field = 'attendance_mode'");
+        if ($col && $col->num_rows >= 1) {
+            $cache = true;
+        }
+    } catch (Throwable $e) {
+        $cache = false;
+    }
+    return $cache;
+}
+
+function eventify_save_session_attendance_settings(
+    mysqli $conn,
+    int $sessionId,
+    string $attendanceMode,
+    ?string $checkoutEnd
+): void {
+    if ($sessionId < 1) {
+        return;
+    }
+    if (!function_exists('eventify_events_ensure_attendance_mode')) {
+        require_once __DIR__ . '/event_calendar.php';
+    }
+    eventify_events_ensure_attendance_mode($conn);
+    if (!eventify_day_sessions_have_attendance_mode_columns($conn)) {
+        return;
+    }
+    $mode = $attendanceMode === 'time_in_out' ? 'time_in_out' : 'single';
+    $stmt = $conn->prepare('UPDATE event_day_sessions SET attendance_mode = ?, checkout_end_time = ? WHERE id = ?');
+    if (!$stmt) {
+        return;
+    }
+    $stmt->bind_param('ssi', $mode, $checkoutEnd, $sessionId);
+    $stmt->execute();
+    $stmt->close();
+}
+
 function eventify_event_day_sessions_ensure_enhanced(mysqli $conn): bool
 {
     if (!eventify_event_day_sessions_ensure_table($conn)) {
@@ -96,6 +164,19 @@ function eventify_event_day_sessions_ensure_enhanced(mysqli $conn): bool
         eventify_event_day_sessions_ensure_rsvp_tables($conn);
         eventify_event_day_sessions_ensure_access_columns($conn);
         eventify_day_sessions_ensure_completed_status($conn);
+        eventify_event_day_sessions_ensure_audience_columns($conn);
+        if (!eventify_day_sessions_have_checkin_time_columns($conn)) {
+            try {
+                @$conn->query('ALTER TABLE event_day_sessions ADD COLUMN checkin_start_time time DEFAULT NULL AFTER end_time');
+                @$conn->query('ALTER TABLE event_day_sessions ADD COLUMN checkin_end_time time DEFAULT NULL AFTER checkin_start_time');
+            } catch (Throwable $e) {
+                /* column may already exist */
+            }
+        }
+        if (!function_exists('eventify_events_ensure_attendance_mode')) {
+            require_once __DIR__ . '/event_calendar.php';
+        }
+        eventify_events_ensure_attendance_mode($conn);
         return true;
     }
     $alters = [
@@ -106,6 +187,8 @@ function eventify_event_day_sessions_ensure_enhanced(mysqli $conn): bool
         "ALTER TABLE event_day_sessions ADD COLUMN contact_name varchar(100) DEFAULT NULL AFTER max_capacity",
         "ALTER TABLE event_day_sessions ADD COLUMN contact_phone varchar(50) DEFAULT NULL AFTER contact_name",
         "ALTER TABLE event_day_sessions ADD COLUMN checkin_token varchar(64) DEFAULT NULL AFTER contact_phone",
+        "ALTER TABLE event_day_sessions ADD COLUMN checkin_start_time time DEFAULT NULL AFTER end_time",
+        "ALTER TABLE event_day_sessions ADD COLUMN checkin_end_time time DEFAULT NULL AFTER checkin_start_time",
     ];
     foreach ($alters as $sql) {
         try {
@@ -117,6 +200,7 @@ function eventify_event_day_sessions_ensure_enhanced(mysqli $conn): bool
     eventify_event_day_sessions_ensure_rsvp_tables($conn);
     eventify_event_day_sessions_ensure_access_columns($conn);
     eventify_day_sessions_ensure_completed_status($conn);
+    eventify_event_day_sessions_ensure_audience_columns($conn);
     return eventify_day_sessions_have_enhanced_columns($conn);
 }
 
@@ -162,6 +246,351 @@ function eventify_event_day_sessions_ensure_access_columns(mysqli $conn): bool
         /* ignore */
     }
     return eventify_day_sessions_have_access_columns($conn);
+}
+
+function eventify_day_sessions_have_audience_columns(mysqli $conn): bool
+{
+    static $cache = null;
+    if ($cache === true) {
+        return true;
+    }
+    if (!eventify_event_day_sessions_table_exists($conn)) {
+        return false;
+    }
+    try {
+        $res = $conn->query("SHOW COLUMNS FROM event_day_sessions LIKE 'department'");
+        if ($res && $res->num_rows >= 1) {
+            $cache = true;
+            return true;
+        }
+    } catch (Throwable $e) {
+        /* ignore */
+    }
+    return false;
+}
+
+function eventify_event_day_sessions_ensure_audience_columns(mysqli $conn): bool
+{
+    if (!eventify_event_day_sessions_ensure_table($conn)) {
+        return false;
+    }
+    if (eventify_day_sessions_have_audience_columns($conn)) {
+        return true;
+    }
+    eventify_events_department_ensure_varchar($conn);
+    eventify_events_ensure_target_sections($conn);
+    $sql = @file_get_contents(__DIR__ . '/../../migrations/add_session_audience_columns.sql');
+    if ($sql !== false && trim($sql) !== '') {
+        foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
+            if ($stmt !== '') {
+                try {
+                    @$conn->query($stmt);
+                } catch (Throwable $e) {
+                    /* column may already exist */
+                }
+            }
+        }
+    }
+    try {
+        @$conn->query('ALTER TABLE event_day_sessions ADD COLUMN department VARCHAR(800) NULL DEFAULT NULL AFTER title');
+        @$conn->query('ALTER TABLE event_day_sessions ADD COLUMN target_sections VARCHAR(800) NULL DEFAULT NULL AFTER department');
+    } catch (Throwable $e) {
+        /* ignore */
+    }
+    try {
+        $res = $conn->query("SHOW COLUMNS FROM event_day_sessions LIKE 'department'");
+        return (bool) ($res && $res->num_rows > 0);
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+/** @param array<string, mixed> $session */
+function eventify_session_audience_inherited(array $session): bool
+{
+    $dept = $session['department'] ?? null;
+    $sec = $session['target_sections'] ?? null;
+    return ($dept === null || trim((string) $dept) === '')
+        && ($sec === null || trim((string) $sec) === '');
+}
+
+/**
+ * Merge session overrides with parent event audience. NULL session fields inherit parent.
+ *
+ * @param array<string, mixed> $session
+ * @param array<string, mixed> $parentEvent
+ * @return array{department:string, target_sections:?string}
+ */
+function eventify_session_effective_audience(array $session, array $parentEvent): array
+{
+    $dept = $session['department'] ?? null;
+    if ($dept === null || trim((string) $dept) === '') {
+        $dept = (string) ($parentEvent['department'] ?? 'ALL');
+    } else {
+        $dept = trim((string) $dept);
+    }
+    $sec = $session['target_sections'] ?? null;
+    if ($sec === null || trim((string) $sec) === '') {
+        $sec = $parentEvent['target_sections'] ?? null;
+    } else {
+        $sec = trim((string) $sec);
+    }
+    if ($sec === '') {
+        $sec = null;
+    }
+
+    return [
+        'department' => $dept !== '' ? $dept : 'ALL',
+        'target_sections' => $sec,
+    ];
+}
+
+/**
+ * @param array<string, mixed> $session
+ * @param array<string, mixed> $parentEvent
+ * @param array<string, mixed> $student
+ */
+function eventify_student_may_access_session(array $session, array $parentEvent, array $student): bool
+{
+    if (!eventify_student_may_access_event($parentEvent, $student)) {
+        return false;
+    }
+    $effective = eventify_session_effective_audience($session, $parentEvent);
+    if (eventify_session_audience_inherited($session)) {
+        return true;
+    }
+
+    return eventify_student_may_access_event($effective, $student);
+}
+
+/**
+ * @param array<string, mixed> $parentEvent
+ * @return array{ok:bool, error?:string}
+ */
+function eventify_validate_session_audience_within_parent(
+    ?string $sessionDepartment,
+    ?string $sessionTargetSections,
+    array $parentEvent
+): array {
+    if ($sessionDepartment === null && $sessionTargetSections === null) {
+        return ['ok' => true];
+    }
+    $parentDept = (string) ($parentEvent['department'] ?? 'ALL');
+    $parentDeptList = eventify_parse_stored_departments_list($parentDept);
+    $parentIsAll = $parentDeptList === [] || in_array('ALL', $parentDeptList, true);
+
+    if ($sessionDepartment !== null && trim($sessionDepartment) !== '') {
+        $sessionDeptList = eventify_parse_stored_departments_list($sessionDepartment);
+        if (!$parentIsAll) {
+            foreach ($sessionDeptList as $sd) {
+                if ($sd === 'ALL') {
+                    return ['ok' => false, 'error' => 'This activity cannot target more students than the main event allows.'];
+                }
+                if (!in_array($sd, $parentDeptList, true)) {
+                    return ['ok' => false, 'error' => 'Pick departments that are already included in the main event audience.'];
+                }
+            }
+        }
+    }
+
+    $parentSections = eventify_parse_target_sections_list($parentEvent['target_sections'] ?? null);
+    $sessionSections = eventify_parse_target_sections_list($sessionTargetSections);
+    if ($parentSections !== [] && $sessionSections !== []) {
+        $parentKeys = [];
+        foreach ($parentSections as $ps) {
+            $parentKeys[eventify_section_match_key($ps)] = true;
+        }
+        foreach ($sessionSections as $ss) {
+            $sk = eventify_section_match_key($ss);
+            if ($sk === '' || !isset($parentKeys[$sk])) {
+                return ['ok' => false, 'error' => 'Pick class sections that are already included in the main event audience.'];
+            }
+        }
+    }
+
+    return ['ok' => true];
+}
+
+/**
+ * @return array{ok:bool, department:?string, target_sections:?string, inherit:bool, error?:string}
+ */
+function eventify_parse_session_audience_from_data(mysqli $conn, array $data, ?int $createdBy = null): array
+{
+    eventify_event_day_sessions_ensure_audience_columns($conn);
+    $inheritRaw = $data['audience_inherit'] ?? '1';
+    $inherit = !in_array(strtolower(trim((string) $inheritRaw)), ['0', 'false', 'no'], true);
+    if ($inherit) {
+        return [
+            'ok' => true,
+            'department' => null,
+            'target_sections' => null,
+            'inherit' => true,
+        ];
+    }
+
+    $deptParse = eventify_parse_event_departments_from_request($data);
+    if (!$deptParse['ok']) {
+        return [
+            'ok' => false,
+            'department' => null,
+            'target_sections' => null,
+            'inherit' => false,
+            'error' => $deptParse['error'] ?? 'Invalid department selection.',
+        ];
+    }
+    $secParse = eventify_parse_event_sections_from_request($conn, $data, $createdBy);
+    if (!$secParse['ok']) {
+        return [
+            'ok' => false,
+            'department' => null,
+            'target_sections' => null,
+            'inherit' => false,
+            'error' => $secParse['error'] ?? 'Invalid class section.',
+        ];
+    }
+
+    $dept = $deptParse['department'];
+    $sections = $secParse['target_sections'];
+    $hasDeptInPost = isset($data['department']) && (
+        (is_array($data['department']) && array_filter(array_map('strval', $data['department'])) !== [])
+        || (is_string($data['department']) && trim($data['department']) !== '')
+    );
+    $hasSecInPost = isset($data['section']) && is_array($data['section'])
+        && array_filter(array_map('strval', $data['section'])) !== [];
+    $hasNewSec = trim((string) ($data['new_section'] ?? '')) !== '';
+    if (!$hasDeptInPost && !$hasSecInPost && !$hasNewSec) {
+        return [
+            'ok' => false,
+            'department' => null,
+            'target_sections' => null,
+            'inherit' => false,
+            'error' => 'Choose at least one department, All departments, or a class section for this activity.',
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'department' => $dept,
+        'target_sections' => $sections,
+        'inherit' => false,
+    ];
+}
+
+function eventify_save_session_audience(
+    mysqli $conn,
+    int $sessionId,
+    ?string $department,
+    ?string $targetSections
+): bool {
+    if ($sessionId < 1 || !eventify_day_sessions_have_audience_columns($conn)) {
+        return true;
+    }
+    $stmt = $conn->prepare('UPDATE event_day_sessions SET department = ?, target_sections = ? WHERE id = ?');
+    if (!$stmt) {
+        return false;
+    }
+    $deptParam = $department;
+    $secParam = $targetSections;
+    $stmt->bind_param('ssi', $deptParam, $secParam, $sessionId);
+    $ok = $stmt->execute();
+    $stmt->close();
+    return (bool) $ok;
+}
+
+/**
+ * Active students who match parent event + optional session audience.
+ *
+ * @param array<string, mixed> $session
+ * @param array<string, mixed> $parentEvent
+ * @return list<int>
+ */
+function eventify_student_ids_for_session_audience(mysqli $conn, array $session, array $parentEvent): array
+{
+    require_once __DIR__ . '/notifications_service.php';
+    $parentIds = eventify_student_ids_for_event_audience($conn, $parentEvent);
+    if (eventify_session_audience_inherited($session)) {
+        return $parentIds;
+    }
+    if ($parentIds === []) {
+        return [];
+    }
+    $studentProfile = static function (mysqli $c, int $uid): array {
+        return function_exists('eventify_load_student_audience_profile')
+            ? eventify_load_student_audience_profile($c, $uid)
+            : ['department' => null, 'student_section' => null];
+    };
+    $out = [];
+    foreach ($parentIds as $uid) {
+        $uid = (int) $uid;
+        if ($uid < 1) {
+            continue;
+        }
+        if (eventify_student_may_access_session($session, $parentEvent, $studentProfile($conn, $uid))) {
+            $out[] = $uid;
+        }
+    }
+    return $out;
+}
+
+function eventify_should_filter_sessions_for_student(mysqli $conn, ?int $viewerUserId): bool
+{
+    if ($viewerUserId === null || $viewerUserId < 1) {
+        return false;
+    }
+    $stmt = $conn->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('i', $viewerUserId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return ($row['role'] ?? '') === 'student';
+}
+
+/**
+ * @param list<array<string, mixed>> $sessions
+ * @return list<array<string, mixed>>
+ */
+function eventify_filter_sessions_for_student(
+    mysqli $conn,
+    array $sessions,
+    int $studentUserId,
+    array $parentEvent
+): array {
+    if ($sessions === [] || $studentUserId < 1) {
+        return $sessions;
+    }
+    $student = eventify_load_student_audience_profile($conn, $studentUserId);
+    $out = [];
+    foreach ($sessions as $session) {
+        if (eventify_student_may_access_session($session, $parentEvent, $student)) {
+            $out[] = $session;
+        }
+    }
+    return $out;
+}
+
+/** @param array<string, mixed> $session */
+function eventify_format_session_audience_label(array $session): string
+{
+    if (eventify_session_audience_inherited($session)) {
+        return 'Same as whole event';
+    }
+    $parts = [];
+    $dept = $session['department'] ?? null;
+    if ($dept !== null && trim((string) $dept) !== '') {
+        $parts[] = eventify_format_department_label((string) $dept);
+    }
+    $secLabel = eventify_format_target_sections_label($session['target_sections'] ?? null);
+    if ($secLabel !== '') {
+        $parts[] = $secLabel;
+    }
+    if ($parts === []) {
+        return 'Custom audience';
+    }
+    return implode(' · ', $parts);
 }
 
 function eventify_event_day_sessions_ensure_session_ticket_types_table(mysqli $conn): bool
@@ -386,6 +815,18 @@ function eventify_day_sessions_select_columns(mysqli $conn): string
         if (eventify_day_sessions_have_access_columns($conn)) {
             $base = str_replace(', status, start_time,', ', status, access_mode, ticket_type_id, start_time,', $base);
         }
+        if (eventify_day_sessions_have_audience_columns($conn)) {
+            $base = str_replace('title, category,', 'title, department, target_sections, category,', $base);
+            if (strpos($base, 'title, location,') !== false && strpos($base, 'department,') === false) {
+                $base = str_replace('title, location,', 'title, department, target_sections, location,', $base);
+            }
+        }
+        if (eventify_day_sessions_have_checkin_time_columns($conn)) {
+            $base = str_replace(', end_time, max_capacity,', ', end_time, checkin_start_time, checkin_end_time, max_capacity,', $base);
+        }
+        if (eventify_day_sessions_have_attendance_mode_columns($conn)) {
+            $base = str_replace(', checkin_end_time, max_capacity,', ', checkin_end_time, attendance_mode, checkout_end_time, max_capacity,', $base);
+        }
         return $base;
     }
     return $cols;
@@ -428,12 +869,32 @@ function eventify_map_day_session_row(array $row): array
         ? (float) $row['longitude'] : null;
     $maxCap = isset($row['max_capacity']) && $row['max_capacity'] !== '' && $row['max_capacity'] !== null
         ? (int) $row['max_capacity'] : null;
+    $sessionDept = array_key_exists('department', $row) ? ($row['department'] ?? null) : null;
+    if ($sessionDept !== null && trim((string) $sessionDept) === '') {
+        $sessionDept = null;
+    }
+    $sessionSections = array_key_exists('target_sections', $row) ? ($row['target_sections'] ?? null) : null;
+    if ($sessionSections !== null && trim((string) $sessionSections) === '') {
+        $sessionSections = null;
+    }
 
     return [
         'id' => (int) ($row['id'] ?? 0),
         'event_id' => (int) ($row['event_id'] ?? 0),
         'schedule_date' => substr(trim((string) ($row['schedule_date'] ?? '')), 0, 10),
         'title' => trim((string) ($row['title'] ?? '')),
+        'department' => $sessionDept,
+        'target_sections' => $sessionSections,
+        'audience_inherit' => eventify_session_audience_inherited([
+            'department' => $sessionDept,
+            'target_sections' => $sessionSections,
+        ]),
+        'audience_departments' => eventify_parse_stored_departments_list($sessionDept),
+        'audience_sections' => eventify_parse_target_sections_list($sessionSections),
+        'audience_label' => eventify_format_session_audience_label([
+            'department' => $sessionDept,
+            'target_sections' => $sessionSections,
+        ]),
         'category' => trim((string) ($row['category'] ?? '')) ?: null,
         'location' => trim((string) ($row['location'] ?? '')),
         'latitude' => $lat,
@@ -442,6 +903,10 @@ function eventify_map_day_session_row(array $row): array
         'status' => trim((string) ($row['status'] ?? 'scheduled')) ?: 'scheduled',
         'start_time' => trim((string) ($row['start_time'] ?? '')) ?: null,
         'end_time' => trim((string) ($row['end_time'] ?? '')) ?: null,
+        'checkin_start_time' => trim((string) ($row['checkin_start_time'] ?? '')) ?: null,
+        'checkin_end_time' => trim((string) ($row['checkin_end_time'] ?? '')) ?: null,
+        'attendance_mode' => strtolower(trim((string) ($row['attendance_mode'] ?? 'single'))) === 'time_in_out' ? 'time_in_out' : 'single',
+        'checkout_end_time' => trim((string) ($row['checkout_end_time'] ?? '')) ?: null,
         'max_capacity' => $maxCap !== null && $maxCap > 0 ? $maxCap : null,
         'contact_name' => trim((string) ($row['contact_name'] ?? '')) ?: null,
         'contact_phone' => trim((string) ($row['contact_phone'] ?? '')) ?: null,
@@ -691,7 +1156,378 @@ function eventify_load_event_day_sessions(mysqli $conn, int $eventId, ?string $s
         eventify_attach_session_student_flags($out);
         eventify_attach_session_ticket_meta($conn, $out, $viewerUserId);
     }
+    if ($out !== [] && eventify_should_filter_sessions_for_student($conn, $viewerUserId)) {
+        $parentEvent = eventify_load_event_for_activities_hub($conn, $eventId);
+        if ($parentEvent) {
+            $out = eventify_filter_sessions_for_student($conn, $out, (int) $viewerUserId, $parentEvent);
+        }
+    }
     return $out;
+}
+
+/**
+ * @return list<string> sorted unique Y-m-d
+ */
+function eventify_normalize_schedule_dates(array $dates): array
+{
+    $out = [];
+    foreach ($dates as $d) {
+        $d = substr(trim((string) $d), 0, 10);
+        if ($d === '') {
+            continue;
+        }
+        $dt = DateTime::createFromFormat('Y-m-d', $d);
+        if ($dt && $dt->format('Y-m-d') === $d) {
+            $out[$d] = $d;
+        }
+    }
+    $dates = array_values($out);
+    sort($dates);
+
+    return $dates;
+}
+
+/**
+ * @return list<string>
+ */
+function eventify_event_day_session_schedule_dates(mysqli $conn, int $eventId): array
+{
+    if ($eventId < 1 || !eventify_event_day_sessions_ensure_table($conn)) {
+        return [];
+    }
+    $stmt = $conn->prepare('SELECT DISTINCT schedule_date FROM event_day_sessions WHERE event_id = ? ORDER BY schedule_date ASC');
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param('i', $eventId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $dates = [];
+    while ($row = $res->fetch_assoc()) {
+        $d = substr(trim((string) ($row['schedule_date'] ?? '')), 0, 10);
+        if ($d !== '') {
+            $dates[] = $d;
+        }
+    }
+    $stmt->close();
+
+    return eventify_normalize_schedule_dates($dates);
+}
+
+/**
+ * Align activity dates to the parent event schedule by day index (day 1 -> day 1).
+ *
+ * @param list<string> $newDisplayDates
+ */
+function eventify_realign_event_day_sessions_to_event_schedule(
+    mysqli $conn,
+    int $eventId,
+    array $newDisplayDates
+): int {
+    if ($eventId < 1 || !eventify_event_day_sessions_ensure_table($conn)) {
+        return 0;
+    }
+
+    $newDisplayDates = eventify_normalize_schedule_dates($newDisplayDates);
+    $activityDates = eventify_event_day_session_schedule_dates($conn, $eventId);
+    if ($newDisplayDates === [] || $activityDates === [] || $activityDates === $newDisplayDates) {
+        return 0;
+    }
+
+    $dateMap = [];
+    foreach ($activityDates as $i => $oldDate) {
+        if (!isset($newDisplayDates[$i])) {
+            break;
+        }
+        $newDate = $newDisplayDates[$i];
+        if ($newDate !== $oldDate) {
+            $dateMap[$oldDate] = $newDate;
+        }
+    }
+    if ($dateMap === []) {
+        return 0;
+    }
+
+    $stmt = $conn->prepare('SELECT id, schedule_date FROM event_day_sessions WHERE event_id = ?');
+    if (!$stmt) {
+        return 0;
+    }
+    $stmt->bind_param('i', $eventId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+    if ($rows === []) {
+        return 0;
+    }
+
+    $up = $conn->prepare('UPDATE event_day_sessions SET schedule_date = ? WHERE id = ? AND event_id = ?');
+    if (!$up) {
+        return 0;
+    }
+
+    $updated = 0;
+    foreach ($rows as $row) {
+        $sessionId = (int) ($row['id'] ?? 0);
+        $curDate = substr(trim((string) ($row['schedule_date'] ?? '')), 0, 10);
+        if ($sessionId < 1 || $curDate === '' || !isset($dateMap[$curDate])) {
+            continue;
+        }
+        $newDate = $dateMap[$curDate];
+        $up->bind_param('sii', $newDate, $sessionId, $eventId);
+        if ($up->execute()) {
+            $updated++;
+        }
+    }
+    $up->close();
+
+    return $updated;
+}
+
+/**
+ * Build old-date → new-date map when an event schedule changes (day 1 → day 1, etc.).
+ *
+ * @param list<string> $oldDisplayDates
+ * @param list<string> $newDisplayDates
+ * @param list<string> $activityDates
+ * @return array<string, string>
+ */
+function eventify_schedule_change_build_date_map(
+    array $oldDisplayDates,
+    array $newDisplayDates,
+    array $activityDates
+): array {
+    $oldDisplayDates = eventify_normalize_schedule_dates($oldDisplayDates);
+    $newDisplayDates = eventify_normalize_schedule_dates($newDisplayDates);
+    $activityDates = eventify_normalize_schedule_dates($activityDates);
+    $dateMap = [];
+
+    $useRealign = false;
+    if ($activityDates !== []) {
+        $activityMismatch = $activityDates !== $newDisplayDates;
+        if (!$activityMismatch) {
+            foreach ($activityDates as $ad) {
+                if (!in_array($ad, $oldDisplayDates, true)) {
+                    $activityMismatch = true;
+                    break;
+                }
+            }
+        }
+        $useRealign = $activityMismatch;
+    }
+
+    if ($useRealign) {
+        foreach ($activityDates as $i => $oldDate) {
+            if (!isset($newDisplayDates[$i])) {
+                break;
+            }
+            $dateMap[$oldDate] = $newDisplayDates[$i];
+        }
+    } else {
+        foreach ($oldDisplayDates as $i => $oldDate) {
+            if (!isset($newDisplayDates[$i])) {
+                continue;
+            }
+            $dateMap[$oldDate] = $newDisplayDates[$i];
+        }
+    }
+
+    return $dateMap;
+}
+
+/**
+ * Preview which sub-activities fall outside the new schedule after a date change.
+ *
+ * @param list<string> $oldDisplayDates
+ * @param list<string> $newDisplayDates
+ * @return array{
+ *   remap: array<int, string>,
+ *   dropped: list<array{id: int, title: string, schedule_date: string}>,
+ *   last_new_day: string
+ * }
+ */
+function eventify_schedule_change_plan(
+    mysqli $conn,
+    int $eventId,
+    array $oldDisplayDates,
+    array $newDisplayDates
+): array {
+    $oldDisplayDates = eventify_normalize_schedule_dates($oldDisplayDates);
+    $newDisplayDates = eventify_normalize_schedule_dates($newDisplayDates);
+    $lastNewDay = $newDisplayDates !== [] ? $newDisplayDates[count($newDisplayDates) - 1] : '';
+    $empty = ['remap' => [], 'dropped' => [], 'last_new_day' => $lastNewDay];
+
+    if ($eventId < 1 || !eventify_event_day_sessions_ensure_table($conn)) {
+        return $empty;
+    }
+
+    $activityDates = eventify_event_day_session_schedule_dates($conn, $eventId);
+    $dateMap = eventify_schedule_change_build_date_map($oldDisplayDates, $newDisplayDates, $activityDates);
+
+    $stmt = $conn->prepare('SELECT id, schedule_date, title FROM event_day_sessions WHERE event_id = ?');
+    if (!$stmt) {
+        return $empty;
+    }
+    $stmt->bind_param('i', $eventId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+
+    $remap = [];
+    $dropped = [];
+    foreach ($rows as $row) {
+        $sessionId = (int) ($row['id'] ?? 0);
+        $curDate = substr(trim((string) ($row['schedule_date'] ?? '')), 0, 10);
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($sessionId < 1 || $curDate === '') {
+            continue;
+        }
+        if ($title === '') {
+            $title = 'Activity';
+        }
+
+        if (isset($dateMap[$curDate])) {
+            $newDate = $dateMap[$curDate];
+            if ($newDate !== $curDate) {
+                $remap[$sessionId] = $newDate;
+            }
+            continue;
+        }
+
+        $dropped[] = [
+            'id' => $sessionId,
+            'title' => $title,
+            'schedule_date' => $curDate,
+        ];
+    }
+
+    return [
+        'remap' => $remap,
+        'dropped' => $dropped,
+        'last_new_day' => $lastNewDay,
+    ];
+}
+
+/**
+ * Apply schedule remap plus optional handling for activities on removed days.
+ *
+ * @param list<string> $oldDisplayDates
+ * @param list<string> $newDisplayDates
+ * @param 'leave'|'delete'|'keep' $droppedAction keep = move to last new day
+ * @return array{shifted: int, dropped_handled: int, dropped_action: string}
+ */
+function eventify_apply_schedule_change_to_sessions(
+    mysqli $conn,
+    int $eventId,
+    array $oldDisplayDates,
+    array $newDisplayDates,
+    string $droppedAction = 'leave'
+): array {
+    $result = ['shifted' => 0, 'dropped_handled' => 0, 'dropped_action' => $droppedAction];
+    if ($eventId < 1 || !eventify_event_day_sessions_ensure_table($conn)) {
+        return $result;
+    }
+
+    $oldDisplayDates = eventify_normalize_schedule_dates($oldDisplayDates);
+    $newDisplayDates = eventify_normalize_schedule_dates($newDisplayDates);
+    if ($oldDisplayDates === $newDisplayDates) {
+        return $result;
+    }
+
+    if (!in_array($droppedAction, ['leave', 'delete', 'keep'], true)) {
+        $droppedAction = 'leave';
+    }
+    $result['dropped_action'] = $droppedAction;
+
+    $plan = eventify_schedule_change_plan($conn, $eventId, $oldDisplayDates, $newDisplayDates);
+
+    if ($plan['remap'] !== []) {
+        $up = $conn->prepare('UPDATE event_day_sessions SET schedule_date = ? WHERE id = ? AND event_id = ?');
+        if ($up) {
+            foreach ($plan['remap'] as $sessionId => $newDate) {
+                $sessionId = (int) $sessionId;
+                if ($sessionId < 1) {
+                    continue;
+                }
+                $up->bind_param('sii', $newDate, $sessionId, $eventId);
+                if ($up->execute()) {
+                    $result['shifted']++;
+                }
+            }
+            $up->close();
+        }
+    }
+
+    if ($plan['dropped'] === [] || $droppedAction === 'leave') {
+        return $result;
+    }
+
+    if ($droppedAction === 'keep') {
+        $lastDay = (string) ($plan['last_new_day'] ?? '');
+        if ($lastDay === '') {
+            return $result;
+        }
+        $up = $conn->prepare('UPDATE event_day_sessions SET schedule_date = ? WHERE id = ? AND event_id = ?');
+        if (!$up) {
+            return $result;
+        }
+        foreach ($plan['dropped'] as $row) {
+            $sessionId = (int) ($row['id'] ?? 0);
+            if ($sessionId < 1) {
+                continue;
+            }
+            $up->bind_param('sii', $lastDay, $sessionId, $eventId);
+            if ($up->execute()) {
+                $result['dropped_handled']++;
+            }
+        }
+        $up->close();
+        return $result;
+    }
+
+    $del = $conn->prepare('DELETE FROM event_day_sessions WHERE id = ? AND event_id = ?');
+    if (!$del) {
+        return $result;
+    }
+    foreach ($plan['dropped'] as $row) {
+        $sessionId = (int) ($row['id'] ?? 0);
+        if ($sessionId < 1) {
+            continue;
+        }
+        $del->bind_param('ii', $sessionId, $eventId);
+        if ($del->execute() && $del->affected_rows > 0) {
+            $result['dropped_handled']++;
+        }
+    }
+    $del->close();
+
+    return $result;
+}
+
+/**
+ * Move day activities when a main event schedule changes (day 1 stays day 1, etc.).
+ *
+ * @param list<string> $oldDisplayDates
+ * @param list<string> $newDisplayDates
+ * @param 'leave'|'delete'|'keep' $droppedAction
+ */
+function eventify_shift_event_day_sessions_for_schedule_change(
+    mysqli $conn,
+    int $eventId,
+    array $oldDisplayDates,
+    array $newDisplayDates,
+    string $droppedAction = 'leave'
+): int {
+    $applied = eventify_apply_schedule_change_to_sessions(
+        $conn,
+        $eventId,
+        $oldDisplayDates,
+        $newDisplayDates,
+        $droppedAction
+    );
+
+    return (int) ($applied['shifted'] + $applied['dropped_handled']);
 }
 
 /** @param list<int> $eventIds @return array<int, list<array<string, mixed>>> */
@@ -762,6 +1598,37 @@ function eventify_user_can_manage_owned_event(string $role, int $userId, array $
         return false;
     }
     return in_array($role, ['organizer', 'admin', 'super_admin'], true);
+}
+
+/**
+ * Organizer (owner), admin, or super_admin may add/edit/delete sub-activities.
+ */
+function eventify_user_can_manage_event_activities(string $role, int $userId, array $event): bool
+{
+    if ($userId < 1) {
+        return false;
+    }
+    if (in_array($role, ['admin', 'super_admin'], true)) {
+        return true;
+    }
+    return eventify_user_can_manage_owned_event($role, $userId, $event);
+}
+
+/**
+ * API gate: staff may manage activities on this event id.
+ */
+function eventify_user_may_manage_event_activities(mysqli $conn, string $role, int $userId, int $eventId): bool
+{
+    if ($userId < 1 || $eventId < 1) {
+        return false;
+    }
+    if (in_array($role, ['admin', 'super_admin'], true)) {
+        return true;
+    }
+    if ($role === 'organizer') {
+        return eventify_organizer_owns_event($conn, $eventId, $userId);
+    }
+    return false;
 }
 
 /**
@@ -843,10 +1710,14 @@ function eventify_organizer_event_has_editable_schedule_day(mysqli $conn, int $e
         return $eventLock;
     }
 
+    $scheduleDates = eventify_normalize_schedule_dates($scheduleDates);
+    if ($scheduleDates === []) {
+        $scheduleDates = eventify_event_day_session_schedule_dates($conn, $eventId);
+    }
+
     $today = eventify_today_ymd();
     foreach ($scheduleDates as $ymd) {
-        $ymd = substr(trim((string) $ymd), 0, 10);
-        if ($ymd !== '' && $ymd >= $today) {
+        if ($ymd >= $today) {
             return ['ok' => true, 'error' => '', 'locked' => false];
         }
     }
@@ -895,6 +1766,25 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
     if ($title === '') {
         return ['ok' => false, 'error' => 'Activity title is required.'];
     }
+    eventify_event_day_sessions_ensure_audience_columns($conn);
+    $audienceParse = eventify_parse_session_audience_from_data($conn, $data, null);
+    if (!$audienceParse['ok']) {
+        return ['ok' => false, 'error' => $audienceParse['error'] ?? 'Invalid activity audience.'];
+    }
+    $parentEvent = eventify_load_event_for_activities_hub($conn, $eventId);
+    if (!$parentEvent) {
+        return ['ok' => false, 'error' => 'Event not found.'];
+    }
+    $audienceValidate = eventify_validate_session_audience_within_parent(
+        $audienceParse['inherit'] ? null : $audienceParse['department'],
+        $audienceParse['inherit'] ? null : $audienceParse['target_sections'],
+        $parentEvent
+    );
+    if (!$audienceValidate['ok']) {
+        return ['ok' => false, 'error' => $audienceValidate['error'] ?? 'Activity audience is too broad for this event.'];
+    }
+    $sessionDepartment = $audienceParse['inherit'] ? null : $audienceParse['department'];
+    $sessionTargetSections = $audienceParse['inherit'] ? null : $audienceParse['target_sections'];
     if (strlen($title) > 150) {
         return ['ok' => false, 'error' => 'Title must be 150 characters or less.'];
     }
@@ -942,8 +1832,36 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
     }
     $stParam = $startTime !== '' ? $startTime : null;
     $etParam = $endTime !== '' ? $endTime : null;
+    $checkinStart = trim((string) ($data['checkin_start_time'] ?? ''));
+    $checkinEnd = trim((string) ($data['checkin_end_time'] ?? ''));
+    if ($checkinStart !== '' && !preg_match('/^\d{2}:\d{2}$/', $checkinStart)) {
+        return ['ok' => false, 'error' => 'Invalid attendance open time.'];
+    }
+    if ($checkinEnd !== '' && !preg_match('/^\d{2}:\d{2}$/', $checkinEnd)) {
+        return ['ok' => false, 'error' => 'Invalid attendance close time.'];
+    }
+    $ciStartParam = $checkinStart !== '' ? $checkinStart : null;
+    $ciEndParam = $checkinEnd !== '' ? $checkinEnd : null;
+    if (!function_exists('eventify_validate_event_checkin_times')) {
+        require_once __DIR__ . '/event_calendar.php';
+    }
+    $checkinErr = eventify_validate_event_checkin_times($ciStartParam, $ciEndParam, $stParam, $etParam);
+    if ($checkinErr !== null) {
+        return ['ok' => false, 'error' => $checkinErr];
+    }
+    $attendanceMode = eventify_parse_attendance_mode_from_request($data);
+    $checkoutEndParam = eventify_parse_checkout_end_time_from_request($data);
+    if ($attendanceMode === 'time_in_out') {
+        $checkoutErr = eventify_validate_checkout_end_time($checkoutEndParam, $etParam);
+        if ($checkoutErr !== null) {
+            return ['ok' => false, 'error' => $checkoutErr];
+        }
+    } else {
+        $checkoutEndParam = null;
+    }
     $hasGeo = eventify_day_sessions_have_geo_columns($conn);
     $hasEnhanced = eventify_day_sessions_have_enhanced_columns($conn);
+    $hasCheckin = eventify_day_sessions_have_checkin_time_columns($conn);
     $latParam = null;
     $lngParam = null;
     if ($hasGeo) {
@@ -974,7 +1892,38 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
     }
 
     if ($sessionId !== null && $sessionId > 0) {
-        if ($hasEnhanced && $hasGeo) {
+        if ($hasEnhanced && $hasGeo && $hasCheckin) {
+            $stmt = $conn->prepare(
+                'UPDATE event_day_sessions SET title = ?, category = ?, location = ?, latitude = ?, longitude = ?, notes = ?, status = ?,
+                 start_time = ?, end_time = ?, checkin_start_time = ?, checkin_end_time = ?, max_capacity = ?, contact_name = ?, contact_phone = ?, sort_order = ?
+                 WHERE id = ? AND event_id = ? AND schedule_date = ?'
+            );
+            if (!$stmt) {
+                return ['ok' => false, 'error' => 'Could not update activity.'];
+            }
+            $sortOrder = (int) ($data['sort_order'] ?? ($oldSession['sort_order'] ?? 0));
+            $stmt->bind_param(
+                'sssddsssssssssiiis',
+                $title,
+                $category,
+                $location,
+                $latParam,
+                $lngParam,
+                $notes,
+                $status,
+                $stParam,
+                $etParam,
+                $ciStartParam,
+                $ciEndParam,
+                $maxCapacityBind,
+                $contactName,
+                $contactPhone,
+                $sortOrder,
+                $sessionId,
+                $eventId,
+                $scheduleDate
+            );
+        } elseif ($hasEnhanced && $hasGeo) {
             $stmt = $conn->prepare(
                 'UPDATE event_day_sessions SET title = ?, category = ?, location = ?, latitude = ?, longitude = ?, notes = ?, status = ?,
                  start_time = ?, end_time = ?, max_capacity = ?, contact_name = ?, contact_phone = ?, sort_order = ?
@@ -995,6 +1944,35 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
                 $status,
                 $stParam,
                 $etParam,
+                $maxCapacityBind,
+                $contactName,
+                $contactPhone,
+                $sortOrder,
+                $sessionId,
+                $eventId,
+                $scheduleDate
+            );
+        } elseif ($hasEnhanced && $hasCheckin) {
+            $stmt = $conn->prepare(
+                'UPDATE event_day_sessions SET title = ?, category = ?, location = ?, notes = ?, status = ?,
+                 start_time = ?, end_time = ?, checkin_start_time = ?, checkin_end_time = ?, max_capacity = ?, contact_name = ?, contact_phone = ?, sort_order = ?
+                 WHERE id = ? AND event_id = ? AND schedule_date = ?'
+            );
+            if (!$stmt) {
+                return ['ok' => false, 'error' => 'Could not update activity.'];
+            }
+            $sortOrder = (int) ($data['sort_order'] ?? ($oldSession['sort_order'] ?? 0));
+            $stmt->bind_param(
+                'ssssssssssssiiis',
+                $title,
+                $category,
+                $location,
+                $notes,
+                $status,
+                $stParam,
+                $etParam,
+                $ciStartParam,
+                $ciEndParam,
                 $maxCapacityBind,
                 $contactName,
                 $contactPhone,
@@ -1063,6 +2041,8 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
                 'start_time' => $stParam,
                 'end_time' => $etParam,
                 'schedule_date' => $scheduleDate,
+                'department' => $sessionDepartment,
+                'target_sections' => $sessionTargetSections,
             ]);
         }
         if ($ok && $hasEnhanced) {
@@ -1073,12 +2053,42 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
             if (!$accessResult['ok']) {
                 return $accessResult;
             }
+            eventify_save_session_audience($conn, $sessionId, $sessionDepartment, $sessionTargetSections);
+            eventify_save_session_attendance_settings($conn, $sessionId, $attendanceMode, $checkoutEndParam);
         }
         return $ok ? ['ok' => true, 'id' => $sessionId] : ['ok' => false, 'error' => 'Activity not found.'];
     }
 
     $sortOrder = (int) ($data['sort_order'] ?? 0);
-    if ($hasEnhanced && $hasGeo) {
+    if ($hasEnhanced && $hasGeo && $hasCheckin) {
+        $stmt = $conn->prepare(
+            'INSERT INTO event_day_sessions (event_id, schedule_date, title, category, location, latitude, longitude, notes, status, start_time, end_time, checkin_start_time, checkin_end_time, max_capacity, contact_name, contact_phone, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        if (!$stmt) {
+            return ['ok' => false, 'error' => 'Could not save activity.'];
+        }
+        $stmt->bind_param(
+            'issssddsssssssssi',
+            $eventId,
+            $scheduleDate,
+            $title,
+            $category,
+            $location,
+            $latParam,
+            $lngParam,
+            $notes,
+            $status,
+            $stParam,
+            $etParam,
+            $ciStartParam,
+            $ciEndParam,
+            $maxCapacityBind,
+            $contactName,
+            $contactPhone,
+            $sortOrder
+        );
+    } elseif ($hasEnhanced && $hasGeo) {
         $stmt = $conn->prepare(
             'INSERT INTO event_day_sessions (event_id, schedule_date, title, category, location, latitude, longitude, notes, status, start_time, end_time, max_capacity, contact_name, contact_phone, sort_order)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -1099,6 +2109,32 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
             $status,
             $stParam,
             $etParam,
+            $maxCapacityBind,
+            $contactName,
+            $contactPhone,
+            $sortOrder
+        );
+    } elseif ($hasEnhanced && $hasCheckin) {
+        $stmt = $conn->prepare(
+            'INSERT INTO event_day_sessions (event_id, schedule_date, title, category, location, notes, status, start_time, end_time, checkin_start_time, checkin_end_time, max_capacity, contact_name, contact_phone, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        if (!$stmt) {
+            return ['ok' => false, 'error' => 'Could not save activity.'];
+        }
+        $stmt->bind_param(
+            'isssssssssssssi',
+            $eventId,
+            $scheduleDate,
+            $title,
+            $category,
+            $location,
+            $notes,
+            $status,
+            $stParam,
+            $etParam,
+            $ciStartParam,
+            $ciEndParam,
             $maxCapacityBind,
             $contactName,
             $contactPhone,
@@ -1162,6 +2198,21 @@ function eventify_save_event_day_session(mysqli $conn, int $eventId, string $sch
         $accessResult = eventify_apply_session_access_from_data($conn, $newId, $eventId, $data);
         if (!$accessResult['ok']) {
             return $accessResult;
+        }
+        eventify_save_session_audience($conn, $newId, $sessionDepartment, $sessionTargetSections);
+        eventify_save_session_attendance_settings($conn, $newId, $attendanceMode, $checkoutEndParam);
+        try {
+            eventify_notify_students_activity_created($conn, $eventId, $newId, [
+                'title' => $title,
+                'schedule_date' => $scheduleDate,
+                'start_time' => $stParam,
+                'end_time' => $etParam,
+                'location' => $location,
+                'department' => $sessionDepartment,
+                'target_sections' => $sessionTargetSections,
+            ]);
+        } catch (Throwable $e) {
+            /* activity saved; notification is best-effort */
         }
     }
     return $newId > 0 ? ['ok' => true, 'id' => $newId] : ['ok' => false, 'error' => 'Could not save activity.'];
@@ -1228,7 +2279,7 @@ function eventify_end_session_early(mysqli $conn, int $sessionId, int $eventId, 
     if ($sessionId < 1 || $eventId < 1) {
         return ['ok' => false, 'error' => 'Invalid activity.'];
     }
-    if (!eventify_organizer_owns_event($conn, $eventId, $organizerId)) {
+    if (!eventify_user_may_manage_event_activities($conn, (string) ($_SESSION['role'] ?? ''), $organizerId, $eventId)) {
         return ['ok' => false, 'error' => 'Access denied.'];
     }
     eventify_day_sessions_ensure_completed_status($conn);
@@ -1354,6 +2405,9 @@ function eventify_attach_session_checkin_meta(mysqli $conn, array &$sessions, in
     if ($sessions === [] || $viewerUserId < 1) {
         return;
     }
+    if (!function_exists('eventify_attendance_session_has_checkout_column')) {
+        require_once __DIR__ . '/event_checkin_security.php';
+    }
     try {
         $chk = $conn->query("SHOW TABLES LIKE 'event_day_session_attendance'");
         if (!$chk || $chk->num_rows < 1) {
@@ -1373,7 +2427,11 @@ function eventify_attach_session_checkin_meta(mysqli $conn, array &$sessions, in
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $types = 'i' . str_repeat('i', count($ids));
     $checkedIn = [];
-    $sql = "SELECT session_id, checked_in_at FROM event_day_session_attendance WHERE user_id = ? AND session_id IN ($placeholders)";
+    $checkedOut = [];
+    $hasOutCol = eventify_attendance_session_has_checkout_column($conn);
+    $sql = $hasOutCol
+        ? "SELECT session_id, checked_in_at, checked_out_at FROM event_day_session_attendance WHERE user_id = ? AND session_id IN ($placeholders)"
+        : "SELECT session_id, checked_in_at FROM event_day_session_attendance WHERE user_id = ? AND session_id IN ($placeholders)";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $params = array_merge([$viewerUserId], $ids);
@@ -1381,7 +2439,11 @@ function eventify_attach_session_checkin_meta(mysqli $conn, array &$sessions, in
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
-            $checkedIn[(int) $row['session_id']] = (string) ($row['checked_in_at'] ?? '');
+            $sid = (int) ($row['session_id'] ?? 0);
+            $checkedIn[$sid] = (string) ($row['checked_in_at'] ?? '');
+            if ($hasOutCol && !empty($row['checked_out_at'])) {
+                $checkedOut[$sid] = (string) $row['checked_out_at'];
+            }
         }
         $stmt->close();
     }
@@ -1389,6 +2451,10 @@ function eventify_attach_session_checkin_meta(mysqli $conn, array &$sessions, in
         $sid = (int) ($s['id'] ?? 0);
         $s['user_checked_in'] = isset($checkedIn[$sid]);
         $s['checked_in_at'] = $checkedIn[$sid] ?? null;
+        $s['checked_out_at'] = $checkedOut[$sid] ?? null;
+        $s['user_attendance_complete'] = isset($checkedIn[$sid]) && (
+            !eventify_entity_uses_time_in_out($s) || isset($checkedOut[$sid])
+        );
     }
     unset($s);
 }
@@ -1414,6 +2480,9 @@ function eventify_register_session_rsvp(mysqli $conn, int $sessionId, int $userI
     $accessCols = eventify_day_sessions_have_access_columns($conn)
         ? 's.access_mode, s.ticket_type_id,'
         : '';
+    $sessionAudienceCols = eventify_day_sessions_have_audience_columns($conn)
+        ? 's.department AS session_department, s.target_sections AS session_target_sections,'
+        : '';
     if (is_file(__DIR__ . '/../../config/student_sections.php')) {
         require_once __DIR__ . '/../../config/student_sections.php';
     }
@@ -1433,7 +2502,7 @@ function eventify_register_session_rsvp(mysqli $conn, int $sessionId, int $userI
         /* ignore */
     }
     $stmt = $conn->prepare(
-        "SELECT s.id, s.event_id, s.title, s.status, {$accessCols} s.max_capacity, s.schedule_date, s.start_time, s.end_time,
+        "SELECT s.id, s.event_id, s.title, s.status, {$accessCols} {$sessionAudienceCols} s.max_capacity, s.schedule_date, s.start_time, s.end_time,
                 e.status AS event_status, e.department, {$tsCol}
                 {$stuSecCol}
          FROM event_day_sessions s
@@ -1458,7 +2527,20 @@ function eventify_register_session_rsvp(mysqli $conn, int $sessionId, int $userI
         return ['ok' => false, 'error' => 'This activity has been cancelled.'];
     }
     $mayAccess = true;
-    if (function_exists('eventify_student_may_access_event')) {
+    $parentEvent = [
+        'department' => $row['department'] ?? 'ALL',
+        'target_sections' => $row['target_sections'] ?? null,
+    ];
+    $sessionForGate = [
+        'department' => $row['session_department'] ?? null,
+        'target_sections' => $row['session_target_sections'] ?? null,
+    ];
+    if (function_exists('eventify_student_may_access_session')) {
+        $mayAccess = eventify_student_may_access_session($sessionForGate, $parentEvent, [
+            'department' => $row['student_department'] ?? null,
+            'student_section' => $row['student_section'] ?? null,
+        ]);
+    } elseif (function_exists('eventify_student_may_access_event')) {
         $mayAccess = eventify_student_may_access_event($row, [
             'department' => $row['student_department'] ?? null,
             'student_section' => $row['student_section'] ?? null,
@@ -1652,15 +2734,23 @@ function eventify_load_student_today_activities(mysqli $conn, int $userId, ?stri
     $stmt->execute();
     $res = $stmt->get_result();
     $out = [];
+    $studentProfile = [
+        'department' => $studentDepartment,
+        'student_section' => $studentSection,
+    ];
     while ($row = $res->fetch_assoc()) {
-        $evGate = [
+        $parentEvent = [
             'department' => $row['event_department'] ?? 'ALL',
             'target_sections' => $row['target_sections'] ?? null,
         ];
-        if (!eventify_student_may_access_event($evGate, [
-            'department' => $studentDepartment,
-            'student_section' => $studentSection,
-        ])) {
+        $sessionForGate = [
+            'department' => $row['department'] ?? null,
+            'target_sections' => $row['target_sections'] ?? null,
+        ];
+        if (!eventify_student_may_access_event($parentEvent, $studentProfile)) {
+            continue;
+        }
+        if (!eventify_student_may_access_session($sessionForGate, $parentEvent, $studentProfile)) {
             continue;
         }
         $mapped = eventify_map_day_session_row($row);
@@ -1673,6 +2763,79 @@ function eventify_load_student_today_activities(mysqli $conn, int $userId, ?stri
         eventify_attach_session_rsvp_meta($conn, $out, $userId);
     }
     return $out;
+}
+
+/**
+ * Bell + push when a new sub-activity is added to a live parent event.
+ * Audience uses session targeting when set, otherwise parent event audience.
+ *
+ * @param array<string, mixed> $session expects title, schedule_date, start_time, end_time, optional department, target_sections
+ * @return int students notified
+ */
+function eventify_notify_students_activity_created(
+    mysqli $conn,
+    int $eventId,
+    int $sessionId,
+    array $session
+): int {
+    if ($eventId < 1 || $sessionId < 1) {
+        return 0;
+    }
+
+    require_once __DIR__ . '/notifications_service.php';
+
+    $event = eventify_load_event_for_activities_hub($conn, $eventId);
+    if (!$event) {
+        return 0;
+    }
+    if (strtolower(trim((string) ($event['status'] ?? ''))) !== 'active') {
+        return 0;
+    }
+
+    $sessionAudience = [
+        'department' => $session['department'] ?? null,
+        'target_sections' => $session['target_sections'] ?? null,
+    ];
+    $recipientIds = eventify_student_ids_for_session_audience($conn, $sessionAudience, $event);
+    if ($recipientIds === []) {
+        return 0;
+    }
+
+    $activityLabel = trim((string) ($session['title'] ?? ''));
+    if ($activityLabel === '') {
+        $activityLabel = 'New activity';
+    }
+    $parentLabel = trim((string) ($event['title'] ?? ''));
+    if ($parentLabel === '') {
+        $parentLabel = 'an event';
+    }
+
+    $scheduleDate = substr(trim((string) ($session['schedule_date'] ?? '')), 0, 10);
+    $dateLabel = function_exists('eventify_format_event_date_label')
+        ? eventify_format_event_date_label($scheduleDate)
+        : $scheduleDate;
+    $timeStr = eventify_format_session_time_range(
+        isset($session['start_time']) ? (string) $session['start_time'] : null,
+        isset($session['end_time']) ? (string) $session['end_time'] : null
+    );
+    $when = $dateLabel;
+    if ($timeStr !== '') {
+        $when .= ($when !== '' ? ' · ' : '') . $timeStr;
+    }
+
+    $notifTitle = 'New activity';
+    $message = '"' . $activityLabel . '" was added to "' . $parentLabel . '"'
+        . ($when !== '' ? ' on ' . $when : '')
+        . '. Open activities for details.';
+
+    return eventify_notify_student_ids(
+        $conn,
+        $recipientIds,
+        'activity_created',
+        $notifTitle,
+        $message,
+        $eventId
+    );
 }
 
 /** @param array<string, mixed> $oldSession @param array<string, mixed> $newData */
@@ -1710,7 +2873,18 @@ function eventify_notify_session_changes(mysqli $conn, int $eventId, array $oldS
     if (!$notify || $msg === '') {
         return;
     }
+    $event = eventify_load_event_for_activities_hub($conn, $eventId);
+    if (!$event) {
+        return;
+    }
+    $sessionAudience = [
+        'department' => $newData['department'] ?? $oldSession['department'] ?? null,
+        'target_sections' => $newData['target_sections'] ?? $oldSession['target_sections'] ?? null,
+    ];
     $userIds = [];
+    foreach (eventify_student_ids_for_session_audience($conn, $sessionAudience, $event) as $uid) {
+        $userIds[(int) $uid] = true;
+    }
     if (eventify_session_rsvps_table_exists($conn)) {
         $rs = $conn->prepare('SELECT user_id FROM event_day_session_rsvps WHERE session_id = ?');
         if ($rs) {
@@ -1725,19 +2899,6 @@ function eventify_notify_session_changes(mysqli $conn, int $eventId, array $oldS
             }
             $rs->close();
         }
-    }
-    $reg = $conn->prepare('SELECT user_id FROM registrations WHERE event_id = ?');
-    if ($reg) {
-        $reg->bind_param('i', $eventId);
-        $reg->execute();
-        $regRes = $reg->get_result();
-        while ($r = $regRes->fetch_assoc()) {
-            $uid = (int) ($r['user_id'] ?? 0);
-            if ($uid > 0) {
-                $userIds[$uid] = true;
-            }
-        }
-        $reg->close();
     }
     if ($userIds === []) {
         return;
@@ -2629,22 +3790,27 @@ function eventify_session_checkin_unavailable_reason(array $session, ?DateTimeIn
         }
         return 'Check-in opens on ' . $prettyDay . ' during the scheduled activity time.';
     }
-    $start = trim((string) ($session['start_time'] ?? ''));
-    $end = trim((string) ($session['end_time'] ?? ''));
-    if ($start !== '') {
-        $st = eventify_session_datetime($day, $start);
-        if ($st instanceof DateTimeImmutable) {
-            $early = eventify_checkin_early_minutes();
-            $openAt = $early > 0 ? $st->modify('-' . $early . ' minutes') : $st;
-            if ($now < $openAt) {
-                return 'Check-in opens at ' . $openAt->format('g:i A') . ' (about ' . $early . ' min before start).';
+    $bounds = eventify_session_checkin_bounds($session);
+    $openTime = $bounds['open'];
+    $closeTime = $bounds['close'];
+    if ($openTime !== '') {
+        $openDt = eventify_session_datetime($day, $openTime);
+        if ($openDt instanceof DateTimeImmutable) {
+            if (!$bounds['open_uses_explicit']) {
+                $early = function_exists('eventify_checkin_early_minutes') ? eventify_checkin_early_minutes() : 0;
+                if ($early > 0) {
+                    $openDt = $openDt->modify('-' . $early . ' minutes');
+                }
+            }
+            if ($now < $openDt) {
+                return 'Check-in opens at ' . $openDt->format('g:i A') . '.';
             }
         }
     }
-    if ($end !== '') {
-        $et = eventify_session_datetime($day, $end);
-        if ($et instanceof DateTimeImmutable && $now > $et) {
-            return 'Check-in closed — this activity ended at ' . $et->format('g:i A') . '.';
+    if ($closeTime !== '') {
+        $closeDt = eventify_session_datetime($day, $closeTime);
+        if ($closeDt instanceof DateTimeImmutable && $now > $closeDt) {
+            return 'Check-in closed — attendance ended at ' . $closeDt->format('g:i A') . '.';
         }
     }
     return 'Check-in is not open right now (' . $now->format('g:i A') . '). Please scan again during the scheduled activity time.';
@@ -2680,6 +3846,22 @@ function eventify_session_checkin_student_details(array $session, ?DateTimeInter
     ];
 }
 
+/** @return array{open: string, close: string, open_uses_explicit: bool, close_uses_explicit: bool} */
+function eventify_session_checkin_bounds(array $session): array
+{
+    $checkinStart = trim((string) ($session['checkin_start_time'] ?? ''));
+    $checkinEnd = trim((string) ($session['checkin_end_time'] ?? ''));
+    $start = trim((string) ($session['start_time'] ?? ''));
+    $end = trim((string) ($session['end_time'] ?? ''));
+
+    return [
+        'open' => $checkinStart !== '' ? $checkinStart : $start,
+        'close' => $checkinEnd !== '' ? $checkinEnd : $end,
+        'open_uses_explicit' => $checkinStart !== '',
+        'close_uses_explicit' => $checkinEnd !== '',
+    ];
+}
+
 /** @param array<string, mixed> $session */
 function eventify_session_is_checkin_window_open(array $session, ?DateTimeInterface $now = null, ?array $parentEvent = null): bool
 {
@@ -2701,26 +3883,29 @@ function eventify_session_is_checkin_window_open(array $session, ?DateTimeInterf
     if ($day !== $todayYmd) {
         return false;
     }
-    $start = trim((string) ($session['start_time'] ?? ''));
-    $end = trim((string) ($session['end_time'] ?? ''));
-    if ($start === '' && $end === '') {
+    $bounds = eventify_session_checkin_bounds($session);
+    $openTime = $bounds['open'];
+    $closeTime = $bounds['close'];
+    if ($openTime === '' && $closeTime === '') {
         return true;
     }
-    if ($start !== '') {
-        $st = eventify_session_datetime($day, $start);
-        if ($st instanceof DateTimeImmutable) {
-            $early = eventify_checkin_early_minutes();
-            if ($early > 0) {
-                $st = $st->modify('-' . $early . ' minutes');
+    if ($openTime !== '') {
+        $openDt = eventify_session_datetime($day, $openTime);
+        if ($openDt instanceof DateTimeImmutable) {
+            if (!$bounds['open_uses_explicit']) {
+                $early = eventify_checkin_early_minutes();
+                if ($early > 0) {
+                    $openDt = $openDt->modify('-' . $early . ' minutes');
+                }
             }
-            if ($now < $st) {
+            if ($now < $openDt) {
                 return false;
             }
         }
     }
-    if ($end !== '') {
-        $et = eventify_session_datetime($day, $end);
-        if ($et instanceof DateTimeImmutable && $now > $et) {
+    if ($closeTime !== '') {
+        $closeDt = eventify_session_datetime($day, $closeTime);
+        if ($closeDt instanceof DateTimeImmutable && $now > $closeDt) {
             return false;
         }
     }

@@ -20,7 +20,7 @@ if ($eventsSorted !== []) {
     <div class="events-list org-my-events-list">
         <?php foreach ($eventsSorted as $i => $event): ?>
             <?php $staggerStyle = '--panel-stagger: ' . min($i, 8) * 0.035 . 's'; ?>
-            <div class="event-item org-my-event-card" style="<?= htmlspecialchars($staggerStyle) ?>">
+            <div class="event-item org-my-event-card" data-event-id="<?= (int) ($event['id'] ?? 0) ?>" style="<?= htmlspecialchars($staggerStyle) ?>">
                 <div class="event-date-badge">
                     <span class="event-month"><?= htmlspecialchars(date('M', strtotime($event['date'] ?? 'now'))) ?></span>
                     <span class="event-day"><?= htmlspecialchars(date('d', strtotime($event['date'] ?? 'now'))) ?></span>

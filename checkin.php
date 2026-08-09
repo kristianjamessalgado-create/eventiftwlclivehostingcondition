@@ -26,6 +26,10 @@ $checkin_signup_cta_label = 'Go to dashboard';
 $checkin_schedule_label = '';
 $student_checkin_home_url = BASE_URL . '/backend/auth/dashboard_student.php';
 $checkin_unavailable = null;
+$student_attendance = ['time_in' => null, 'time_out' => null, 'present' => false];
+$scan_state = null;
+$confirmed_action = '';
+$show_checkin_form = false;
 
 if ($token === '') {
     $error = 'Invalid or missing check-in link. Please scan the event QR code again.';
@@ -42,6 +46,12 @@ if ($token === '') {
     }
 
     $eventSelect = 'id, title, organizer_id, date, end_date, start_time, end_time, end_time_na, location, status, registration_mode, checkin_token, department';
+    if (function_exists('eventify_events_has_checkin_times') && eventify_events_has_checkin_times($conn)) {
+        $eventSelect = 'id, title, organizer_id, date, end_date, start_time, end_time, end_time_na, checkin_start_time, checkin_end_time, location, status, registration_mode, checkin_token, department';
+    }
+    if (function_exists('eventify_events_has_attendance_mode') && eventify_events_has_attendance_mode($conn)) {
+        $eventSelect .= ', attendance_mode, checkout_end_time';
+    }
     if ($eventHasGeo) {
         $eventSelect .= ', latitude, longitude';
     }
@@ -80,11 +90,16 @@ if ($token === '') {
         } elseif (!empty($event['date'])) {
             $checkin_schedule_label = date('M j, Y', strtotime((string) $event['date']));
         }
-        if (!eventify_event_allows_checkin($event)) {
-            $checkin_unavailable = eventify_event_checkin_student_details($event);
-            $error = $checkin_unavailable['reason'];
-            if ($checkin_schedule_label === '' && $checkin_unavailable['schedule_label'] !== '') {
-                $checkin_schedule_label = $checkin_unavailable['schedule_label'];
+        if (!eventify_entity_uses_time_in_out($event)) {
+            if (!eventify_event_allows_checkin($event)) {
+                $checkin_unavailable = eventify_event_checkin_student_details($event);
+                $error = $checkin_unavailable['reason'];
+                if ($checkin_schedule_label === '' && $checkin_unavailable['schedule_label'] !== '') {
+                    $checkin_schedule_label = $checkin_unavailable['schedule_label'];
+                }
+            } else {
+                $geo_required = eventify_event_checkin_geo_required($event);
+                $rsvp_required = eventify_event_checkin_rsvp_required($event);
             }
         } else {
             $geo_required = eventify_event_checkin_geo_required($event);
@@ -115,14 +130,27 @@ if (!$error && $event && $_SERVER['REQUEST_METHOD'] !== 'POST') {
             }
         }
         if (!$error && $event) {
+            $student_attendance = eventify_load_main_event_attendance($conn, $uid, $eid);
+            $scan_state = eventify_main_event_scan_state($event, $student_attendance);
+            $already_done = ($scan_state['phase'] ?? '') === 'complete';
+            if (!$already_done && ($scan_state['phase'] ?? '') === 'unavailable') {
+                if (empty($student_attendance['time_in']) || !empty($student_attendance['time_out'])) {
+                    $error = $scan_state['message'];
+                    if ($checkin_unavailable === null) {
+                        $checkin_unavailable = eventify_event_checkin_student_details($event);
+                    }
+                }
+            }
             $chk = $conn->prepare("SELECT 1 FROM registrations WHERE user_id = ? AND event_id = ? AND status = 'present' LIMIT 1");
             $chk->bind_param("ii", $uid, $eid);
             $chk->execute();
             $chk->store_result();
-            $already_done = $chk->num_rows > 0;
+            if (!$already_done && !eventify_entity_uses_time_in_out($event)) {
+                $already_done = $chk->num_rows > 0;
+            }
             $chk->close();
             $signupGap = eventify_checkin_main_signup_gap($conn, $event, $uid);
-            if (!$already_done && !empty($signupGap['needed'])) {
+            if (!$already_done && !($student_attendance['time_in'] ?? null) && !empty($signupGap['needed'])) {
                 $needs_rsvp_first = true;
                 $checkin_signup_action = (string) ($signupGap['action'] ?? 'rsvp');
                 $checkin_signup_message = (string) ($signupGap['message'] ?? '');
@@ -134,7 +162,8 @@ if (!$error && $event && $_SERVER['REQUEST_METHOD'] !== 'POST') {
                     $checkin_signup_cta_label = 'Go to dashboard & RSVP';
                 }
             }
-            $focus_confirm_mobile = !$already_done && !$needs_rsvp_first;
+            $show_checkin_form = !$needs_rsvp_first && $scan_state && !empty($scan_state['can_submit']);
+            $focus_confirm_mobile = $show_checkin_form;
         }
     }
 }
@@ -143,7 +172,7 @@ if (!$error && $event && $_SERVER['REQUEST_METHOD'] !== 'POST') {
 if (!$error && $event && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm']) && isset($_SESSION['user_id']) && $_SESSION['role'] === 'student') {
     if (!csrf_validate()) {
         $error = 'Invalid request. Please try again.';
-    } elseif (!eventify_event_allows_checkin($event)) {
+    } elseif (!eventify_entity_uses_time_in_out($event) && !eventify_event_allows_checkin($event)) {
         $checkin_unavailable = eventify_event_checkin_student_details($event);
         $error = $checkin_unavailable['reason'];
     } else {
@@ -152,6 +181,10 @@ if (!$error && $event && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
         $result = eventify_process_main_event_checkin($conn, $event, $user_id, $_POST);
         if ($result['ok']) {
             $confirmed = true;
+            $confirmed_action = (string) ($result['action'] ?? 'time_in');
+            $student_attendance = eventify_load_main_event_attendance($conn, $user_id, $event_id);
+            $scan_state = eventify_main_event_scan_state($event, $student_attendance);
+            $already_done = ($scan_state['phase'] ?? '') === 'complete';
             try {
                 $organizerId = (int) ($event['organizer_id'] ?? 0);
                 if ($organizerId > 0) {
@@ -382,13 +415,31 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                     <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-outline-secondary btn-sm" target="_top">Dashboard</a>
                 </div>
             <?php elseif ($confirmed): ?>
-                <p class="text-success mb-2"><i class="fas fa-check-circle me-2"></i><strong>Attendance confirmed.</strong></p>
-                <p class="text-muted small mb-0">You have been marked present for this event.</p>
+                <p class="text-success mb-2"><i class="fas fa-check-circle me-2"></i><strong><?= $confirmed_action === 'time_out' ? 'Time out recorded.' : (eventify_entity_uses_time_in_out($event ?? []) ? 'Time in recorded.' : 'Attendance confirmed.') ?></strong></p>
+                <p class="text-muted small mb-0"><?php if ($confirmed_action === 'time_out'): ?>
+                    Your departure has been saved for this event.
+                <?php elseif (eventify_entity_uses_time_in_out($event ?? [])): ?>
+                    Scan the same QR again when you leave to record time out.
+                <?php else: ?>
+                    You have been marked present for this event.
+                <?php endif; ?></p>
                 <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-primary mt-3" target="_top">Back to dashboard</a>
             <?php elseif ($already_done): ?>
-                <p class="text-success mb-2"><i class="fas fa-check-circle me-2"></i><strong>You're done with attendance already.</strong></p>
-                <p class="text-muted small mb-0">You have already confirmed your attendance for this event. No need to check in again.</p>
+                <p class="text-success mb-2"><i class="fas fa-check-circle me-2"></i><strong><?= eventify_entity_uses_time_in_out($event ?? []) ? 'Time in and time out complete.' : "You're done with attendance already." ?></strong></p>
+                <p class="text-muted small mb-0"><?php if (eventify_entity_uses_time_in_out($event ?? []) && !empty($student_attendance['time_in'])): ?>
+                    Time in: <?= htmlspecialchars(date('M j, Y g:i A', strtotime((string) $student_attendance['time_in']))) ?>
+                    <?php if (!empty($student_attendance['time_out'])): ?><br>Time out: <?= htmlspecialchars(date('M j, Y g:i A', strtotime((string) $student_attendance['time_out']))) ?><?php endif; ?>
+                <?php else: ?>
+                    You have already confirmed your attendance for this event. No need to check in again.
+                <?php endif; ?></p>
                 <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-primary mt-3" target="_top">Back to dashboard</a>
+            <?php elseif ($event && !$show_checkin_form && $scan_state && ($scan_state['phase'] ?? '') === 'unavailable' && !empty($student_attendance['time_in']) && empty($student_attendance['time_out'])): ?>
+                <h5 class="mb-3"><?= htmlspecialchars($event['title']) ?></h5>
+                <div class="alert alert-info small mb-3">
+                    <i class="fas fa-sign-in-alt me-1"></i> You timed in at <strong><?= htmlspecialchars(date('g:i A', strtotime((string) $student_attendance['time_in']))) ?></strong>.
+                    <?= htmlspecialchars($scan_state['message']) ?>
+                </div>
+                <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-primary w-100" target="_top">Back to dashboard</a>
             <?php elseif ($event): ?>
                 <h5 class="mb-3"><?= htmlspecialchars($event['title']) ?></h5>
                 <div class="event-meta">
@@ -399,7 +450,13 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                         <div><i class="fas fa-map-marker-alt me-2"></i><?= htmlspecialchars($event['location']) ?></div>
                     <?php endif; ?>
                 </div>
-                <p class="small text-muted mb-2">Scan this QR at the venue to confirm attendance. Only students can check in.</p>
+                <p class="small text-muted mb-2"><?php if ($scan_state && ($scan_state['phase'] ?? '') === 'time_out'): ?>
+                    Scan to record your departure (time out).
+                <?php elseif (eventify_entity_uses_time_in_out($event)): ?>
+                    Scan to record time in. Use the same QR again when you leave for time out.
+                <?php else: ?>
+                    Scan this QR at the venue to confirm attendance. Only students can check in.
+                <?php endif; ?></p>
                 <?php if ($needs_rsvp_first): ?>
                     <div class="alert alert-warning small mb-3">
                         <i class="fas fa-<?= $checkin_signup_action === 'ticket' ? 'ticket-alt' : 'user-plus' ?> me-1"></i>
@@ -410,8 +467,11 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                         <?php endif; ?>
                     </div>
                     <a href="<?= htmlspecialchars($checkin_signup_cta_url) ?>" class="btn btn-primary w-100 mb-2" target="_top"><?= htmlspecialchars($checkin_signup_cta_label) ?></a>
-                <?php else: ?>
+                <?php elseif ($show_checkin_form): ?>
                 <p class="small text-muted mb-2"><strong>Anti-fake check-in:</strong> one device = one student account per event<?= $geo_required ? ', plus you must be at the venue (GPS within ' . (int) $geo_radius_m . 'm)' : '' ?>.</p>
+                <?php if ($scan_state && !empty($scan_state['message']) && !empty($scan_state['can_submit'])): ?>
+                    <p class="small text-muted mb-2"><?= htmlspecialchars($scan_state['message']) ?></p>
+                <?php endif; ?>
                 <form method="POST" id="checkinForm">
                     <?= csrf_field() ?>
                     <input type="hidden" name="geo_lat" id="geo_lat" value="">
@@ -420,9 +480,11 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                     <input type="hidden" name="geo_ts" id="geo_ts" value="">
                     <input type="hidden" name="device_hash" id="device_hash" value="">
                     <button type="submit" name="confirm" value="1" class="btn btn-confirm w-100" id="confirmBtn" disabled>
-                        <i class="fas fa-check-double me-2"></i>Confirm my attendance
+                        <i class="fas fa-check-double me-2"></i><?= htmlspecialchars($scan_state['label'] ?? 'Confirm my attendance') ?>
                     </button>
                 </form>
+                <?php elseif ($scan_state && !empty($scan_state['message'])): ?>
+                <div class="alert alert-secondary small mb-0"><?= htmlspecialchars($scan_state['message']) ?></div>
                 <?php endif; ?>
             <?php endif; ?>
         </div>

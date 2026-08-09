@@ -223,7 +223,17 @@ function eventifyFillAndShowEventDetails(event, options) {
     const status = (props.status || 'active').toLowerCase();
     const eventIsLive = props.event_is_live === true;
     if (statusEl) {
-        if (status === 'active' && eventIsLive) {
+        const statusLabel = String(props.event_status_label || '').trim();
+        const statusBadge = String(props.event_status_badge || '').trim();
+        if (statusLabel) {
+            statusEl.textContent = statusLabel;
+            const badgeClass = statusBadge === 'success' ? 'bg-success'
+                : statusBadge === 'warning' ? 'bg-warning text-dark'
+                : statusBadge === 'info' ? 'bg-info text-dark'
+                : statusBadge === 'danger' ? 'bg-danger'
+                : 'bg-secondary';
+            statusEl.className = 'badge ' + badgeClass;
+        } else if (status === 'active' && eventIsLive) {
             statusEl.textContent = 'Active';
             statusEl.className = 'badge bg-success';
         } else if (status === 'active' && !eventIsLive) {
@@ -463,7 +473,7 @@ function eventifyFillAndShowEventDetails(event, options) {
     }
 
     if (typeof eventifyLoadDaySessionsForEvent === 'function') {
-        eventifyLoadDaySessionsForEvent(event, EVENTIFY_ROLE === 'organizer', {
+        eventifyLoadDaySessionsForEvent(event, EVENTIFY_ROLE === 'organizer' || EVENTIFY_ROLE === 'admin' || EVENTIFY_ROLE === 'super_admin', {
             clickEl: options.clickEl || null,
             jsEvent: options.jsEvent || null
         });
@@ -565,17 +575,53 @@ function eventifyOpenEventDetailsById(eventId) {
 window.eventifyFillAndShowEventDetails = eventifyFillAndShowEventDetails;
 window.eventifyOpenEventDetailsById = eventifyOpenEventDetailsById;
 
+function eventifyOrganizerScrollToEventCard(eventId) {
+    var idStr = String(eventId || '').trim();
+    if (!idStr) {
+        return false;
+    }
+    var card = document.querySelector('.org-my-event-card[data-event-id="' + idStr + '"]');
+    if (!card) {
+        return false;
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.add('org-my-event-card--highlight');
+    window.setTimeout(function () {
+        card.classList.remove('org-my-event-card--highlight');
+    }, 2600);
+    var otpInput = card.querySelector('input[name="otp_code"]');
+    if (otpInput) {
+        window.setTimeout(function () {
+            otpInput.focus();
+        }, 450);
+    }
+    return true;
+}
+
+window.eventifyOrganizerScrollToEventCard = eventifyOrganizerScrollToEventCard;
+
+function eventifyOrganizerOpenEventFromNotification(eventId) {
+    var idStr = String(eventId || '').trim();
+    if (!idStr) {
+        return false;
+    }
+    if (typeof showOrganizerDashboardPanel === 'function') {
+        showOrganizerDashboardPanel('events');
+    }
+    var opened = eventifyOpenEventDetailsById(idStr);
+    if (!opened) {
+        eventifyOrganizerScrollToEventCard(idStr);
+    }
+    return opened || !!document.querySelector('.org-my-event-card[data-event-id="' + idStr + '"]');
+}
+
 document.addEventListener('eventify:notif-view-event', function (e) {
     var detail = (e && e.detail) || {};
     if (!detail.eventId) {
         return;
     }
     setTimeout(function () {
-        var opened = eventifyOpenEventDetailsById(String(detail.eventId));
-        if (!opened && String(window.currentRole || '').toLowerCase() === 'organizer') {
-            var base = (window.BASE_URL || '').replace(/\/$/, '');
-            window.location.href = base + '/event_activities.php?id=' + encodeURIComponent(String(detail.eventId));
-        }
+        eventifyOrganizerOpenEventFromNotification(String(detail.eventId));
     }, 200);
 });
 
@@ -1101,9 +1147,13 @@ function initOrganizerReopenModalFromUrl() {
         history.replaceState({}, '', next);
     } catch (e) { /* ignore */ }
 
-    if (openModal === 'eventDetails' && eventId && typeof window.eventifyOpenEventDetailsById === 'function') {
+    if (openModal === 'eventDetails' && eventId) {
         setTimeout(function () {
-            window.eventifyOpenEventDetailsById(eventId);
+            if (typeof window.eventifyOrganizerOpenEventFromNotification === 'function') {
+                window.eventifyOrganizerOpenEventFromNotification(eventId);
+            } else if (typeof window.eventifyOpenEventDetailsById === 'function') {
+                window.eventifyOpenEventDetailsById(eventId);
+            }
         }, 400);
         return;
     }

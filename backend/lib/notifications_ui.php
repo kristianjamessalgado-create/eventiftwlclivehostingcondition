@@ -30,6 +30,7 @@ function eventify_notification_visual(string $type): array
         'event_attendance_confirmed' => ['icon' => 'fa-qrcode', 'accent' => 'success', 'label' => 'Check-in'],
         'activity_attendance' => ['icon' => 'fa-person-running', 'accent' => 'success', 'label' => 'Activity'],
         'activity_update' => ['icon' => 'fa-bolt', 'accent' => 'info', 'label' => 'Activity'],
+        'activity_created' => ['icon' => 'fa-calendar-plus', 'accent' => 'success', 'label' => 'New activity'],
         'staff_message' => ['icon' => 'fa-envelope', 'accent' => 'primary', 'label' => 'Message'],
         'admin_announcement' => ['icon' => 'fa-bullhorn', 'accent' => 'primary', 'label' => 'Announcement'],
         'ticket_payment_pending' => ['icon' => 'fa-ticket-alt', 'accent' => 'warning', 'label' => 'Tickets'],

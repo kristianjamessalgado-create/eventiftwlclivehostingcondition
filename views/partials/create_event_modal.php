@@ -130,24 +130,41 @@ $formAction = BASE_URL . '/backend/auth/createevent.php';
             <div class="row g-3 mt-1" id="ceStartTimeRow">
               <div class="col-md-6">
                 <label for="ceStartTime" class="form-label ce-form-label">Event start time <span class="ce-required">*</span></label>
-                <p class="ce-form-help mb-1">For multi-day events, set start time on each day in the schedule above.</p>
+                <p class="ce-form-help mb-1">For multi-day events, use “Same time every day” below the calendar — one start/end applies to all days.</p>
                 <input type="time" name="start_time" id="ceStartTime" class="form-control ce-form-control" required>
               </div>
             </div>
+            <?php
+            $checkinFieldsPartial = __DIR__ . '/event_checkin_time_fields.php';
+            if (!empty($eventsHasCheckinTimes) && is_file($checkinFieldsPartial)) {
+                $idPrefix = 'ce';
+                $postedCheckinStart = '';
+                $postedCheckinEnd = '';
+                include $checkinFieldsPartial;
+            }
+            if (!empty($eventsHasCheckinTimes)) {
+                $idPrefix = 'ce';
+                $postedAttendanceMode = 'single';
+                $postedCheckoutEnd = '';
+                include __DIR__ . '/event_attendance_mode_fields.php';
+            }
+            ?>
           </section>
 
           <section class="ce-form-section">
             <p class="ce-form-section__label">Venue</p>
             <label class="form-label ce-form-label">Map location <span class="ce-required">*</span></label>
-            <p class="ce-form-help mb-2">Search, tap the map, or use your device location.</p>
+            <p class="ce-form-help mb-2">Start typing an address — suggestions appear below. You can also tap the map or use your device location.</p>
             <input type="hidden" name="event_latitude" id="ceEventLatitude" value="">
             <input type="hidden" name="event_longitude" id="ceEventLongitude" value="">
-            <div class="ce-loc-toolbar">
-              <input type="search" id="ceLocSearch" class="form-control ce-form-control ce-loc-toolbar__search" placeholder="Search place or address" autocomplete="off">
-              <button type="button" class="btn ce-btn-outline btn-sm" id="ceLocSearchBtn">Search</button>
-              <button type="button" class="btn ce-btn-gold btn-sm" id="ceLocUseGps" title="Use GPS"><i class="fas fa-location-crosshairs"></i></button>
+            <div class="ce-loc-search-wrap">
+              <div class="ce-loc-toolbar">
+                <input type="search" id="ceLocSearch" class="form-control ce-form-control ce-loc-toolbar__search" placeholder="Search place or address" autocomplete="off" aria-autocomplete="list" aria-controls="ceLocResults" aria-expanded="false">
+                <button type="button" class="btn ce-btn-outline btn-sm" id="ceLocSearchBtn">Search</button>
+                <button type="button" class="btn ce-btn-gold btn-sm" id="ceLocUseGps" title="Use GPS"><i class="fas fa-location-crosshairs"></i></button>
+              </div>
+              <div id="ceLocResults" class="list-group eventify-loc-results ce-loc-results" role="listbox" aria-label="Address suggestions" hidden></div>
             </div>
-            <div id="ceLocResults" class="list-group mb-2 organizer-loc-results ce-loc-results" style="display:none;"></div>
             <div id="ceLocationMap" class="event-location-map ce-location-map mb-2"></div>
             <label for="ceLocation" class="form-label ce-form-label">Venue name / address <span class="ce-required">*</span></label>
             <input type="text" name="location" id="ceLocation" class="form-control ce-form-control" maxlength="255" required placeholder="Shown to attendees">
@@ -176,3 +193,28 @@ $formAction = BASE_URL . '/backend/auth/createevent.php';
     </div>
   </div>
 </div>
+
+<?php if ($isAdminCreateMode): ?>
+<div class="modal fade" id="confirmCreateEventPublishModal" tabindex="-1" aria-labelledby="confirmCreateEventPublishLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content efy-modal efy-modal--compact">
+      <div class="modal-header efy-modal__header">
+        <div>
+          <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="confirmCreateEventPublishLabel">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            Publish event
+          </h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body efy-modal__body efy-modal__body--compact">
+        <p class="efy-confirm-message mb-0">Are you sure you want to publish this event? It will go live on the student calendar right away.</p>
+      </div>
+      <div class="modal-footer efy-modal__footer">
+        <button type="button" class="btn efy-btn-primary" id="confirmCreateEventPublishYes">Yes, publish</button>
+        <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">No</button>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>

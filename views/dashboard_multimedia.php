@@ -30,7 +30,7 @@ if (is_array($events)) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#121212">
     <title>Multimedia Dashboard - EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -40,13 +40,14 @@ if (is_array($events)) {
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_scroll_fix.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_calendar_shell.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=35">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=2">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_spinner.css?v=2">
 </head>
-<body class="multimedia-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="mmSidebar" data-eventify-main=".multimedia-dashboard .main-content">
+<body class="multimedia-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="mmSidebar" data-eventify-main=".multimedia-dashboard .main-content" data-eventify-pull-refresh="1">
 <input type="hidden" id="csrf_token_value" value="<?= htmlspecialchars(csrf_token()) ?>">
 
 <nav class="top-navbar">
@@ -667,6 +668,7 @@ if (is_array($events)) {
 <script src="<?= BASE_URL ?>/assets/js/dashboard_multimedia_calendar.js?v=8"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=9"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_spinner.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=3"></script>

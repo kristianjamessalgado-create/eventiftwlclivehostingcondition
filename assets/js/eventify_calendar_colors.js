@@ -84,12 +84,13 @@
     }
 
     /**
-     * Lifecycle color for one calendar column (today = green, future = gold, past = gray).
+     * Lifecycle color for one calendar column.
      * @param {string|null} segmentYmd
-     * @param {{ allDay?: boolean, start?: Date|null }} [eventInfo]
+     * @param {{ allDay?: boolean, start?: Date|null, startTime?: string|null }} [eventInfo]
+     * @param {HTMLElement|null} [el]
      * @returns {'upcoming'|'active'|'closed'}
      */
-    function eventifyStateFromSegmentYmd(segmentYmd, eventInfo) {
+    function eventifyStateFromSegmentYmd(segmentYmd, eventInfo, el) {
         var day = segmentYmd ? eventifyParseYmdDate(segmentYmd) : null;
         if (!day) {
             return 'active';
@@ -102,6 +103,30 @@
         if (d.getTime() < today.getTime()) {
             return 'closed';
         }
+
+        var startTimeStr = '';
+        if (eventInfo && eventInfo.startTime) {
+            startTimeStr = String(eventInfo.startTime).trim();
+        } else if (el) {
+            startTimeStr = el.getAttribute('data-eventify-day-start-time') || '';
+        }
+        if (!startTimeStr && eventInfo && eventInfo.start instanceof Date && !eventInfo.allDay) {
+            var st = eventInfo.start;
+            if (st.getHours() !== 0 || st.getMinutes() !== 0 || st.getSeconds() !== 0) {
+                return (new Date() >= st) ? 'active' : 'upcoming';
+            }
+        }
+        if (startTimeStr) {
+            var parts = startTimeStr.split(':');
+            if (parts.length >= 2) {
+                var startDt = new Date(d.getTime());
+                startDt.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
+                if (new Date() < startDt) {
+                    return 'upcoming';
+                }
+            }
+        }
+
         return 'active';
     }
 
@@ -132,7 +157,7 @@
         if (eventifyIsApprovedActiveStatus(s)) {
             var ymd = segmentYmd || (el ? eventifyGetSegmentYmdFromEl(el) : null);
             if (ymd) {
-                return eventifyStateFromSegmentYmd(ymd, eventInfo);
+                return eventifyStateFromSegmentYmd(ymd, eventInfo, el);
             }
             if (el) {
                 if (el.classList.contains('fc-event-today')) {
@@ -288,9 +313,10 @@
                     || 'active';
                 var startMs = parseInt(el.getAttribute('data-eventify-start-ms') || '', 10);
                 var start = !isNaN(startMs) ? new Date(startMs) : null;
+                var startTime = el.getAttribute('data-eventify-day-start-time') || '';
                 var allDay = el.getAttribute('data-eventify-all-day') === '1'
                     || el.classList.contains('fc-daygrid-block-event');
-                eventifyPaintCalendarEventEl(el, approval, { allDay: allDay, start: start }, ymd.slice(0, 10));
+                eventifyPaintCalendarEventEl(el, approval, { allDay: allDay, start: start, startTime: startTime }, ymd.slice(0, 10));
             });
         });
     }
@@ -311,12 +337,17 @@
             if (props.event_id) {
                 info.el.setAttribute('data-eventify-range-id', String(props.event_id));
             }
+            var dayStartTime = props.start_time || props.day_start_time || '';
+            if (dayStartTime) {
+                info.el.setAttribute('data-eventify-day-start-time', String(dayStartTime).slice(0, 5));
+            }
 
             if (props.calendar_range_multiday && Array.isArray(props.segment_dates) && props.segment_dates.length >= 2) {
                 info.el.classList.add('eventify-fc-range-event');
                 eventifyPaintRangeEventGradient(info.el, approvalStatus, props.segment_dates, {
                     allDay: info.event.allDay,
-                    start: eventStart
+                    start: eventStart,
+                    startTime: dayStartTime ? String(dayStartTime).slice(0, 5) : null
                 });
                 return;
             }
@@ -328,7 +359,8 @@
                 : eventifyGetSegmentYmdFromEl(info.el);
             eventifyPaintCalendarEventEl(info.el, approvalStatus, {
                 allDay: info.event.allDay,
-                start: eventStart
+                start: eventStart,
+                startTime: dayStartTime ? String(dayStartTime).slice(0, 5) : null
             }, segmentYmd, {
                 colorLocked: colorLocked,
                 lockedState: lockedState

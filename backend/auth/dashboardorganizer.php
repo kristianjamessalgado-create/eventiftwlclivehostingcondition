@@ -257,6 +257,8 @@ try {
 }
 
 $eventsHasEndDate = eventify_events_has_end_date($conn);
+$eventsHasCheckinTimes = function_exists('eventify_events_ensure_checkin_times')
+    && eventify_events_ensure_checkin_times($conn);
 
 // Admin ↔ Organizer messaging
 $messaging_admins = [];

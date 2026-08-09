@@ -1,0 +1,84 @@
+/**
+ * Pull-to-refresh indicator (mobile dashboards).
+ */
+.eventify-ptr {
+    --efy-ptr-progress: 0;
+    --efy-ptr-offset: 0px;
+    position: fixed;
+    top: var(--efy-navbar-total-h, 64px);
+    left: 0;
+    right: 0;
+    z-index: 1190;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 56px;
+    padding-bottom: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(calc(-100% + var(--efy-ptr-offset)));
+    transition: opacity 0.18s ease, transform 0.22s ease;
+}
+
+.eventify-ptr--visible {
+    opacity: 1;
+}
+
+.eventify-ptr--refreshing {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.eventify-ptr__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--efy-brand-gold, #e5b22d);
+    color: var(--efy-brand-text-on-gold, #0a3c26);
+    box-shadow: 0 4px 14px rgba(229, 178, 45, 0.35);
+    transform: rotate(calc(var(--efy-ptr-progress) * 180deg));
+    transition: transform 0.12s ease;
+}
+
+.eventify-ptr--refreshing .eventify-ptr__icon {
+    animation: eventifyPtrSpin 0.75s linear infinite;
+}
+
+.eventify-ptr__icon i {
+    font-size: 0.95rem;
+}
+
+.eventify-ptr__text {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--efy-brand-forest, #0a3c26);
+    opacity: calc(0.35 + var(--efy-ptr-progress) * 0.65);
+}
+
+.eventify-ptr--ready .eventify-ptr__text::after {
+    content: ' — release';
+}
+
+@keyframes eventifyPtrSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (min-width: 769px) {
+    .eventify-ptr {
+        display: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .eventify-ptr--refreshing .eventify-ptr__icon {
+        animation: none;
+    }
+}

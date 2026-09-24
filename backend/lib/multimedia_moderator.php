@@ -545,8 +545,16 @@ function eventify_moderator_approve_photo(
         return false;
     }
     $context = eventify_photo_moderation_context($conn, $photoId);
+    eventify_event_photos_ensure_metadata_columns($conn);
+    $sets = ["status = 'published'"];
+    if (function_exists('eventify_event_photos_has_published_at_column') && eventify_event_photos_has_published_at_column($conn)) {
+        $sets[] = 'published_at = NOW()';
+    }
+    if (eventify_event_photos_has_reject_reason_column($conn)) {
+        $sets[] = 'reject_reason = NULL';
+    }
     $stmt = $conn->prepare(
-        "UPDATE event_photos SET status = 'published', published_at = NOW(), reject_reason = NULL WHERE id = ? AND status = 'draft'"
+        'UPDATE event_photos SET ' . implode(', ', $sets) . " WHERE id = ? AND status = 'draft'"
     );
     if (!$stmt) {
         return false;

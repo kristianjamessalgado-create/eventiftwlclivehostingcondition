@@ -579,6 +579,12 @@ function initStudentMobileNav() {
 
     document.querySelectorAll('.student-app-tabbar__btn[data-student-nav="profile"]').forEach(function (btn) {
         btn.addEventListener('click', function () {
+            var modal = document.getElementById('profileModal');
+            var isOpen = modal && (modal.classList.contains('is-open') || modal.style.display === 'flex');
+            if (isOpen && typeof closeProfileModal === 'function') {
+                closeProfileModal();
+                return;
+            }
             clearStudentTabbarActive(btn);
             btn.classList.add('is-active');
             if (typeof openProfileModal === 'function') {
@@ -1682,8 +1688,37 @@ function showStudentEventDetails(eventLike, options) {
     const bodyEl = document.getElementById('eventDetailsModalBody');
     const clickCtx = {
         clickEl: options.clickEl || null,
-        jsEvent: options.jsEvent || null
+        jsEvent: options.jsEvent || null,
+        segmentYmd: options.segmentYmd || ''
     };
+    if (!clickCtx.segmentYmd && window.__studentEventDetailsSegmentYmd && options.contentOnly) {
+        clickCtx.segmentYmd = window.__studentEventDetailsSegmentYmd;
+    }
+    const clickSegment = (typeof eventifyResolveClickedCalendarSegment === 'function')
+        ? eventifyResolveClickedCalendarSegment(eventLike, clickCtx)
+        : { state: 'active', allowsAttendance: eventIsLive, isUpcomingSegment: false, label: '' };
+    if (clickSegment.ymd) {
+        window.__studentEventDetailsSegmentYmd = clickSegment.ymd;
+    }
+    if (clickSegment.isUpcomingSegment) {
+        actionHtml = '<div class="eventify-segment-note eventify-segment-note--upcoming mb-2">' +
+            '<i class="fas fa-clock me-1" aria-hidden="true"></i>' +
+            (clickSegment.label ? ('<strong>' + escapeHtmlStudent(clickSegment.label) + '</strong> is upcoming. ') : 'This day is upcoming. ') +
+            'Check-in opens on the <strong>green</strong> (active) day. You can still view details and RSVP or buy tickets if needed.</div>' +
+            actionHtml;
+    } else if (clickSegment.state === 'closed' && !isEndedForFeedback && statusLower === 'active') {
+        actionHtml = '<div class="eventify-segment-note eventify-segment-note--closed mb-2">' +
+            '<i class="fas fa-flag-checkered me-1" aria-hidden="true"></i>' +
+            (clickSegment.label ? ('<strong>' + escapeHtmlStudent(clickSegment.label) + '</strong> has ended. ') : 'This day has ended. ') +
+            'Live check-in is only on today’s green segment.</div>' +
+            actionHtml;
+    } else if (clickSegment.allowsAttendance && registrationMode === 'open' && !attended) {
+        actionHtml = '<div class="eventify-segment-note eventify-segment-note--active mb-2">' +
+            '<i class="fas fa-check-circle me-1" aria-hidden="true"></i>' +
+            (clickSegment.label ? ('<strong>' + escapeHtmlStudent(clickSegment.label) + '</strong> is active. ') : 'This day is active. ') +
+            'You can scan the event QR at the venue to check in.</div>' +
+            actionHtml;
+    }
     const scheduleDateForSessions = (typeof eventifyResolveStudentDaySessionsDate === 'function')
         ? eventifyResolveStudentDaySessionsDate(eventLike, clickCtx)
         : '';
@@ -1932,6 +1967,7 @@ function studentEventOccursInRange(scheduleDatesCsv, rangeStart, rangeEnd) {
 }
 
 var studentDayEventsModalMap = {};
+var studentDayEventsModalDateYmd = '';
 
 function studentEventUniqueKey(ev) {
     if (!ev) {
@@ -2050,7 +2086,7 @@ function initStudentDayEventsModal() {
                 }
             }
             window.setTimeout(function () {
-                showStudentEventDetails(fcEvent);
+                showStudentEventDetails(fcEvent, { segmentYmd: studentDayEventsModalDateYmd });
             }, 280);
         });
     }
@@ -2112,6 +2148,14 @@ function openStudentDayEventsList(arg) {
     }
 
     studentDayEventsModalMap = {};
+    if (arg.date instanceof Date && !isNaN(arg.date.getTime())) {
+        var y = arg.date.getFullYear();
+        var m = String(arg.date.getMonth() + 1).padStart(2, '0');
+        var d = String(arg.date.getDate()).padStart(2, '0');
+        studentDayEventsModalDateYmd = y + '-' + m + '-' + d;
+    } else {
+        studentDayEventsModalDateYmd = '';
+    }
     var listEl = document.getElementById('studentDayEventsModalList');
     var titleEl = document.getElementById('studentDayEventsModalTitle');
     var countEl = document.getElementById('studentDayEventsModalCount');
@@ -2278,24 +2322,46 @@ function initCalendarNavigation() {
 function openProfileModal() {
     const modal = document.getElementById('profileModal');
     if (modal) {
+        modal.classList.add('is-open');
         modal.style.display = 'flex';
+        document.body.classList.add('student-profile-modal-open');
+        modal.scrollTop = 0;
+        var bodyEl = modal.querySelector('.profile-modal-body');
+        if (bodyEl) {
+            bodyEl.scrollTop = 0;
+        }
     }
 }
 
 function closeProfileModal() {
     const modal = document.getElementById('profileModal');
     if (modal) {
+        modal.classList.remove('is-open');
         modal.style.display = 'none';
     }
+    document.body.classList.remove('student-profile-modal-open');
     document.querySelectorAll('.student-app-tabbar__btn[data-student-nav="profile"].is-active').forEach(function (btn) {
         btn.classList.remove('is-active');
     });
 }
 
-// Close modal when clicking outside
 window.addEventListener('click', function(event) {
     const modal = document.getElementById('profileModal');
     if (event.target === modal) {
+        closeProfileModal();
+    }
+});
+
+document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') {
+        return;
+    }
+    var confirmEl = document.getElementById('confirmProfileChangesModal');
+    if (confirmEl && confirmEl.classList.contains('show')) {
+        return;
+    }
+    var modal = document.getElementById('profileModal');
+    if (modal && (modal.classList.contains('is-open') || modal.style.display === 'flex')) {
         closeProfileModal();
     }
 });

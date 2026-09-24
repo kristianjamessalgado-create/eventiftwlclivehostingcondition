@@ -18,6 +18,7 @@ $studentNavTicketsUrl = (string) ($studentNavTicketsUrl ?? '');
 $studentNavTicketsCount = (int) ($studentNavTicketsCount ?? 0);
 $studentNavAttendanceUrl = (string) ($studentNavAttendanceUrl ?? BASE_URL . '/attendance_history.php');
 $studentNavAttendanceCount = (int) ($studentNavAttendanceCount ?? 0);
+$studentNavActivityCardUrl = (string) ($studentNavActivityCardUrl ?? BASE_URL . '/activity_card.php');
 $studentNavHubCount = (int) ($studentNavHubCount ?? 0);
 $studentNavMainHubLabel = (string) ($studentNavMainHubLabel ?? 'This event');
 $studentNavMainHubHint = (string) ($studentNavMainHubHint ?? 'Day activities & check-in');
@@ -153,6 +154,15 @@ $studentNavTicketsHintText = $studentNavTicketsHint !== ''
             <span class="eah-nav-drawer__link-text">
                 <span class="eah-nav-drawer__link-label">Check-in history<?= student_nav_count_badge($studentNavAttendanceCount) ?></span>
                 <span class="eah-nav-drawer__link-hint">Past scans</span>
+            </span>
+        </a>
+    </li>
+    <li>
+        <a class="eah-nav-drawer__link<?= student_nav_is_active('activity_card', $studentNavActive) ?>" href="<?= student_nav_h($studentNavActivityCardUrl) ?>"<?= $studentNavActive === 'activity_card' ? ' aria-current="page"' : '' ?>>
+            <i class="fas fa-file-signature"></i>
+            <span class="eah-nav-drawer__link-text">
+                <span class="eah-nav-drawer__link-label">My activity card</span>
+                <span class="eah-nav-drawer__link-hint">Print for teacher sign</span>
             </span>
         </a>
     </li>

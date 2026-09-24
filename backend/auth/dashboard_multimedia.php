@@ -77,8 +77,7 @@ if ($photoStatusEnabled) {
                (SELECT COUNT(*) FROM event_photos p WHERE p.event_id = e.id AND p.uploaded_by = {$uid} AND p.status = 'draft') AS my_draft_count,
                (SELECT COUNT(*) FROM event_photos p WHERE p.event_id = e.id AND p.status = 'draft') AS pending_draft_count
         FROM events e
-        WHERE e.title NOT LIKE 'sample%'
-          AND LOWER(e.status) IN ('active', 'closed', 'completed')
+        WHERE LOWER(e.status) IN ('active', 'closed', 'completed')
           AND ({$deptWhere})
         ORDER BY e.date DESC, e.id DESC
     ";
@@ -91,8 +90,7 @@ if ($photoStatusEnabled) {
                0 AS my_draft_count,
                0 AS pending_draft_count
         FROM events e
-        WHERE e.title NOT LIKE 'sample%'
-          AND LOWER(e.status) IN ('active', 'closed', 'completed')
+        WHERE LOWER(e.status) IN ('active', 'closed', 'completed')
           AND ({$deptWhere})
         ORDER BY e.date DESC, e.id DESC
     ";
@@ -129,7 +127,7 @@ $upcomingEvents = [];
 $today = date('Y-m-d');
 $deptUpSql = eventify_department_match_sql('department');
 if (!empty($user_department)) {
-    $stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? AND {$deptUpSql} AND title NOT LIKE 'sample%' ORDER BY date ASC, id ASC LIMIT 12");
+    $stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? AND {$deptUpSql} ORDER BY date ASC, id ASC LIMIT 12");
     if ($stmtUp) {
         $stmtUp->bind_param('sss', $today, $user_department, $user_department);
         if ($stmtUp->execute()) {
@@ -141,7 +139,7 @@ if (!empty($user_department)) {
         $stmtUp->close();
     }
 } else {
-    $stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? AND title NOT LIKE 'sample%' ORDER BY date ASC, id ASC LIMIT 12");
+    $stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? ORDER BY date ASC, id ASC LIMIT 12");
     if ($stmtUp) {
         $stmtUp->bind_param("s", $today);
         if ($stmtUp->execute()) {

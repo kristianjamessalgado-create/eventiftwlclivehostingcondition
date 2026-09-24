@@ -282,3 +282,36 @@
     width: auto !important;
     margin: 0 2px 2px !important;
 }
+
+.eventify-segment-note {
+    margin: 0.65rem 0 0.35rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+}
+
+.eventify-segment-note--upcoming {
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    color: #9a3412;
+}
+
+.eventify-segment-note--active {
+    background: #ecfdf3;
+    border: 1px solid #86efac;
+    color: #166534;
+}
+
+.eventify-segment-note--closed {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+#eventQrLink.disabled,
+#eventAttendanceLink.disabled {
+    opacity: 0.55;
+    pointer-events: none;
+    cursor: not-allowed;
+}

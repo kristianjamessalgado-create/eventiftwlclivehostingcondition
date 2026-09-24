@@ -108,12 +108,16 @@ if (!function_exists('organizer_event_hub_h')) {
         <?php endif; ?>
         <?php if ($eventHasEditableScheduleDay): ?>
         <button type="button" class="eah-hero-create-btn" id="eahHeroAddActivity">
-            <i class="fas fa-<?= $organizerEventHubActivityCount > 0 ? 'pen-to-square' : 'plus' ?>" aria-hidden="true"></i>
-            <?= $organizerEventHubActivityCount > 0 ? 'Manage activities' : 'Add activity' ?>
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            Add activity
+        </button>
+        <button type="button" class="eah-hero-import-btn" id="eahHeroImportPhoto">
+            <i class="fas fa-camera" aria-hidden="true"></i>
+            Import from photo
         </button>
         <?php endif; ?>
         <?php if ($eventCanEndEarly): ?>
-        <button type="button" class="eah-hero-end-btn js-eah-end-event" id="eahHeroEndEvent" title="Ends the whole main event, not just one activity">
+        <button type="button" class="eah-hero-end-btn js-eah-end-event" id="eahHeroEndEvent" aria-label="End the whole main event, not just one activity">
             End entire event
         </button>
         <?php endif; ?>

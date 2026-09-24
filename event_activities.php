@@ -91,6 +91,7 @@ $todayYmd = eventify_today_ymd();
 if ($eventId < 1) {
 
     header('Location: ' . BASE_URL . '?error=' . urlencode('Invalid event'));
+    
 
     exit();
 
@@ -229,6 +230,18 @@ if ($isOrganizer) {
     $defaultActivityDay = $dayFilter !== '' && in_array($dayFilter, $eventScheduleDates, true)
         ? $dayFilter
         : (in_array($todayYmd, $eventScheduleDates, true) ? $todayYmd : ($eventScheduleDates[0] ?? ''));
+    if ($defaultActivityDay === '') {
+        foreach ($allSessions as $sessRow) {
+            $sessDay = substr((string) ($sessRow['schedule_date'] ?? ''), 0, 10);
+            if ($sessDay !== '') {
+                $defaultActivityDay = $sessDay;
+                break;
+            }
+        }
+    }
+    if ($defaultActivityDay === '') {
+        $defaultActivityDay = $todayYmd;
+    }
 }
 
 $eventScheduleEditable = true;
@@ -256,6 +269,46 @@ if ($isOrganizer) {
     $eventCanEndEarly = strtolower(trim((string) ($event['status'] ?? ''))) === 'active';
     if (in_array(strtolower(trim((string) ($event['status'] ?? ''))), ['closed', 'completed'], true)) {
         $eventCanReopen = eventify_event_can_organizer_reopen($event);
+    }
+}
+
+$eahImportVenue = [
+    'location' => trim((string) ($event['location'] ?? '')),
+    'latitude' => '',
+    'longitude' => '',
+];
+if ($isOrganizer) {
+    foreach ($allSessions as $sessRow) {
+        $sessLat = trim((string) ($sessRow['latitude'] ?? ''));
+        $sessLng = trim((string) ($sessRow['longitude'] ?? ''));
+        if ($sessLat !== '' && $sessLng !== '') {
+            $eahImportVenue['latitude'] = $sessLat;
+            $eahImportVenue['longitude'] = $sessLng;
+            if ($eahImportVenue['location'] === '') {
+                $eahImportVenue['location'] = trim((string) ($sessRow['location'] ?? ''));
+            }
+            break;
+        }
+    }
+    if ($eahImportVenue['latitude'] === '') {
+        try {
+            $geoCols = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");
+            if ($geoCols && $geoCols->num_rows >= 2) {
+                $geoStmt = $conn->prepare('SELECT latitude, longitude FROM events WHERE id = ? LIMIT 1');
+                if ($geoStmt) {
+                    $geoStmt->bind_param('i', $eventId);
+                    $geoStmt->execute();
+                    $geoRow = $geoStmt->get_result()->fetch_assoc();
+                    $geoStmt->close();
+                    if ($geoRow) {
+                        $eahImportVenue['latitude'] = trim((string) ($geoRow['latitude'] ?? ''));
+                        $eahImportVenue['longitude'] = trim((string) ($geoRow['longitude'] ?? ''));
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            /* ignore */
+        }
     }
 }
 
@@ -847,13 +900,13 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=49">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=53">
     <?php if ($isStudent || $isOrganizer): ?>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=4">
     <?php endif; ?>
     <?php if ($isOrganizer): ?>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_day_sessions.css?v=7">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/create_event_modal.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_day_sessions.css?v=8">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/create_event_modal.css?v=13">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <?php endif; ?>
 
@@ -875,8 +928,11 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
             </button>
             <?php endif; ?>
             <?php if ($isOrganizer): ?>
-            <button type="button" class="eah-topbar__action eah-topbar__action--create<?= $eventHasEditableScheduleDay ? '' : ' d-none' ?>" id="eahTopbarAddActivity" title="<?= count($allSessions) > 0 ? 'Manage activities' : 'Add activity' ?>">
-                <i class="fas fa-<?= count($allSessions) > 0 ? 'pen-to-square' : 'plus' ?> me-1" aria-hidden="true"></i><span class="d-none d-sm-inline"><?= count($allSessions) > 0 ? 'Manage activities' : 'Add activity' ?></span>
+            <button type="button" class="eah-topbar__action eah-topbar__action--create<?= $eventHasEditableScheduleDay ? '' : ' d-none' ?>" id="eahTopbarAddActivity" title="Add activity">
+                <i class="fas fa-plus me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Add activity</span>
+            </button>
+            <button type="button" class="eah-topbar__action eah-topbar__action--import<?= $eventHasEditableScheduleDay ? '' : ' d-none' ?>" id="eahTopbarImportPhoto" title="Import from photo">
+                <i class="fas fa-camera me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Import photo</span>
             </button>
             <?php endif; ?>
             <a class="eah-topbar__action" href="<?= eah_h($activitiesHubListUrl) ?>" aria-label="<?= $isStudent ? 'My registrations — browse all events' : 'Activities hub — browse all events' ?>">
@@ -960,6 +1016,12 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                         <button type="button" class="eah-nav-drawer__link eah-nav-drawer__link--btn" id="eahDrawerAddActivity">
                             <i class="fas fa-plus-circle"></i>
                             <span>Add activity</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" class="eah-nav-drawer__link eah-nav-drawer__link--btn" id="eahDrawerImportPhoto">
+                            <i class="fas fa-camera"></i>
+                            <span>Import from photo</span>
                         </button>
                     </li>
                 <?php endif; ?>
@@ -1252,7 +1314,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
 
                 <div class="eah-detail-stub__badges">
                     <?php if ($isLive): ?><span class="eah-badge eah-badge-live">Live now</span><?php endif; ?>
-                    <?php if ($status === 'completed'): ?><span class="eah-badge eah-badge-ended">Ended early</span><?php endif; ?>
+                    <?php if ($status === 'completed'): ?><span class="eah-badge eah-badge-ended">Ended</span><?php endif; ?>
                     <?php if ($status === 'delayed'): ?><span class="eah-badge eah-badge-delayed">Delayed</span><?php endif; ?>
                     <?php if ($status === 'cancelled'): ?><span class="eah-badge eah-badge-cancelled">Cancelled</span><?php endif; ?>
                 </div>
@@ -1555,7 +1617,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                     <button type="button" class="eah-organizer-bar__end js-eah-end-activity" id="eahEndActivityBtn"
                         data-session-id="<?= (int) ($ds['id'] ?? 0) ?>"
                         data-activity-title="<?= eah_h($ds['title'] ?? 'Activity') ?>">
-                        <i class="fas fa-flag-checkered me-1" aria-hidden="true"></i> End activity early
+                        <i class="fas fa-flag-checkered me-1" aria-hidden="true"></i> End activity
                     </button>
                     <?php endif; ?>
                 </div>
@@ -2060,6 +2122,44 @@ $parentEventSections = function_exists('eventify_parse_target_sections_list')
     : [];
 ?>
 <?php include __DIR__ . '/views/partials/event_day_sessions_modal.php'; ?>
+<?php if ($eventHasEditableScheduleDay): ?>
+<div class="modal fade" id="eahImportPhotoModal" tabindex="-1" aria-labelledby="eahImportPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content efy-modal">
+            <div class="modal-header efy-modal__header">
+                <div>
+                    <span class="efy-modal__eyebrow">Organizer</span>
+                    <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="eahImportPhotoModalLabel">
+                        <i class="fas fa-camera" aria-hidden="true"></i>
+                        Import from photo
+                    </h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body efy-modal__body">
+                <p class="eah-import-help">Take or upload a photo of a printed program. We’ll read activity names and times so you can check them, then save.</p>
+                <div class="eah-import-pick">
+                    <button type="button" class="btn efy-btn-primary" id="eahImportPhotoPick">
+                        <i class="fas fa-camera me-1" aria-hidden="true"></i> Choose photo
+                    </button>
+                    <input type="file" id="eahImportPhotoInput" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif">
+                </div>
+                <img id="eahImportPhotoPreview" class="eah-import-preview" alt="Schedule photo preview" hidden>
+                <p class="eah-import-status" id="eahImportPhotoStatus" hidden></p>
+                <div class="eah-import-venue">
+                    <label class="form-label" for="eahImportVenue">Venue for imported activities</label>
+                    <input type="text" class="form-control" id="eahImportVenue" maxlength="255" placeholder="Shown to attendees">
+                </div>
+                <div id="eahImportRows" class="eah-import-rows" hidden></div>
+            </div>
+            <div class="modal-footer efy-modal__footer">
+                <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn efy-btn-primary" id="eahImportPhotoSave" disabled>Save activities</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 <?php if ($eventCanEndEarly): ?>
 <div class="modal fade" id="eahEndEventModal" tabindex="-1" aria-labelledby="eahEndEventModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -2141,7 +2241,7 @@ $parentEventSections = function_exists('eventify_parse_target_sections_list')
                     <span class="efy-modal__eyebrow">Organizer</span>
                     <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="eahEndActivityModalLabel">
                         <i class="fas fa-flag-checkered" aria-hidden="true"></i>
-                        End this activity early?
+                        End this activity?
                     </h5>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -2176,7 +2276,7 @@ window.BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eah_photo_lightbox.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
-<script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
 <?php if ($isStudent): ?>
 <?php if ($studentActivityScanContext): ?>
@@ -2186,7 +2286,7 @@ window.__eahActivityTokenMap = <?= json_encode($studentActivityTokenMap, JSON_UN
 </script>
 <?php endif; ?>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=2"></script>
+<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=5"></script>
 <?php include __DIR__ . '/views/partials/scan_qr_modal.php'; ?>
 <?php endif; ?>
 <?php if ($isOrganizer): ?>
@@ -2203,6 +2303,7 @@ window.__eahScheduleEditable = <?= $eventScheduleEditable ? 'true' : 'false' ?>;
 window.__eahHasEditableScheduleDay = <?= $eventHasEditableScheduleDay ? 'true' : 'false' ?>;
 window.__eahScheduleLockMessage = <?= json_encode($scheduleLockMessage) ?>;
 window.__eahParentEventSections = <?= json_encode(array_values($parentEventSections), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+window.__eahImportVenue = <?= json_encode($eahImportVenue, JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
@@ -2210,8 +2311,9 @@ if (typeof window.L === 'undefined') {
     document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
 }
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=3"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=21"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
+<script src="<?= BASE_URL ?>/assets/js/eah_import_activities_photo.js?v=2"></script>
 <script>
 (function () {
     function getActivityDay() {
@@ -2322,7 +2424,7 @@ if (typeof window.L === 'undefined') {
                     endActivityConfirm.disabled = false;
                     endActivityModal.hide();
                     if (data && data.ok) {
-                        window.location.href = (window.BASE_URL || '').replace(/\/$/, '') + '/event_activities.php?id=' + (window.__eahEventId || 0) + '&activity=' + endActivityPendingId + '&msg=' + encodeURIComponent('Activity ended early.');
+                        window.location.href = (window.BASE_URL || '').replace(/\/$/, '') + '/event_activities.php?id=' + (window.__eahEventId || 0) + '&activity=' + endActivityPendingId + '&msg=' + encodeURIComponent('Activity ended.');
                         return;
                     }
                     window.alert((data && data.error) ? data.error : 'Could not end activity.');
@@ -2438,7 +2540,7 @@ window.__eahMainEventId = <?= (int) $eventId ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=21"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_main_rsvp.js"></script>
 
 <?php endif; ?>

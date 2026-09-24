@@ -92,7 +92,6 @@
     function closeNavDrawerIfOpen() {
         if (typeof window.eahCloseNavDrawer === 'function') {
             window.eahCloseNavDrawer();
-            return;
         }
         var drawer = document.getElementById('eahNavDrawer');
         if (drawer && drawer.classList.contains('is-open')) {
@@ -103,6 +102,12 @@
             if (openBtn) {
                 openBtn.setAttribute('aria-expanded', 'false');
             }
+        }
+        document.body.classList.remove('sa-sidebar-open');
+        var saToggle = document.getElementById('saSidebarToggle');
+        if (saToggle) {
+            saToggle.setAttribute('aria-expanded', 'false');
+            saToggle.setAttribute('aria-label', 'Open menu');
         }
     }
 
@@ -136,6 +141,11 @@
 
         var link = e.target.closest('a[href*="logout.php"]');
         if (!link) {
+            return;
+        }
+        if (link.closest('#logoutModal')) {
+            e.preventDefault();
+            proceedLogout(link.getAttribute('href') || logoutUrl());
             return;
         }
         if (link.getAttribute('data-bs-toggle') === 'modal' || link.getAttribute('data-bs-target') === '#logoutModal') {

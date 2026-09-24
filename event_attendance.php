@@ -4,6 +4,7 @@ include __DIR__ . '/config/db.php';
 include __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/student_profile_fields.php';
 require_once __DIR__ . '/config/departments.php';
+require_once __DIR__ . '/backend/lib/attendance_proof.php';
 
 $allowed_roles = ['super_admin', 'admin', 'organizer'];
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', $allowed_roles, true)) {
@@ -37,11 +38,13 @@ if ($role === 'organizer' && (int) $event['organizer_id'] !== (int) $_SESSION['u
 }
 
 eventify_users_ensure_student_profile_fields($conn);
+eventify_attendance_proof_ensure_columns($conn);
+$eventProofSql = eventify_attendance_proof_column_exists($conn, 'registrations') ? ', r.proof_photo' : '';
 
 // Attendees: students who checked in (status = present)
 $attendees = [];
 $st = $conn->prepare("
-    SELECT r.time_in, r.time_out, u.name, u.user_id AS student_school_id,
+    SELECT r.time_in, r.time_out{$eventProofSql}, u.name, u.user_id AS student_school_id,
            u.student_course, u.student_year_level, u.student_academic_year, u.department
     FROM registrations r
     JOIN users u ON r.user_id = u.id
@@ -108,6 +111,7 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
     <title><?= $pageTitle ?> | EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=3">
     <style>
         :root {
             --school-green-900: #064e3b;
@@ -208,6 +212,7 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
                                 <th>Department</th>
                                 <th>Time in</th>
                                 <th>Time out</th>
+                                <th>Photo</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -229,6 +234,7 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
                                     <td><?= htmlspecialchars($deptDisp) ?></td>
                                     <td><?= $a['time_in'] ? date('M j, Y g:i A', strtotime($a['time_in'])) : '—' ?></td>
                                     <td><?= !empty($a['time_out']) ? date('M j, Y g:i A', strtotime($a['time_out'])) : '—' ?></td>
+                                    <td><?= eventify_attendance_proof_thumb_html($a['proof_photo'] ?? '', (string) ($a['name'] ?? 'Student') . ' attendance photo') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -238,5 +244,6 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=2"></script>
 </body>
 </html>

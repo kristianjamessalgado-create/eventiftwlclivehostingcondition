@@ -431,6 +431,110 @@
         });
     }
 
+    function eventifyEventScheduleDates(event) {
+        var props = (event && event.extendedProps) || {};
+        if (Array.isArray(props.segment_dates) && props.segment_dates.length) {
+            return props.segment_dates.map(function (d) { return String(d).slice(0, 10); });
+        }
+        if (Array.isArray(props.schedule_dates) && props.schedule_dates.length) {
+            return props.schedule_dates.map(function (d) { return String(d).slice(0, 10); });
+        }
+        return [];
+    }
+
+    function eventifyResolveClickedYmd(event, clickContext) {
+        clickContext = clickContext || {};
+        var dates = eventifyEventScheduleDates(event);
+        var jsEvent = clickContext.jsEvent || null;
+        var ymd = null;
+
+        if (jsEvent && dates.length >= 2 && typeof jsEvent.clientX === 'number') {
+            var days = document.querySelectorAll('.fc-daygrid-day[data-date]');
+            for (var i = 0; i < days.length; i++) {
+                var cell = days[i];
+                var cellYmd = String(cell.getAttribute('data-date') || '').slice(0, 10);
+                if (dates.indexOf(cellYmd) < 0) {
+                    continue;
+                }
+                var rect = cell.getBoundingClientRect();
+                if (jsEvent.clientX >= rect.left && jsEvent.clientX < rect.right) {
+                    ymd = cellYmd;
+                    break;
+                }
+            }
+        }
+
+        if (!ymd) {
+            if (clickContext.clickEl) {
+                ymd = eventifyGetSegmentYmdFromEl(clickContext.clickEl);
+            }
+            if (!ymd && jsEvent && jsEvent.target) {
+                ymd = eventifyGetSegmentYmdFromEl(jsEvent.target);
+            }
+        }
+        if (!ymd && clickContext.segmentYmd) {
+            ymd = String(clickContext.segmentYmd).slice(0, 10);
+        }
+
+        var props = (event && event.extendedProps) || {};
+        if (!ymd && props.schedule_date_ymd) {
+            ymd = String(props.schedule_date_ymd).slice(0, 10);
+        }
+        if (!ymd && event && event.start instanceof Date && !isNaN(event.start.getTime())) {
+            ymd = eventifyFormatYmd(event.start);
+        }
+        return ymd;
+    }
+
+    function eventifyFormatSegmentDayLabel(ymd) {
+        var d = eventifyParseYmdDate(ymd);
+        if (!d) {
+            return ymd || '';
+        }
+        return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    /**
+     * Which calendar day was clicked, and whether that day may open live attendance.
+     * Green / active = attendance. Gold / upcoming = details only.
+     */
+    function eventifyResolveClickedCalendarSegment(event, clickContext) {
+        var props = (event && event.extendedProps) || {};
+        var ymd = eventifyResolveClickedYmd(event, clickContext);
+        var el = (clickContext && clickContext.clickEl) || null;
+        var startTime = '';
+        if (ymd && props.day_start_times && typeof props.day_start_times === 'object') {
+            startTime = String(props.day_start_times[ymd] || '').slice(0, 5);
+        }
+        if (!startTime) {
+            startTime = String(props.start_time || props.day_start_time || '').slice(0, 5);
+        }
+        if (!startTime && el) {
+            startTime = String(el.getAttribute('data-eventify-day-start-time') || '').slice(0, 5);
+        }
+        var eventInfo = {
+            allDay: !!(event && event.allDay),
+            start: event && event.start instanceof Date ? event.start : null,
+            startTime: startTime || null
+        };
+        var approval = String(props.status || 'active').toLowerCase();
+        var state = eventifyResolveCalendarEventState(approval, ymd, eventInfo, el);
+        var live = props.event_is_live !== false;
+        var approved = eventifyIsApprovedActiveStatus(approval);
+        var allowsAttendance = state === 'active' && approved && live;
+        var allowsAttendanceHistory = !allowsAttendance && approved && (
+            state === 'closed' || approval === 'closed' || approval === 'completed' || live === false
+        );
+        return {
+            ymd: ymd,
+            state: state,
+            label: eventifyFormatSegmentDayLabel(ymd),
+            allowsAttendance: allowsAttendance,
+            allowsAttendanceHistory: allowsAttendanceHistory,
+            isUpcomingSegment: state === 'upcoming'
+        };
+    }
+
     function eventifyEscapeHtml(text) {
         return String(text)
             .replace(/&/g, '&amp;')
@@ -495,6 +599,8 @@
     global.eventifyResolveCalendarEventState = eventifyResolveCalendarEventState;
     global.eventifyGetCalendarMountDayDate = eventifyGetCalendarMountDayDate;
     global.eventifyGetSegmentYmdFromEl = eventifyGetSegmentYmdFromEl;
+    global.eventifyResolveClickedYmd = eventifyResolveClickedYmd;
+    global.eventifyResolveClickedCalendarSegment = eventifyResolveClickedCalendarSegment;
     global.eventifyApplyCalendarEventMount = eventifyApplyCalendarEventMount;
     global.eventifyRepaintCalendarEventSegments = eventifyRepaintCalendarEventSegments;
     global.eventifyBindCalendarSegmentRepaint = eventifyBindCalendarSegmentRepaint;

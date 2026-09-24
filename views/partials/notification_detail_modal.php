@@ -24,7 +24,7 @@
       </div>
       <div class="modal-footer eventify-notif-modal__footer eventify-notif-modal__footer--single">
         <div class="eventify-notif-modal__footer-actions w-100 justify-content-end">
-          <button type="button" class="eventify-notif-footer-btn eventify-notif-footer-btn--read" id="eventifyNotifDetailAction" style="display: none;"></button>
+          <a href="#" class="eventify-notif-footer-btn eventify-notif-footer-btn--read" id="eventifyNotifDetailAction" style="display: none;">View event</a>
           <button type="button" class="eventify-notif-footer-btn eventify-notif-footer-btn--done" data-bs-dismiss="modal">Close</button>
         </div>
       </div>

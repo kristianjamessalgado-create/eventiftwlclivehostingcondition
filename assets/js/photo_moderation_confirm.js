@@ -18,16 +18,16 @@
 
         var pendingForm = null;
         var pendingBulkAction = '';
+        var pendingBulkIds = [];
+        var submitting = false;
         var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
         function stackModalZIndex() {
-            var openCount = document.querySelectorAll('.modal.show').length;
-            var z = 1055 + openCount * 10;
-            modalEl.style.zIndex = String(z);
+            modalEl.style.zIndex = '1080';
             setTimeout(function () {
                 var backdrops = document.querySelectorAll('.modal-backdrop');
                 if (backdrops.length) {
-                    backdrops[backdrops.length - 1].style.zIndex = String(z - 1);
+                    backdrops[backdrops.length - 1].style.zIndex = '1075';
                 }
             }, 0);
         }
@@ -44,7 +44,6 @@
         }
 
         function openModal(action, label, count) {
-            pendingBulkAction = '';
             var isReject = action === 'reject';
             var isBulk = count > 1;
 
@@ -73,10 +72,95 @@
             }
             if (reasonInput) {
                 reasonInput.value = '';
+                reasonInput.classList.remove('is-invalid');
             }
 
             stackModalZIndex();
             modal.show();
+        }
+
+        function csrfTokenFromPage() {
+            var input = document.querySelector('input[name="csrf_token"]');
+            return input ? String(input.value || '') : '';
+        }
+
+        function bulkEndpoint() {
+            if (bulkForm && bulkForm.action) {
+                return bulkForm.action;
+            }
+            var single = document.querySelector('form.js-photo-moderate-form');
+            if (single && single.action) {
+                return String(single.action).replace(/moderate_event_photo\.php.*/i, 'moderate_event_photos_bulk.php');
+            }
+            return '';
+        }
+
+        function submitBulk(action, ids, reason) {
+            if (!ids.length || submitting) {
+                return false;
+            }
+            submitting = true;
+
+            var form = bulkForm;
+            if (!form) {
+                form = document.createElement('form');
+                form.method = 'POST';
+                form.action = bulkEndpoint();
+                form.setAttribute('hidden', 'hidden');
+                document.body.appendChild(form);
+                var csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = 'csrf_token';
+                csrf.value = csrfTokenFromPage();
+                form.appendChild(csrf);
+                var actionInputNew = document.createElement('input');
+                actionInputNew.type = 'hidden';
+                actionInputNew.name = 'action';
+                form.appendChild(actionInputNew);
+                var reasonHiddenNew = document.createElement('input');
+                reasonHiddenNew.type = 'hidden';
+                reasonHiddenNew.name = 'reject_reason';
+                form.appendChild(reasonHiddenNew);
+                var idsHostNew = document.createElement('div');
+                idsHostNew.id = 'mmPhotoBulkIdsHost';
+                form.appendChild(idsHostNew);
+            }
+
+            var actionInput = form.querySelector('[name="action"]');
+            var reasonHidden = form.querySelector('[name="reject_reason"]');
+            var idsHost = form.querySelector('#mmPhotoBulkIdsHost');
+            if (!actionInput || !idsHost || !form.action) {
+                submitting = false;
+                return false;
+            }
+
+            actionInput.value = action;
+            if (reasonHidden) {
+                reasonHidden.value = reason;
+            }
+            idsHost.innerHTML = '';
+            ids.forEach(function (id) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'photo_ids[]';
+                input.value = String(id);
+                idsHost.appendChild(input);
+            });
+
+            if (form.parentElement !== document.body) {
+                document.body.appendChild(form);
+            }
+            form.classList.remove('d-none', 'visually-hidden');
+            form.removeAttribute('hidden');
+            form.style.position = 'absolute';
+            form.style.left = '-9999px';
+
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+            return true;
         }
 
         document.addEventListener('click', function (e) {
@@ -89,6 +173,7 @@
                 }
                 pendingForm = form;
                 pendingBulkAction = '';
+                pendingBulkIds = [];
                 openModal(
                     (btn.dataset.action || 'approve').toLowerCase(),
                     btn.dataset.photoLabel || 'this photo',
@@ -106,6 +191,7 @@
                 }
                 pendingForm = null;
                 pendingBulkAction = 'approve';
+                pendingBulkIds = ids.slice();
                 openModal('approve', '', ids.length);
                 return;
             }
@@ -119,14 +205,20 @@
                 }
                 pendingForm = null;
                 pendingBulkAction = 'reject';
+                pendingBulkIds = rejectIds.slice();
                 openModal('reject', '', rejectIds.length);
             }
         });
 
-        confirmBtn.addEventListener('click', function () {
+        confirmBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (submitting) {
+                return;
+            }
+
             var reason = reasonInput ? reasonInput.value.trim() : '';
             var action = pendingBulkAction;
-
             if (pendingForm) {
                 action = (pendingForm.querySelector('[name="action"]') || {}).value || 'approve';
             }
@@ -151,37 +243,24 @@
                     pendingForm.appendChild(existing);
                 }
                 existing.value = reason;
+                submitting = true;
                 pendingForm.submit();
-            } else if (bulkForm && pendingBulkAction) {
-                var actionInput = bulkForm.querySelector('[name="action"]');
-                var reasonHidden = bulkForm.querySelector('[name="reject_reason"]');
-                var idsHost = bulkForm.querySelector('#mmPhotoBulkIdsHost');
-                if (!actionInput || !idsHost) {
-                    return;
-                }
-                actionInput.value = pendingBulkAction;
-                if (reasonHidden) {
-                    reasonHidden.value = reason;
-                }
-                idsHost.innerHTML = '';
-                selectedPhotoIds().forEach(function (id) {
-                    var input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'photo_ids[]';
-                    input.value = String(id);
-                    idsHost.appendChild(input);
-                });
-                bulkForm.submit();
+                return;
             }
 
-            pendingForm = null;
-            pendingBulkAction = '';
-            modal.hide();
+            var ids = pendingBulkIds.length ? pendingBulkIds.slice() : selectedPhotoIds();
+            if (pendingBulkAction && ids.length) {
+                submitBulk(pendingBulkAction, ids, reason);
+            }
         });
 
         modalEl.addEventListener('hidden.bs.modal', function () {
+            if (submitting) {
+                return;
+            }
             pendingForm = null;
             pendingBulkAction = '';
+            pendingBulkIds = [];
             if (reasonInput) {
                 reasonInput.classList.remove('is-invalid');
             }

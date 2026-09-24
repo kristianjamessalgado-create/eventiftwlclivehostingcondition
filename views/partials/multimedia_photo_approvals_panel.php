@@ -47,11 +47,12 @@ $panelEnterClass = $mm_photo_approvals_panel_open ? ' mm-dash-panel--enter' : ''
                 </div>
             </div>
         <?php else: ?>
-            <form id="mmPhotoBulkModerateForm" method="POST" action="<?= BASE_URL ?>/backend/auth/moderate_event_photos_bulk.php" class="d-none" aria-hidden="true">
+            <form id="mmPhotoBulkModerateForm" method="POST" action="<?= BASE_URL ?>/backend/auth/moderate_event_photos_bulk.php" class="visually-hidden" aria-hidden="true">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="">
                 <input type="hidden" name="reject_reason" value="">
                 <div id="mmPhotoBulkIdsHost"></div>
+                <button type="submit" tabindex="-1">Submit</button>
             </form>
 
             <div class="mm-photo-bulk-toolbar">

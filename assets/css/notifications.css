@@ -473,8 +473,11 @@
 }
 
 /* Notification detail modal (single item) */
-.eventify-notif-detail-modal {
-    z-index: 1065;
+.eventify-notif-detail-modal .eventify-notif-modal__footer-actions,
+.eventify-notif-detail-modal .eventify-notif-footer-btn {
+    pointer-events: auto;
+    position: relative;
+    z-index: 2;
 }
 
 .eventify-notif-detail__head {

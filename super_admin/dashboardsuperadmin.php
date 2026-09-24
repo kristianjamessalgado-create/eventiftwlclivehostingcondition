@@ -1,7 +1,23 @@
 <?php
 if (!defined('EVENTIFY_SUPERADMIN_DASHBOARD_LOADED')) {
-    header('Location: ' . (defined('BASE_URL') ? BASE_URL : '') . '/views/login.php');
-    exit;
+    $saController = dirname(__DIR__) . '/backend/super_admin/dashboardsuperadmin.php';
+    $saSelf = realpath(__FILE__);
+    $saCtrlReal = is_file($saController) ? realpath($saController) : false;
+    if ($saCtrlReal && $saSelf && $saCtrlReal !== $saSelf) {
+        require $saController;
+        exit;
+    }
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'super_admin') {
+        if (!defined('BASE_URL')) {
+            require_once dirname(__DIR__) . '/config/config.php';
+        }
+        header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
+        exit;
+    }
+    define('EVENTIFY_SUPERADMIN_DASHBOARD_LOADED', true);
 }
 $superadmin_name = $superadmin_name ?? 'Super Admin';
 $users = $users ?? [];
@@ -23,7 +39,7 @@ $error = $error ?? '';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Super Admin Dashboard - EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
@@ -31,7 +47,7 @@ $error = $error ?? '';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=7">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css">
 </head>
 <body class="sa-dashboard">
@@ -48,15 +64,16 @@ $error = $error ?? '';
     </div>
     <div class="d-flex align-items-center">
         <span class="sa-user"><i class="fas fa-user-shield me-1"></i> <?= htmlspecialchars($superadmin_name) ?></span>
-        <a href="#" class="sa-logout" data-bs-toggle="modal" data-bs-target="#logoutModal"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        <a href="<?= BASE_URL ?>/backend/auth/logout.php" class="sa-logout" data-logout-confirm aria-label="Log out">
+            <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+            <span>Log out</span>
+        </a>
     </div>
 </nav>
 
 <div class="sa-sidebar-backdrop" id="saSidebarBackdrop" aria-hidden="true"></div>
 
-<main class="sa-main">
-    <div class="sa-layout">
-        <!-- Sidebar -->
+<div class="sa-layout">
         <aside class="sa-sidebar" id="saSidebar" aria-label="Super Admin menu">
             <button type="button" class="sa-sidebar-close" id="saSidebarClose" aria-label="Close menu">
                 <i class="fas fa-times" aria-hidden="true"></i>
@@ -136,17 +153,20 @@ $error = $error ?? '';
             </div>
 
             <div class="sa-nav-footer">
-                <div>Signed in as <strong><?= htmlspecialchars($superadmin_name) ?></strong></div>
-                <div class="mt-1">Use the menu to manage users, approvals, and view logs.</div>
+                <div class="sa-nav-footer-note">Signed in as <strong><?= htmlspecialchars($superadmin_name) ?></strong></div>
+                <a href="<?= BASE_URL ?>/backend/auth/logout.php" class="sa-logout sa-logout--sidebar" data-logout-confirm>
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+                    <span>Log out</span>
+                </a>
             </div>
         </aside>
 
-        <!-- Main content -->
+        <main class="sa-main">
         <section class="sa-content">
             <div class="sa-card">
                 <div class="sa-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <h1 class="mb-0"><i class="fas fa-gauge-high"></i> Super Admin Dashboard</h1>
-                    <span class="text-muted small">
+                    <span class="text-muted small sa-logged-in-label">
                         <i class="fas fa-user-shield me-1"></i>Logged in as <strong><?= htmlspecialchars($superadmin_name) ?></strong>
                     </span>
                 </div>
@@ -218,8 +238,8 @@ $error = $error ?? '';
                 </div>
             </div>
         </section>
-    </div>
-</main>
+        </main>
+</div>
 
 <!-- All Users Modal -->
 <div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
@@ -283,6 +303,8 @@ $error = $error ?? '';
                                         $failedAttempts = (int)($user['failed_attempts'] ?? 0);
                                         $isLockedAccount = $failedAttempts > 0;
                                         $isMmModerator = (int)($user['is_multimedia_moderator'] ?? 0) === 1;
+                                        $eventCount = (int)($user['event_count'] ?? 0);
+                                        $canDeleteAccount = $role !== 'super_admin' && $uid !== (int)($_SESSION['user_id'] ?? 0);
                                     ?>
                                     <tr
                                         data-role="<?= htmlspecialchars($role) ?>"
@@ -377,6 +399,20 @@ $error = $error ?? '';
                                                             </button>
                                                         </form>
                                                     <?php endif; ?>
+                                                <?php endif; ?>
+                                                <?php if ($canDeleteAccount): ?>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-danger"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#saDeleteUserModal"
+                                                            data-user-id="<?= $uid ?>"
+                                                            data-user-name="<?= htmlspecialchars((string) $user['name'], ENT_QUOTES, 'UTF-8') ?>"
+                                                            data-user-email="<?= htmlspecialchars((string) $user['email'], ENT_QUOTES, 'UTF-8') ?>"
+                                                            data-user-role="<?= htmlspecialchars(ucwords(str_replace('_', ' ', $role)), ENT_QUOTES, 'UTF-8') ?>"
+                                                            data-event-count="<?= $eventCount ?>"
+                                                            title="Delete account">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -945,7 +981,7 @@ $error = $error ?? '';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <a href="<?= BASE_URL ?>/backend/auth/logout.php" class="btn btn-danger">Yes, Log out</a>
+                <a href="<?= BASE_URL ?>/backend/auth/logout.php" class="btn btn-danger js-logout-confirm">Yes, log out</a>
             </div>
         </div>
     </div>
@@ -975,6 +1011,39 @@ $error = $error ?? '';
     </div>
 </div>
 
+<!-- Super Admin permanent delete account -->
+<div class="modal fade" id="saDeleteUserModal" tabindex="-1" aria-labelledby="saDeleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/delete_user.php" id="saDeleteUserForm">
+                <?= csrf_field() ?>
+                <input type="hidden" name="id" id="saDeleteUserId" value="">
+                <input type="hidden" name="open_modal" value="users">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="saDeleteUserModalLabel"><i class="fas fa-user-times me-2 text-danger"></i>Delete account?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2" id="saDeleteUserMessage">This permanently removes the account and cannot be undone.</p>
+                    <ul class="small text-muted mb-3" id="saDeleteUserEffects">
+                        <li>The person can no longer sign in</li>
+                        <li>RSVPs, attendance, and settings for this account are removed</li>
+                    </ul>
+                    <p class="small text-danger mb-2" id="saDeleteUserBlock" hidden></p>
+                    <div id="saDeleteUserConfirmWrap">
+                        <label class="form-label small" for="saDeleteUserConfirmInput">Type <strong>DELETE</strong> to confirm</label>
+                        <input type="text" class="form-control" name="confirm_delete" id="saDeleteUserConfirmInput" autocomplete="off" placeholder="DELETE">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="saDeleteUserSubmit" disabled>Permanently delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Generic Action Confirmation Modal -->
 <div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-labelledby="actionConfirmModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -995,7 +1064,7 @@ $error = $error ?? '';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -1005,7 +1074,7 @@ window.saUserRoles = <?= json_encode(['labels' => $saUserRoleLabels, 'counts' =>
 window.saEventStatus = <?= json_encode(['labels' => $saEventStatusLabels, 'counts' => $saEventStatusCounts]) ?>;
 window.saAllEventsJson = <?= json_encode($saCalendarEvents ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardsuperadmin.js?v=2"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardsuperadmin.js?v=7"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof eventifyInitSuperAdminDashboard === 'function') {

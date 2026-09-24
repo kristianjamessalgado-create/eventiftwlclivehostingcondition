@@ -42,7 +42,7 @@ if ($token === '') {
     } elseif (($session['status'] ?? '') === 'cancelled') {
         $error = 'This activity has been cancelled.';
     } elseif (eventify_session_is_completed($session)) {
-        $error = 'This activity was ended early. Check-in is no longer available.';
+        $error = 'This activity has ended. Check-in is no longer available.';
     } else {
         if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
             $student_uid = (int) $_SESSION['user_id'];

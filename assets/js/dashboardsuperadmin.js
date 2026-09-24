@@ -3,6 +3,9 @@ function eventifyInitSaMobileSidebar() {
     var sidebarClose = document.getElementById('saSidebarClose');
     var sidebarBackdrop = document.getElementById('saSidebarBackdrop');
     var sidebar = document.getElementById('saSidebar');
+    var layout = document.querySelector('.sa-layout');
+    var mainEl = document.querySelector('.sa-main');
+    var navEl = document.querySelector('.sa-navbar');
     var isMobileView = function () { return window.matchMedia('(max-width: 768px)').matches; };
 
     var setToggleExpanded = function (expanded) {
@@ -11,7 +14,22 @@ function eventifyInitSaMobileSidebar() {
         sidebarToggle.setAttribute('aria-label', expanded ? 'Close menu' : 'Open menu');
     };
 
+    var pinOverlays = function () {
+        if (!navEl) return;
+        if (isMobileView()) {
+            if (sidebarBackdrop && sidebarBackdrop.previousElementSibling !== navEl) {
+                navEl.after(sidebarBackdrop);
+            }
+            if (sidebar && sidebarBackdrop && sidebar.previousElementSibling !== sidebarBackdrop) {
+                sidebarBackdrop.after(sidebar);
+            }
+        } else if (layout && mainEl && sidebar && sidebar.parentElement !== layout) {
+            layout.insertBefore(sidebar, mainEl);
+        }
+    };
+
     var openMobileSidebar = function () {
+        pinOverlays();
         document.body.classList.add('sa-sidebar-open');
         setToggleExpanded(true);
     };
@@ -21,27 +39,53 @@ function eventifyInitSaMobileSidebar() {
         setToggleExpanded(false);
     };
 
+    pinOverlays();
+
     if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', function () {
-            if (!isMobileView()) return;
+        sidebarToggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             if (document.body.classList.contains('sa-sidebar-open')) {
                 closeMobileSidebar();
-            } else {
-                openMobileSidebar();
+                return;
             }
+            if (!isMobileView()) return;
+            openMobileSidebar();
         });
     }
-    if (sidebarClose) sidebarClose.addEventListener('click', closeMobileSidebar);
-    if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeMobileSidebar();
+        });
+    }
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeMobileSidebar();
+        });
+    }
+    document.querySelectorAll('a.sa-logout').forEach(function (link) {
+        link.addEventListener('click', function () {
+            closeMobileSidebar();
+        });
+    });
+    var logoutModalEl = document.getElementById('logoutModal');
+    if (logoutModalEl && logoutModalEl.parentElement !== document.body) {
+        document.body.appendChild(logoutModalEl);
+    }
     if (sidebar) {
         sidebar.addEventListener('click', function (e) {
-            var target = e.target.closest('[data-bs-toggle="modal"], .sa-nav-btn, a.sa-nav-btn');
-            if (target && isMobileView()) {
+            var target = e.target.closest('[data-bs-toggle="modal"], .sa-nav-btn, a.sa-nav-btn, .sa-logout');
+            if (target) {
                 closeMobileSidebar();
             }
         });
     }
     window.addEventListener('resize', function () {
+        pinOverlays();
         if (!isMobileView()) {
             closeMobileSidebar();
         }
@@ -274,6 +318,78 @@ function eventifyInitSuperAdminDashboard() {
             if (saCalendarInstance) {
                 try { saCalendarInstance.destroy(); } catch (err) {}
                 saCalendarInstance = null;
+            }
+        });
+    }
+
+    var delUserModal = document.getElementById('saDeleteUserModal');
+    var delUserId = document.getElementById('saDeleteUserId');
+    var delUserMsg = document.getElementById('saDeleteUserMessage');
+    var delUserBlock = document.getElementById('saDeleteUserBlock');
+    var delUserWrap = document.getElementById('saDeleteUserConfirmWrap');
+    var delUserInput = document.getElementById('saDeleteUserConfirmInput');
+    var delUserSubmit = document.getElementById('saDeleteUserSubmit');
+
+    function refreshSaDeleteUserGate() {
+        if (!delUserSubmit) {
+            return;
+        }
+        var blocked = delUserBlock && !delUserBlock.hidden;
+        var typedOk = delUserInput && String(delUserInput.value || '').trim() === 'DELETE';
+        delUserSubmit.disabled = blocked || !typedOk;
+    }
+
+    if (delUserModal) {
+        delUserModal.addEventListener('show.bs.modal', function (e) {
+            var btn = e.relatedTarget;
+            if (!btn || !delUserId) {
+                return;
+            }
+            var name = btn.getAttribute('data-user-name') || 'this user';
+            var email = btn.getAttribute('data-user-email') || '';
+            var role = btn.getAttribute('data-user-role') || 'account';
+            var eventCount = parseInt(btn.getAttribute('data-event-count') || '0', 10) || 0;
+            delUserId.value = btn.getAttribute('data-user-id') || '';
+            if (delUserMsg) {
+                delUserMsg.textContent = 'Permanently delete ' + name + (email ? ' (' + email + ')' : '') + '? This cannot be undone.';
+            }
+            if (delUserInput) {
+                delUserInput.value = '';
+            }
+            if (eventCount > 0) {
+                if (delUserBlock) {
+                    delUserBlock.hidden = false;
+                    delUserBlock.textContent = 'This organizer still has ' + eventCount + ' event(s). Close or delete those events first, or deactivate the account instead.';
+                }
+                if (delUserWrap) {
+                    delUserWrap.hidden = true;
+                }
+                if (delUserSubmit) {
+                    delUserSubmit.hidden = true;
+                }
+            } else {
+                if (delUserBlock) {
+                    delUserBlock.hidden = true;
+                    delUserBlock.textContent = '';
+                }
+                if (delUserWrap) {
+                    delUserWrap.hidden = false;
+                }
+                if (delUserSubmit) {
+                    delUserSubmit.hidden = false;
+                }
+            }
+            refreshSaDeleteUserGate();
+        });
+    }
+    if (delUserInput) {
+        delUserInput.addEventListener('input', refreshSaDeleteUserGate);
+    }
+    var delUserForm = document.getElementById('saDeleteUserForm');
+    if (delUserForm) {
+        delUserForm.addEventListener('submit', function (e) {
+            if (!delUserSubmit || delUserSubmit.disabled || delUserSubmit.hidden) {
+                e.preventDefault();
             }
         });
     }

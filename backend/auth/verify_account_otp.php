@@ -46,6 +46,26 @@ $purpose = ($_POST['purpose'] ?? 'register') === 'reactivate' ? 'reactivate' : '
 $email = trim(strtolower($_POST['email'] ?? ''));
 $otpCode = trim($_POST['otp_code'] ?? '');
 
+if ($purpose === 'register' && !eventify_register_otp_required()) {
+    $done = eventify_finalize_pending_register_without_otp($conn, $email);
+    if (!empty($done['ok'])) {
+        eventify_redirect_verify_otp_ui(
+            'register',
+            $email,
+            null,
+            'Account created. Super admin will activate it before you can sign in.',
+            'login'
+        );
+    }
+    eventify_redirect_verify_otp_ui(
+        'register',
+        $email,
+        (string) ($done['error'] ?? 'Email verification is paused. Please register again.'),
+        null,
+        'register'
+    );
+}
+
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/^\d{6}$/', $otpCode)) {
     eventify_redirect_verify_otp_ui($purpose, $email, 'Invalid verification input.');
 }
@@ -136,32 +156,14 @@ try {
             throw new Exception('Email already registered');
         }
 
-        // After OTP verification, all new accounts stay pending until super admin approval.
-        $status = 'inactive';
-        $ins = $conn->prepare("INSERT INTO users (user_id, name, email, password, role, department, student_course, student_year_level, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $ins->bind_param("sssssssss", $userIdCode, $name, $email, $passwordHash, $role, $department, $studentCourse, $studentYearLevel, $status);
-        $ins->execute();
-        $newUserId = (int)$conn->insert_id;
-        $ins->close();
-        log_activity($conn, $newUserId, $role, 'register_email_verified', 'user', $newUserId, 'Completed registration via OTP email verification');
-
-        // Notify all active super admins that a new verified account is awaiting approval.
-        $saQ = $conn->query("SELECT id FROM users WHERE role = 'super_admin' AND status = 'active'");
-        if ($saQ) {
-            $notifTitle = 'New account pending approval';
-            $notifMsg = 'Email-verified registration waiting approval: ' . $name . ' (' . $role . ')';
-            $insNotif = $conn->prepare("INSERT INTO notifications (user_id, type, title, message) VALUES (?, 'account_pending_approval', ?, ?)");
-            if ($insNotif) {
-                while ($sa = $saQ->fetch_assoc()) {
-                    $superId = (int)($sa['id'] ?? 0);
-                    if ($superId > 0) {
-                        $insNotif->bind_param("iss", $superId, $notifTitle, $notifMsg);
-                        $insNotif->execute();
-                    }
-                }
-                $insNotif->close();
-            }
+        $created = eventify_create_pending_registered_user($conn, $email, $payload);
+        if (!empty($created['already'])) {
+            throw new Exception('Email already registered');
         }
+        if (empty($created['ok'])) {
+            throw new Exception((string) ($created['error'] ?? 'Registration failed'));
+        }
+        $newUserId = (int) ($created['user_id'] ?? 0);
 
         $success = "Email verified. Registration is now pending super admin approval.";
     } else {

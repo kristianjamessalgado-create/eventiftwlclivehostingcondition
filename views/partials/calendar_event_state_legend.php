@@ -30,7 +30,7 @@ $showSelectionClearNote = !empty($showSelectionClearNote);
         </li>
     </ul>
     <?php if ($showMultiDayNote): ?>
-    <p class="eventify-calendar-legend__note">Pending events stay orange until admin approves. Approved events use gold until the start time, green while in progress, and gray after they end.</p>
+    <p class="eventify-calendar-legend__note">Pending events stay orange until admin approves. Approved events use gold until the start time, green while in progress, and gray after they end. Students can check in only on the green (active) day. Admin and organizer tools stay available on every day.</p>
     <?php endif; ?>
     <?php if ($showSelectionClearNote): ?>
     <p class="eventify-calendar-legend__note">Double-click a highlighted day on the calendar to clear the selection and return it to white.</p>

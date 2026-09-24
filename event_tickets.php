@@ -63,7 +63,7 @@ $conn->close();
     <title>Buy tickets — <?= htmlspecialchars($event['title'] ?? 'Event') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_tickets.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_tickets.css?v=2">
 </head>
 <body class="ticket-shop-page">
 <div class="container py-4" style="max-width: 720px;">
@@ -127,11 +127,19 @@ $conn->close();
                             <div class="text-end">
                                 <div class="fw-bold text-success"><?= eventify_format_ticket_price($price) ?></div>
                                 <?php if (!$soldOut): ?>
-                                    <select name="qty[<?= $tid ?>]" class="form-select form-select-sm mt-1 ticket-qty-select" aria-label="Quantity">
-                                        <?php for ($q = 0; $q <= min(5, $remaining ?? 5); $q++): ?>
-                                            <option value="<?= $q ?>"><?= $q ?></option>
-                                        <?php endfor; ?>
-                                    </select>
+                                    <?php $qtyMax = $remaining !== null ? max(1, (int) $remaining) : 999; ?>
+                                    <input
+                                        type="number"
+                                        name="qty[<?= $tid ?>]"
+                                        class="form-control form-control-sm mt-1 ticket-qty-input"
+                                        min="0"
+                                        max="<?= $qtyMax ?>"
+                                        step="1"
+                                        value="0"
+                                        inputmode="numeric"
+                                        aria-label="Quantity"
+                                        placeholder="Qty"
+                                    >
                                 <?php else: ?>
                                     <input type="hidden" name="qty[<?= $tid ?>]" value="0">
                                 <?php endif; ?>

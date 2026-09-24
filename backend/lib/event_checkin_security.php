@@ -268,6 +268,29 @@ function eventify_checkin_ensure_session_device_locks_table(mysqli $conn): void
     ");
 }
 
+function eventify_checkin_device_lock_today(): string
+{
+    $tzName = defined('EVENTIFY_APP_TIMEZONE') ? (string) EVENTIFY_APP_TIMEZONE : 'Asia/Manila';
+    try {
+        return (new DateTimeImmutable('now', new DateTimeZone($tzName)))->format('Y-m-d');
+    } catch (Throwable $e) {
+        return date('Y-m-d');
+    }
+}
+
+function eventify_checkin_device_lock_is_stale(?array $lockRow, string $today): bool
+{
+    if (!$lockRow) {
+        return false;
+    }
+    $seen = trim((string) ($lockRow['last_seen_at'] ?? ''));
+    if ($seen === '') {
+        $seen = trim((string) ($lockRow['first_seen_at'] ?? ''));
+    }
+    $lockDay = substr($seen, 0, 10);
+    return $lockDay !== '' && $lockDay < $today;
+}
+
 /**
  * @return array{ok: bool, error?: string}
  */
@@ -281,7 +304,8 @@ function eventify_checkin_apply_main_device_lock(
     ?float $geoAccuracy
 ): array {
     eventify_checkin_ensure_main_device_locks_table($conn);
-    $lockSel = $conn->prepare('SELECT user_id FROM event_checkin_device_locks WHERE event_id = ? AND device_hash = ? LIMIT 1 FOR UPDATE');
+    $today = eventify_checkin_device_lock_today();
+    $lockSel = $conn->prepare('SELECT user_id, first_seen_at, last_seen_at FROM event_checkin_device_locks WHERE event_id = ? AND device_hash = ? LIMIT 1 FOR UPDATE');
     if (!$lockSel) {
         return ['ok' => false, 'error' => 'Security lock check failed.'];
     }
@@ -290,16 +314,17 @@ function eventify_checkin_apply_main_device_lock(
     $lockRow = $lockSel->get_result()->fetch_assoc();
     $lockSel->close();
 
-    if ($lockRow && (int) $lockRow['user_id'] !== $userId) {
-        return ['ok' => false, 'error' => 'This device already checked in another account for this event.'];
+    $stale = eventify_checkin_device_lock_is_stale($lockRow, $today);
+    if ($lockRow && !$stale && (int) $lockRow['user_id'] !== $userId) {
+        return ['ok' => false, 'error' => 'This device already checked in another account for this event today.'];
     }
 
     if ($lockRow) {
-        $updLock = $conn->prepare('UPDATE event_checkin_device_locks SET last_seen_at = NOW(), last_lat = ?, last_lng = ?, last_accuracy = ?, last_geo_at = NOW() WHERE event_id = ? AND device_hash = ? AND user_id = ?');
+        $updLock = $conn->prepare('UPDATE event_checkin_device_locks SET user_id = ?, last_seen_at = NOW(), last_lat = ?, last_lng = ?, last_accuracy = ?, last_geo_at = NOW() WHERE event_id = ? AND device_hash = ?');
         if (!$updLock) {
             return ['ok' => false, 'error' => 'Could not update device lock.'];
         }
-        $updLock->bind_param('dddisi', $geoLat, $geoLng, $geoAccuracy, $eventId, $deviceHash, $userId);
+        $updLock->bind_param('idddis', $userId, $geoLat, $geoLng, $geoAccuracy, $eventId, $deviceHash);
         $updLock->execute();
         $updLock->close();
     } else {
@@ -327,7 +352,8 @@ function eventify_checkin_apply_session_device_lock(
     ?float $geoAccuracy
 ): array {
     eventify_checkin_ensure_session_device_locks_table($conn);
-    $lockSel = $conn->prepare('SELECT user_id FROM event_session_checkin_device_locks WHERE session_id = ? AND device_hash = ? LIMIT 1 FOR UPDATE');
+    $today = eventify_checkin_device_lock_today();
+    $lockSel = $conn->prepare('SELECT user_id, first_seen_at, last_seen_at FROM event_session_checkin_device_locks WHERE session_id = ? AND device_hash = ? LIMIT 1 FOR UPDATE');
     if (!$lockSel) {
         return ['ok' => false, 'error' => 'Security lock check failed.'];
     }
@@ -336,16 +362,17 @@ function eventify_checkin_apply_session_device_lock(
     $lockRow = $lockSel->get_result()->fetch_assoc();
     $lockSel->close();
 
-    if ($lockRow && (int) $lockRow['user_id'] !== $userId) {
-        return ['ok' => false, 'error' => 'This device already checked in another account for this activity.'];
+    $stale = eventify_checkin_device_lock_is_stale($lockRow, $today);
+    if ($lockRow && !$stale && (int) $lockRow['user_id'] !== $userId) {
+        return ['ok' => false, 'error' => 'This device already checked in another account for this activity today.'];
     }
 
     if ($lockRow) {
-        $updLock = $conn->prepare('UPDATE event_session_checkin_device_locks SET last_seen_at = NOW(), last_lat = ?, last_lng = ?, last_accuracy = ?, last_geo_at = NOW() WHERE session_id = ? AND device_hash = ? AND user_id = ?');
+        $updLock = $conn->prepare('UPDATE event_session_checkin_device_locks SET user_id = ?, last_seen_at = NOW(), last_lat = ?, last_lng = ?, last_accuracy = ?, last_geo_at = NOW() WHERE session_id = ? AND device_hash = ?');
         if (!$updLock) {
             return ['ok' => false, 'error' => 'Could not update device lock.'];
         }
-        $updLock->bind_param('dddisi', $geoLat, $geoLng, $geoAccuracy, $sessionId, $deviceHash, $userId);
+        $updLock->bind_param('idddis', $userId, $geoLat, $geoLng, $geoAccuracy, $sessionId, $deviceHash);
         $updLock->execute();
         $updLock->close();
     } else {
@@ -1020,9 +1047,24 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
 
     $items = [];
 
+    if (!function_exists('eventify_attendance_proof_ensure_columns')) {
+        $proofLib = __DIR__ . '/attendance_proof.php';
+        if (is_file($proofLib)) {
+            require_once $proofLib;
+        }
+    }
+    if (function_exists('eventify_attendance_proof_ensure_columns')) {
+        eventify_attendance_proof_ensure_columns($conn);
+    }
+    $eventHasProof = function_exists('eventify_attendance_proof_column_exists')
+        && eventify_attendance_proof_column_exists($conn, 'registrations');
+    $actHasProof = function_exists('eventify_attendance_proof_column_exists')
+        && eventify_attendance_proof_column_exists($conn, 'event_day_session_attendance');
+
     if ($filter === 'all' || $filter === 'events') {
+        $eventProofSql = $eventHasProof ? ', r.proof_photo' : '';
         $st = $conn->prepare(
-            "SELECT r.time_in AS checked_in_at, r.event_id,
+            "SELECT r.id AS record_id, r.time_in AS checked_in_at, r.event_id{$eventProofSql},
                     e.title AS event_title, e.date AS event_date, e.location AS event_location, e.status AS event_status
              FROM registrations r
              INNER JOIN events e ON e.id = r.event_id
@@ -1037,6 +1079,7 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
             while ($row = $res->fetch_assoc()) {
                 $items[] = [
                     'kind' => 'event',
+                    'record_id' => (int) ($row['record_id'] ?? 0),
                     'title' => (string) ($row['event_title'] ?? 'Event'),
                     'event_title' => (string) ($row['event_title'] ?? 'Event'),
                     'event_id' => (int) ($row['event_id'] ?? 0),
@@ -1045,6 +1088,7 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
                     'schedule_date' => substr((string) ($row['event_date'] ?? ''), 0, 10),
                     'checked_in_at' => (string) ($row['checked_in_at'] ?? ''),
                     'event_status' => (string) ($row['event_status'] ?? ''),
+                    'proof_photo' => (string) ($row['proof_photo'] ?? ''),
                 ];
             }
             $st->close();
@@ -1056,8 +1100,9 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
             require_once __DIR__ . '/event_day_sessions.php';
         }
         eventify_event_day_sessions_ensure_enhanced($conn);
+        $actProofSql = $actHasProof ? ', a.proof_photo' : '';
         $st = $conn->prepare(
-            'SELECT a.checked_in_at, s.id AS session_id, s.title AS activity_title,
+            "SELECT a.id AS record_id, a.checked_in_at{$actProofSql}, s.id AS session_id, s.title AS activity_title,
                     s.schedule_date, s.start_time, s.end_time, s.location AS activity_location,
                     e.id AS event_id, e.title AS event_title, e.status AS event_status
              FROM event_day_session_attendance a
@@ -1065,7 +1110,7 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
              INNER JOIN events e ON e.id = s.event_id
              WHERE a.user_id = ?
              ORDER BY a.checked_in_at DESC
-             LIMIT ?'
+             LIMIT ?"
         );
         if ($st) {
             $st->bind_param('ii', $userId, $limit);
@@ -1074,6 +1119,7 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
             while ($row = $res->fetch_assoc()) {
                 $items[] = [
                     'kind' => 'activity',
+                    'record_id' => (int) ($row['record_id'] ?? 0),
                     'title' => (string) ($row['activity_title'] ?? 'Activity'),
                     'event_title' => (string) ($row['event_title'] ?? ''),
                     'event_id' => (int) ($row['event_id'] ?? 0),
@@ -1084,6 +1130,7 @@ function eventify_load_student_attendance_history(mysqli $conn, int $userId, str
                     'end_time' => (string) ($row['end_time'] ?? ''),
                     'checked_in_at' => (string) ($row['checked_in_at'] ?? ''),
                     'event_status' => (string) ($row['event_status'] ?? ''),
+                    'proof_photo' => (string) ($row['proof_photo'] ?? ''),
                 ];
             }
             $st->close();

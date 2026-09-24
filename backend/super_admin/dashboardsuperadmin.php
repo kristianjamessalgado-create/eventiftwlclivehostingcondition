@@ -1,4 +1,9 @@
 <?php
+if (defined('EVENTIFY_SUPERADMIN_CONTROLLER_RUNNING')) {
+    return;
+}
+define('EVENTIFY_SUPERADMIN_CONTROLLER_RUNNING', true);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -18,7 +23,27 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'super_admin') {
     exit();
 }
 
-eventify_run_dashboard_maintenance($conn);
+register_shutdown_function(static function () {
+    $err = error_get_last();
+    if (!$err || !in_array((int) $err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+        return;
+    }
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
+    }
+    echo '<pre style="margin:1rem;padding:1rem;background:#fff3cd;border:1px solid #f59e0b;font:14px/1.4 Consolas,monospace;white-space:pre-wrap">';
+    echo 'Super admin dashboard failed to load.' . "\n";
+    echo htmlspecialchars((string) $err['message'], ENT_QUOTES, 'UTF-8') . "\n";
+    echo htmlspecialchars(basename((string) $err['file']) . ':' . (string) $err['line'], ENT_QUOTES, 'UTF-8');
+    echo '</pre>';
+});
+
+try {
+    eventify_run_dashboard_maintenance($conn);
+} catch (Throwable $e) {
+    /* keep dashboard usable if maintenance fails */
+}
 
 $hasMustChangePasswordColumn = false;
 try {
@@ -71,14 +96,23 @@ if ($usersPage > $usersTotalPages) {
     $usersPage = $usersTotalPages;
 }
 $usersOffset = ($usersPage - 1) * $usersPerPage;
-eventify_users_ensure_multimedia_moderator_column($conn);
+try {
+    eventify_users_ensure_multimedia_moderator_column($conn);
+} catch (Throwable $e) {
+    /* column may already exist or lack ALTER privilege */
+}
 $users = [];
 $stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts, is_multimedia_moderator FROM users ORDER BY id DESC LIMIT ? OFFSET ?");
-$stmt->bind_param("ii", $usersPerPage, $usersOffset);
-$stmt->execute();
-$result = $stmt->get_result();
-$users = $result->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+if (!$stmt) {
+    $stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts FROM users ORDER BY id DESC LIMIT ? OFFSET ?");
+}
+if ($stmt) {
+    $stmt->bind_param("ii", $usersPerPage, $usersOffset);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $users = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+}
 
 // Fetch pending events (for modal)
 $pendingEvents = [];
@@ -277,6 +311,14 @@ try {
     ];
 }
 
-// Load view
-define('EVENTIFY_SUPERADMIN_DASHBOARD_LOADED', true);
-include __DIR__ . '/../../super_admin/dashboardsuperadmin.php';
+$viewFile = __DIR__ . '/../../super_admin/dashboardsuperadmin.php';
+if (!is_file($viewFile)) {
+    http_response_code(500);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<p style="margin:1rem;font-family:sans-serif">Missing <code>super_admin/dashboardsuperadmin.php</code>. Upload that HTML view file.</p>';
+    exit();
+}
+if (!defined('EVENTIFY_SUPERADMIN_DASHBOARD_LOADED')) {
+    define('EVENTIFY_SUPERADMIN_DASHBOARD_LOADED', true);
+}
+include $viewFile;

@@ -6,8 +6,10 @@ session_start();
 
 include __DIR__ . '/config/db.php';
 include __DIR__ . '/config/config.php';
+include __DIR__ . '/config/csrf.php';
 require_once __DIR__ . '/backend/lib/event_day_sessions.php';
 require_once __DIR__ . '/backend/lib/event_checkin_security.php';
+require_once __DIR__ . '/backend/lib/attendance_proof.php';
 
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'student') {
     header('Location: ' . BASE_URL . '/views/login.php?redirect=' . urlencode(
@@ -40,6 +42,11 @@ try {
 }
 $items = $history['items'];
 $counts = $history['counts'];
+$proofMsg = trim((string) ($_GET['msg'] ?? ''));
+$proofError = trim((string) ($_GET['error'] ?? ''));
+if ($proofMsg === '' && isset($_GET['proof']) && (string) $_GET['proof'] === 'ok') {
+    $proofMsg = 'Photo saved for this check-in.';
+}
 
 $hubUrl = BASE_URL . '/activities_hub.php';
 $studentHubHomeUrl = $hubUrl;
@@ -136,8 +143,9 @@ foreach ($items as $item) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=46">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=54">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=1">
 </head>
 <body class="event-activities-hub event-activities-hub--index event-activities-hub--student">
 <div class="eah-wrap">
@@ -209,7 +217,7 @@ foreach ($items as $item) {
                         <p class="eah-student-hub-hero__eyebrow">Full list</p>
                         <h1 class="eah-student-hub-hero__title">Check-in history</h1>
                         <p class="eah-student-hub-hero__subtitle">
-                            Every event and activity you checked into with QR — filter by type below.
+                            Every event and activity you checked into with QR. Add an optional photo on any record.
                         </p>
                     </div>
                 </div>
@@ -230,6 +238,18 @@ foreach ($items as $item) {
             </header>
 
             <div class="eah-student-hub-body">
+                <?php if ($proofMsg !== ''): ?>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <?= ah_h($proofMsg) ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+                <?php if ($proofError !== ''): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <?= ah_h($proofError) ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
                 <div class="eah-hub-toolbar eah-hub-toolbar--attendance">
                     <div class="eah-attendance-filter" role="group" aria-label="Filter check-in history">
                         <?php
@@ -251,6 +271,9 @@ foreach ($items as $item) {
                         </a>
                         <?php endforeach; ?>
                     </div>
+                    <a class="eah-attendance-filter__chip" href="<?= ah_h(BASE_URL . '/activity_card.php') ?>">
+                        <i class="fas fa-file-signature me-1" aria-hidden="true"></i> Activity card
+                    </a>
                 </div>
 
                 <?php if ($items === []): ?>
@@ -273,6 +296,9 @@ foreach ($items as $item) {
                             <a class="eah-student-hub-empty__cta eah-student-hub-empty__cta--ghost" href="<?= ah_h($hubUrl) ?>">
                                 <i class="fas fa-th-large" aria-hidden="true"></i> My registrations
                             </a>
+                            <a class="eah-student-hub-empty__cta eah-student-hub-empty__cta--ghost" href="<?= ah_h(BASE_URL . '/activity_card.php') ?>">
+                                <i class="fas fa-file-signature" aria-hidden="true"></i> Activity card
+                            </a>
                         </div>
                     </div>
                 <?php else: ?>
@@ -289,34 +315,42 @@ foreach ($items as $item) {
                                         $timeLabel = ah_attendance_time_label($item);
                                         $isEvent = $kind === 'event';
                                     ?>
-                                    <a class="eah-activity-row eah-activity-row--timeline eah-attendance-row" href="<?= ah_h($href) ?>">
-                                        <div class="eah-row-time">
-                                            <span class="eah-row-time__value"><?= ah_h($timeLabel) ?></span>
-                                        </div>
-                                        <div class="eah-row-main">
-                                            <div class="eah-row-title"><?= ah_h((string) ($item['title'] ?? '')) ?></div>
-                                            <div class="eah-row-meta">
-                                                <?php if (!$isEvent && !empty($item['event_title'])): ?>
-                                                    <span><i class="fas fa-calendar-day"></i> <?= ah_h((string) $item['event_title']) ?></span>
-                                                <?php endif; ?>
-                                                <?php if (!empty($item['location'])): ?>
-                                                    <span><i class="fas fa-map-marker-alt"></i> <?= ah_h(mb_strimwidth((string) $item['location'], 0, 48, '…')) ?></span>
-                                                <?php endif; ?>
-                                                <?php
-                                                    $checkedIn = trim((string) ($item['checked_in_at'] ?? ''));
-                                                    if ($checkedIn !== ''):
-                                                ?>
-                                                    <span><i class="fas fa-check"></i> Checked in <?= ah_h(date('M j, g:i A', strtotime($checkedIn))) ?></span>
-                                                <?php endif; ?>
+                                    <div class="eah-activity-row eah-activity-row--timeline eah-attendance-row">
+                                        <a class="eah-attendance-row__goto" href="<?= ah_h($href) ?>">
+                                            <div class="eah-row-time">
+                                                <span class="eah-row-time__value"><?= ah_h($timeLabel) ?></span>
                                             </div>
-                                        </div>
+                                            <div class="eah-row-main">
+                                                <div class="eah-row-title"><?= ah_h((string) ($item['title'] ?? '')) ?></div>
+                                                <div class="eah-row-meta">
+                                                    <?php if (!$isEvent && !empty($item['event_title'])): ?>
+                                                        <span><i class="fas fa-calendar-day"></i> <?= ah_h((string) $item['event_title']) ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($item['location'])): ?>
+                                                        <span><i class="fas fa-map-marker-alt"></i> <?= ah_h(mb_strimwidth((string) $item['location'], 0, 48, '…')) ?></span>
+                                                    <?php endif; ?>
+                                                    <?php
+                                                        $checkedIn = trim((string) ($item['checked_in_at'] ?? ''));
+                                                        if ($checkedIn !== ''):
+                                                    ?>
+                                                        <span><i class="fas fa-check"></i> Checked in <?= ah_h(date('M j, g:i A', strtotime($checkedIn))) ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </a>
+                                        <?php
+                                            $kind = $isEvent ? 'event' : 'activity';
+                                            $recordId = (int) ($item['record_id'] ?? 0);
+                                            $photoPath = (string) ($item['proof_photo'] ?? '');
+                                            $returnTo = 'history';
+                                            include __DIR__ . '/views/partials/attendance_proof_controls.php';
+                                        ?>
                                         <div class="eah-row-status">
                                             <span class="eah-badge <?= $isEvent ? 'eah-badge-attended' : 'eah-badge-rsvp' ?>">
                                                 <?= $isEvent ? 'Event' : 'Activity' ?>
                                             </span>
-                                            <i class="fas fa-chevron-right eah-row-chevron"></i>
                                         </div>
-                                    </a>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endforeach; ?>
@@ -329,6 +363,7 @@ foreach ($items as $item) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=1"></script>
 <?php include __DIR__ . '/views/partials/student_scan_qr_footer.php'; ?>
 </body>
 </html>

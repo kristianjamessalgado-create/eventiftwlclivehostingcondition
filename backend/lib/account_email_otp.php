@@ -167,10 +167,28 @@ function eventify_create_email_otp(mysqli $conn, string $purpose, string $email,
 
 function eventify_send_account_otp_email(string $email, string $purpose, string $code): array
 {
-    $purposeText = $purpose === 'reactivate' ? 'account reactivation' : 'account registration';
-    $subject = '[EVENTIFY] Email verification OTP';
-    $body = "Your OTP for {$purposeText} is: {$code}\n\nThis code expires in 10 minutes.\nIf you did not request this, ignore this email.";
-    return eventify_send_email($email, $subject, $body);
+    $purposeText = $purpose === 'reactivate' ? 'reactivate your EVENTIFY account' : 'finish creating your EVENTIFY account';
+    $code = preg_replace('/\D+/', '', $code) ?? $code;
+    $subject = 'Your EVENTIFY verification code is ' . $code;
+    $body = "Hi,\n\n"
+        . "Use this code to {$purposeText}:\n\n"
+        . "{$code}\n\n"
+        . "This code expires in 10 minutes.\n"
+        . "If you did not request this, you can ignore this email.\n";
+    $safeCode = htmlspecialchars($code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+        . '<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
+        . '<body style="margin:0;padding:24px;background:#f4f6f8;color:#111;'
+        . 'font-family:Arial,Helvetica,sans-serif;line-height:1.5;">'
+        . '<div style="max-width:520px;margin:0 auto;background:#fff;padding:24px;'
+        . 'border:1px solid #e5e7eb;border-radius:8px;">'
+        . '<p style="margin:0 0 12px;">Hi,</p>'
+        . '<p style="margin:0 0 16px;">Use this code to ' . htmlspecialchars($purposeText, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ':</p>'
+        . '<p style="margin:0 0 16px;font-size:28px;letter-spacing:6px;font-weight:700;">' . $safeCode . '</p>'
+        . '<p style="margin:0;color:#4b5563;">This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>'
+        . '</div></body></html>';
+
+    return eventify_send_email($email, $subject, $body, $html);
 }
 
 /**
@@ -192,13 +210,206 @@ function eventify_send_account_approved_email(string $email, string $name = ''):
         $loginUrl = 'the EVENTIFY login page';
     }
 
-    $subject = '[EVENTIFY] Your account has been approved';
+    $subject = 'Your EVENTIFY account is ready';
     $body = "{$greeting}\n\n"
         . "Your EVENTIFY account has been approved and is now active.\n\n"
         . "You can sign in here:\n{$loginUrl}\n\n"
         . "If you did not register for EVENTIFY, please ignore this email.\n";
 
     return eventify_send_email($email, $subject, $body);
+}
+
+function eventify_register_otp_required(): bool
+{
+    if (defined('EVENTIFY_REGISTER_OTP_REQUIRED')) {
+        return (bool) EVENTIFY_REGISTER_OTP_REQUIRED;
+    }
+    $raw = strtolower(trim((string) (function_exists('eventify_env') ? (eventify_env('EVENTIFY_REGISTER_OTP_REQUIRED', 'true') ?? 'true') : 'true')));
+    return in_array($raw, ['1', 'true', 'yes', 'on'], true);
+}
+
+function eventify_discard_unused_register_otps(mysqli $conn, string $email): void
+{
+    if (!eventify_account_otp_table_ready($conn)) {
+        return;
+    }
+    $email = eventify_normalize_email($email);
+    $purpose = 'register';
+    $st = $conn->prepare('UPDATE account_email_otps SET used_at = NOW() WHERE purpose = ? AND email = ? AND used_at IS NULL');
+    if ($st) {
+        $st->bind_param('ss', $purpose, $email);
+        $st->execute();
+        $st->close();
+    }
+}
+
+function eventify_notify_superadmins_pending_account(mysqli $conn, string $name, string $role): void
+{
+    $saQ = @$conn->query("SELECT id FROM users WHERE role = 'super_admin' AND status = 'active'");
+    if (!$saQ) {
+        return;
+    }
+    $notifTitle = 'New account pending approval';
+    $notifMsg = 'New registration waiting approval: ' . $name . ' (' . $role . ')';
+    $insNotif = $conn->prepare("INSERT INTO notifications (user_id, type, title, message) VALUES (?, 'account_pending_approval', ?, ?)");
+    if (!$insNotif) {
+        return;
+    }
+    while ($sa = $saQ->fetch_assoc()) {
+        $superId = (int) ($sa['id'] ?? 0);
+        if ($superId > 0) {
+            $insNotif->bind_param('iss', $superId, $notifTitle, $notifMsg);
+            $insNotif->execute();
+        }
+    }
+    $insNotif->close();
+}
+
+/**
+ * Create a newly registered user as inactive until super admin activates it.
+ *
+ * @param array<string, mixed> $payload
+ * @return array{ok:bool, user_id?:int, already?:bool, error?:string}
+ */
+function eventify_create_pending_registered_user(mysqli $conn, string $email, array $payload): array
+{
+    $email = eventify_normalize_email($email);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'error' => 'Please enter a valid email address.'];
+    }
+
+    $profileFields = dirname(__DIR__, 2) . '/config/student_profile_fields.php';
+    if (is_file($profileFields)) {
+        require_once $profileFields;
+    }
+
+    $name = trim((string) ($payload['name'] ?? ''));
+    $passwordHash = (string) ($payload['password_hash'] ?? '');
+    $role = (string) ($payload['role'] ?? '');
+    $department = $payload['department'] ?? null;
+    $studentCourse = trim((string) ($payload['student_course'] ?? ''));
+    $studentYearLevel = trim((string) ($payload['student_year_level'] ?? ''));
+    $userIdCode = (string) ($payload['user_code'] ?? '');
+
+    if ($name === '' || $passwordHash === '' || $userIdCode === '' || !in_array($role, ['student', 'organizer', 'multimedia', 'admin'], true)) {
+        return ['ok' => false, 'error' => 'Invalid registration details.'];
+    }
+    if ($role === 'student') {
+        if (!function_exists('eventify_student_course_program_valid') || !eventify_student_course_program_valid($studentCourse)) {
+            return ['ok' => false, 'error' => 'Course / program is required for students.'];
+        }
+        if ($studentYearLevel === '' || !function_exists('eventify_student_year_level_options') || !array_key_exists($studentYearLevel, eventify_student_year_level_options())) {
+            return ['ok' => false, 'error' => 'Year level is required for students.'];
+        }
+        if (!function_exists('eventify_student_course_matches_department') || !eventify_student_course_matches_department($studentCourse, (string) $department)) {
+            return ['ok' => false, 'error' => 'Selected course / program does not match the selected department.'];
+        }
+        if (function_exists('eventify_users_ensure_student_profile_fields')) {
+            eventify_users_ensure_student_profile_fields($conn);
+        }
+    } else {
+        $studentCourse = '';
+        $studentYearLevel = '';
+    }
+
+    $check = $conn->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+    if (!$check) {
+        return ['ok' => false, 'error' => 'Registration failed. Please try again.'];
+    }
+    $check->bind_param('s', $email);
+    $check->execute();
+    $exists = $check->get_result()->fetch_assoc();
+    $check->close();
+    if ($exists) {
+        return ['ok' => false, 'already' => true, 'error' => 'Email already registered.'];
+    }
+
+    $status = 'inactive';
+    $ins = $conn->prepare('INSERT INTO users (user_id, name, email, password, role, department, student_course, student_year_level, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    if (!$ins) {
+        return ['ok' => false, 'error' => 'Registration failed. Please try again.'];
+    }
+    $ins->bind_param('sssssssss', $userIdCode, $name, $email, $passwordHash, $role, $department, $studentCourse, $studentYearLevel, $status);
+    $ok = $ins->execute();
+    $newUserId = (int) $conn->insert_id;
+    $ins->close();
+    if (!$ok || $newUserId < 1) {
+        return ['ok' => false, 'error' => 'Registration failed. Please try again.'];
+    }
+
+    if (function_exists('log_activity')) {
+        log_activity(
+            $conn,
+            $newUserId,
+            $role,
+            'register_pending_approval',
+            'user',
+            $newUserId,
+            'Account created and waiting for super admin activation'
+        );
+    }
+    eventify_notify_superadmins_pending_account($conn, $name, $role);
+
+    return ['ok' => true, 'user_id' => $newUserId];
+}
+
+/**
+ * If a student already started registration (OTP pending), create the inactive account without the code.
+ *
+ * @return array{ok:bool, already?:bool, error?:string}
+ */
+function eventify_finalize_pending_register_without_otp(mysqli $conn, string $email): array
+{
+    $email = eventify_normalize_email($email);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'error' => 'Invalid email'];
+    }
+
+    $exists = $conn->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+    if ($exists) {
+        $exists->bind_param('s', $email);
+        $exists->execute();
+        $row = $exists->get_result()->fetch_assoc();
+        $exists->close();
+        if ($row) {
+            eventify_discard_unused_register_otps($conn, $email);
+            return ['ok' => true, 'already' => true];
+        }
+    }
+
+    if (!eventify_account_otp_table_ready($conn)) {
+        return ['ok' => false, 'error' => 'No pending registration found.'];
+    }
+
+    $purpose = 'register';
+    $st = $conn->prepare(
+        'SELECT id, payload_json FROM account_email_otps
+         WHERE purpose = ? AND email = ? AND used_at IS NULL
+         ORDER BY id DESC LIMIT 1'
+    );
+    if (!$st) {
+        return ['ok' => false, 'error' => 'No pending registration found.'];
+    }
+    $st->bind_param('ss', $purpose, $email);
+    $st->execute();
+    $otpRow = $st->get_result()->fetch_assoc();
+    $st->close();
+    if (!$otpRow) {
+        return ['ok' => false, 'error' => 'No pending registration found.'];
+    }
+
+    $payload = json_decode((string) ($otpRow['payload_json'] ?? ''), true);
+    if (!is_array($payload)) {
+        return ['ok' => false, 'error' => 'No pending registration found.'];
+    }
+
+    $created = eventify_create_pending_registered_user($conn, $email, $payload);
+    if (!empty($created['ok']) || !empty($created['already'])) {
+        eventify_discard_unused_register_otps($conn, $email);
+        return ['ok' => true, 'already' => !empty($created['already'])];
+    }
+
+    return ['ok' => false, 'error' => (string) ($created['error'] ?? 'Could not finish registration.')];
 }
 
 /** One-time flash after register/resend/verify errors — avoids stale "OTP sent" on page refresh. */

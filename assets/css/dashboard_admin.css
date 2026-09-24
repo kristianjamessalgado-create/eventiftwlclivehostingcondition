@@ -10,6 +10,7 @@ body.admin-dashboard {
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+    touch-action: manipulation;
     --eventify-kb-focus: #1b4a1b;
     --admin-navbar-h: 64px;
     --admin-cal-chrome: 12.5rem;
@@ -2101,6 +2102,13 @@ body.admin-dashboard .main-content > .adm-dash-panel:not(.d-none):not([hidden]) 
     }
 
     /* iOS Safari zooms the viewport when a focused control is below 16px. */
+    body.admin-dashboard input:not([type="time"]):not([type="hidden"]),
+    body.admin-dashboard select,
+    body.admin-dashboard textarea,
+    body.admin-dashboard .form-control:not([type="time"]),
+    body.admin-dashboard .form-select,
+    body.admin-dashboard .form-control-sm:not([type="time"]),
+    body.admin-dashboard .form-select-sm,
     .adm-all-users-panel .form-control,
     .adm-all-users-panel .form-select,
     .adm-all-users-panel .form-control-sm,
@@ -2108,8 +2116,33 @@ body.admin-dashboard .main-content > .adm-dash-panel:not(.d-none):not([hidden]) 
     #editAnnouncementModal .form-control,
     #deleteAnnouncementModal .form-control,
     .adm-announcements-panel .form-control,
-    .adm-announcements-panel .form-select {
+    .adm-announcements-panel .form-select,
+    #createEventModal input:not([type="time"]):not([type="hidden"]),
+    #createEventModal select,
+    #createEventModal textarea,
+    #createEventModal .form-control:not([type="time"]),
+    #createEventModal .form-select,
+    #createEventModal .ce-form-control:not([type="time"]) {
         font-size: 16px !important;
+    }
+
+    body.admin-dashboard,
+    body.admin-dashboard .dashboard-layout,
+    body.admin-dashboard .main-content,
+    body.admin-dashboard .eventify-dashboard-cal-controls,
+    body.admin-dashboard .eventify-dashboard-cal-legend,
+    body.admin-dashboard .eventify-dashboard-cal-container,
+    body.admin-dashboard #calendar,
+    body.admin-dashboard .fc {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box;
+    }
+
+    body.admin-dashboard .eventify-dashboard-cal-controls,
+    body.admin-dashboard .eventify-dashboard-cal-legend {
+        margin-left: 0.75rem;
+        margin-right: 0.75rem;
     }
 
     .adm-users-table-wrap {

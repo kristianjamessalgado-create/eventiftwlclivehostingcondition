@@ -373,6 +373,34 @@ function eventifyFillAndShowEventDetails(event, options) {
         } : null;
     }
 
+    const clickSegment = (typeof eventifyResolveClickedCalendarSegment === 'function')
+        ? eventifyResolveClickedCalendarSegment(event, {
+            clickEl: options.clickEl || null,
+            jsEvent: options.jsEvent || null,
+            segmentYmd: options.segmentYmd || ''
+        })
+        : null;
+
+    const segmentNote = document.getElementById('eventSegmentAttendanceNote');
+    if (segmentNote) {
+        if (clickSegment && clickSegment.isUpcomingSegment) {
+            segmentNote.hidden = false;
+            segmentNote.className = 'eventify-segment-note eventify-segment-note--upcoming';
+            segmentNote.innerHTML = '<i class="fas fa-clock" aria-hidden="true"></i> ' +
+                (clickSegment.label ? ('<strong>' + clickSegment.label + '</strong> is upcoming for students. ') : 'This day is upcoming for students. ') +
+                'They cannot check in yet. Your QR and attendance tools stay available.';
+        } else if (clickSegment && clickSegment.state === 'closed' && eventIsLive) {
+            segmentNote.hidden = false;
+            segmentNote.className = 'eventify-segment-note eventify-segment-note--closed';
+            segmentNote.innerHTML = '<i class="fas fa-flag-checkered" aria-hidden="true"></i> ' +
+                (clickSegment.label ? ('<strong>' + clickSegment.label + '</strong> has ended for students. ') : 'This day has ended for students. ') +
+                'Your QR and attendance tools stay available.';
+        } else {
+            segmentNote.hidden = true;
+            segmentNote.textContent = '';
+        }
+    }
+
     const qrLink = document.getElementById('eventQrLink');
     if (qrLink) {
         if (realEventId && eventIsLive) {
@@ -381,12 +409,14 @@ function eventifyFillAndShowEventDetails(event, options) {
             qrLink.classList.remove('disabled');
             qrLink.setAttribute('aria-disabled', 'false');
             qrLink.title = '';
+            qrLink.onclick = null;
         } else if (realEventId) {
             qrLink.style.display = 'inline-block';
             qrLink.href = '#';
             qrLink.classList.add('disabled');
             qrLink.setAttribute('aria-disabled', 'true');
             qrLink.title = 'Event ended — QR check-in is disabled';
+            qrLink.onclick = function (e) { e.preventDefault(); };
         } else {
             qrLink.style.display = 'none';
         }
@@ -397,6 +427,11 @@ function eventifyFillAndShowEventDetails(event, options) {
         if (realEventId) {
             attendanceLink.href = BASE_URL + '/event_attendance.php?id=' + realEventId;
             attendanceLink.style.display = 'inline-block';
+            attendanceLink.classList.remove('disabled');
+            attendanceLink.setAttribute('aria-disabled', 'false');
+            attendanceLink.title = '';
+            attendanceLink.onclick = null;
+            attendanceLink.innerHTML = '<i class="fas fa-clipboard-check me-1"></i> Attendance';
         } else {
             attendanceLink.style.display = 'none';
         }
@@ -616,6 +651,9 @@ function eventifyOrganizerOpenEventFromNotification(eventId) {
 }
 
 document.addEventListener('eventify:notif-view-event', function (e) {
+    if ((window.currentRole || '').toLowerCase() !== 'organizer') {
+        return;
+    }
     var detail = (e && e.detail) || {};
     if (!detail.eventId) {
         return;
@@ -1461,15 +1499,21 @@ function initFullCalendar() {
             return true;
         },
 
-        // Click empty date -> create event (organizer only)
+        // Click empty date -> create a single-day event
         dateClick: function(info) {
-            if (EVENTIFY_ROLE !== 'organizer') {
-                return;
-            }
             var dateStr = info.dateStr;
             clearTimeout(fcDateClickTimers[dateStr]);
             fcDateClickTimers[dateStr] = setTimeout(function () {
                 delete fcDateClickTimers[dateStr];
+                if (EVENTIFY_ROLE === 'admin') {
+                    if (typeof window.eventifyOpenCreateEventForDate === 'function') {
+                        window.eventifyOpenCreateEventForDate(dateStr);
+                    }
+                    return;
+                }
+                if (EVENTIFY_ROLE !== 'organizer') {
+                    return;
+                }
                 window.location.href = BASE_URL + "/backend/auth/createevent.php?date=" + dateStr;
             }, 220);
         },

@@ -31,29 +31,26 @@
     }
 
     function addBaseTiles(map) {
-        // Primary: Carto (usually more reliable on shared hosting/CDNs than raw OSM tiles).
-        var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19,
-            subdomains: 'abcd',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        });
-
+        // Carto's free voyager tiles now watermark "API KEY REQUIRED".
         var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         });
-
+        var esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri'
+        });
         var tileErrors = 0;
-        carto.on('tileerror', function () {
+        osm.on('tileerror', function () {
             tileErrors++;
-            if (tileErrors >= 3 && !map._eventifyOsmFallback) {
-                map._eventifyOsmFallback = true;
-                map.removeLayer(carto);
-                osm.addTo(map);
+            if (tileErrors >= 3 && !map._eventifyEsriFallback) {
+                map._eventifyEsriFallback = true;
+                map.removeLayer(osm);
+                esri.addTo(map);
             }
         });
-        carto.addTo(map);
-        return carto;
+        osm.addTo(map);
+        return osm;
     }
 
     function initEventLocationPicker(options) {
@@ -293,7 +290,11 @@
         }
 
         if (searchBtn && searchIn) {
+            searchBtn.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+            });
             searchBtn.addEventListener('click', function () {
+                lastSearchQuery = '';
                 queueSearch(true);
             });
             searchIn.addEventListener('input', function () {
@@ -305,14 +306,22 @@
                     queueSearch(true);
                 }
             });
-            searchIn.addEventListener('blur', function () {
+            searchIn.addEventListener('blur', function (e) {
+                var next = e.relatedTarget;
+                if (next && (next === searchBtn || (resultsEl && resultsEl.contains(next)))) {
+                    return;
+                }
                 setTimeout(function () {
+                    if (document.activeElement === searchIn || document.activeElement === searchBtn) {
+                        return;
+                    }
                     hideResults();
-                }, 180);
+                }, 280);
             });
             searchIn.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
+                    lastSearchQuery = '';
                     queueSearch(true);
                 } else if (e.key === 'Escape') {
                     hideResults();

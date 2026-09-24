@@ -305,11 +305,23 @@ function adminOpenEventFromNotification(eventId) {
         if (typeof showAdminDashboardPanel === 'function') {
             showAdminDashboardPanel('home');
         }
-        var opened = typeof window.eventifyOpenEventDetailsById === 'function'
-            && window.eventifyOpenEventDetailsById(eid);
-        if (!opened && typeof window.eventifyToast === 'object' && window.eventifyToast && typeof window.eventifyToast.info === 'function') {
-            window.eventifyToast.info('Could not open that event on the calendar. Try All Events or Pending.');
+        function tryOpen(attempt) {
+            var opened = typeof window.eventifyOpenEventDetailsById === 'function'
+                && window.eventifyOpenEventDetailsById(eid);
+            if (opened) {
+                return;
+            }
+            if (attempt < 6) {
+                window.setTimeout(function () {
+                    tryOpen(attempt + 1);
+                }, 200);
+                return;
+            }
+            var fallback = adminDashboardBaseUrl().replace(/\/backend\/admin\/dashboard\.php$/i, '')
+                + '/event_activities.php?id=' + encodeURIComponent(eid);
+            window.location.href = fallback;
         }
+        tryOpen(0);
     }, 280);
     return true;
 }

@@ -18,6 +18,27 @@
         return String(global.currentRole || '').toLowerCase();
     }
 
+    function pathIs(regex) {
+        try {
+            return regex.test(window.location.pathname || '');
+        } catch (err) {
+            return false;
+        }
+    }
+
+    function onAdminDashboard() {
+        return pathIs(/\/backend\/admin\/dashboard\.php$/i) || pathIs(/\/admin\/dashboard\.php$/i);
+    }
+
+    function onOrganizerDashboard() {
+        return pathIs(/\/backend\/auth\/dashboardorganizer\.php$/i)
+            || pathIs(/\/views\/dashboardorganizer\.php$/i);
+    }
+
+    function onSuperAdminDashboard() {
+        return pathIs(/dashboardsuperadmin\.php$/i);
+    }
+
     function postNotification(action, extra, csrfOverride) {
         var token = csrfOverride || csrfToken();
         if (!token) {
@@ -154,14 +175,21 @@
             return {
                 label: 'View event',
                 mode: 'href',
-                href: baseUrl() + '/backend/auth/dashboardorganizer.php?panel=events&event_id=' + eid + '&open_modal=eventDetails'
+                href: baseUrl() + '/event_activities.php?id=' + eid
             };
         }
-        if ((role === 'admin' || role === 'super_admin') && eid > 0) {
+        if (role === 'admin' && eid > 0) {
             return {
                 label: 'View event',
                 mode: 'href',
-                href: baseUrl() + '/backend/admin/dashboard.php?panel=home&event_id=' + eid + '&open_modal=eventDetails'
+                href: baseUrl() + '/event_activities.php?id=' + eid
+            };
+        }
+        if (role === 'super_admin' && eid > 0) {
+            return {
+                label: 'View event',
+                mode: 'href',
+                href: baseUrl() + '/event_activities.php?id=' + eid
             };
         }
         if (eid > 0) {
@@ -229,16 +257,16 @@
         var actionBtn = document.getElementById('eventifyNotifDetailAction');
         if (!modalEl || !actionBtn) return;
 
-        actionBtn.addEventListener('click', function () {
+        actionBtn.addEventListener('click', function (e) {
             var mode = actionBtn.getAttribute('data-action-mode') || '';
             var eventId = modalEl.getAttribute('data-event-id') || '';
             var notifType = modalEl.getAttribute('data-notif-type') || '';
+            var href = actionBtn.getAttribute('data-action-href') || actionBtn.getAttribute('href') || '';
 
             function runAction() {
                 if (mode === 'href') {
-                    var href = actionBtn.getAttribute('data-action-href') || '';
-                    if (href) {
-                        window.location.href = href;
+                    if (href && href !== '#') {
+                        window.location.assign(href);
                     }
                     return;
                 }
@@ -263,18 +291,14 @@
                 }
             }
 
-            if (mode === 'pending' || mode === 'accounts' || mode === 'event') {
-                afterNotifModalsClosed(runAction);
+            if (mode === 'href' && href && href !== '#') {
+                e.preventDefault();
+                window.location.assign(href);
                 return;
             }
 
-            if (global.bootstrap) {
-                var inst = bootstrap.Modal.getInstance(modalEl);
-                if (inst) {
-                    inst.hide();
-                }
-            }
-            runAction();
+            e.preventDefault();
+            afterNotifModalsClosed(runAction);
         });
         detailModalBound = true;
     }
@@ -329,12 +353,15 @@
                 actionBtn.textContent = action.label;
                 actionBtn.setAttribute('data-action-mode', action.mode);
                 if (action.href) {
+                    actionBtn.setAttribute('href', action.href);
                     actionBtn.setAttribute('data-action-href', action.href);
                 } else {
+                    actionBtn.setAttribute('href', '#');
                     actionBtn.removeAttribute('data-action-href');
                 }
             } else {
                 actionBtn.style.display = 'none';
+                actionBtn.setAttribute('href', '#');
                 actionBtn.removeAttribute('data-action-mode');
                 actionBtn.removeAttribute('data-action-href');
             }

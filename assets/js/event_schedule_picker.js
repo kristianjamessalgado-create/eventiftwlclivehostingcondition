@@ -371,8 +371,8 @@
             '<div class="esc-bulk-times__panel esc-day-card">' +
             '<div class="esc-day-card__body esc-bulk-times__body">' +
             '<div class="esc-day-card__field">' +
-            '<span class="esc-field-label">Starts <span class="text-danger" aria-hidden="true">*</span></span>' +
-            '<input type="time" class="form-control form-control-sm js-bulk-start-time" value="' + (bulkStart || '') + '" aria-label="Start time for all days">' +
+            '<label class="esc-field-label" for="' + idBase + '_start">Starts <span class="text-danger" aria-hidden="true">*</span></label>' +
+            '<input type="time" id="' + idBase + '_start" class="form-control form-control-sm js-bulk-start-time" value="' + (bulkStart || '') + '" required aria-label="Start time for all days" autocomplete="off">' +
             '</div>' +
             '<div class="esc-day-card__field esc-day-card__field--end">' +
             '<span class="esc-field-label">Ends</span>' +
@@ -455,12 +455,13 @@
 
     function renderDayScheduleCardHtml(ymd, dayStart, dayState, namePrefix) {
         var startName = 'schedule_day_start[' + ymd + ']';
+        var startId = 'day_start_' + String(ymd).replace(/-/g, '');
         return '<article class="esc-day-card" data-day-schedule-block="' + ymd + '">' +
             '<header class="esc-day-card__date">' + formatLong(ymd) + '</header>' +
             '<div class="esc-day-card__body">' +
             '<div class="esc-day-card__field">' +
-            '<span class="esc-field-label">Starts <span class="text-danger" aria-hidden="true">*</span></span>' +
-            '<input type="time" class="form-control form-control-sm js-day-start-time" name="' + startName + '" value="' + (dayStart || '') + '" required aria-label="Start time for ' + formatLong(ymd) + '">' +
+            '<label class="esc-field-label" for="' + startId + '">Starts <span class="text-danger" aria-hidden="true">*</span></label>' +
+            '<input type="time" id="' + startId + '" class="form-control form-control-sm js-day-start-time" name="' + startName + '" value="' + (dayStart || '') + '" required aria-label="Start time for ' + formatLong(ymd) + '" autocomplete="off">' +
             '</div>' +
             '<div class="esc-day-card__field esc-day-card__field--end">' +
             '<span class="esc-field-label">Ends</span>' +
@@ -517,7 +518,7 @@
         pickers.forEach(function (picker) {
             var radios = picker.querySelectorAll('.js-end-mode');
             var timeInput = picker.querySelector('.js-end-time-input');
-            function syncEndTimeInput() {
+            function syncEndTimeInput(openPicker) {
                 if (!timeInput) {
                     return;
                 }
@@ -529,14 +530,25 @@
                 });
                 timeInput.disabled = !useTime;
                 picker.classList.toggle('esc-end-picker--time-active', useTime);
-                if (useTime) {
+                syncTimeFieldHitState(timeInput);
+                if (!useTime || !openPicker) {
+                    return;
+                }
+                try {
+                    timeInput.focus({ preventScroll: true });
+                } catch (errFocus) {
                     timeInput.focus();
+                }
+                if (typeof timeInput.showPicker === 'function') {
+                    try { timeInput.showPicker(); } catch (err) { /* native fallback */ }
                 }
             }
             radios.forEach(function (radio) {
-                radio.addEventListener('change', syncEndTimeInput);
+                radio.addEventListener('change', function () {
+                    syncEndTimeInput(true);
+                });
             });
-            syncEndTimeInput();
+            syncEndTimeInput(false);
         });
     }
 
@@ -569,6 +581,7 @@
                 renderBulkTimeSectionHtml(prefix, sorted, state);
             bindBulkTimePanel(prefix, panel, sorted);
             updateGlobalStartTimeRow(prefix);
+            eventifyBindNativeTimePickers(panel);
             return;
         }
 
@@ -592,6 +605,7 @@
             '</div></div>';
         bindEndTimeBlock(panel);
         updateGlobalStartTimeRow(prefix);
+        eventifyBindNativeTimePickers(panel);
     }
 
     function readEndTimePanelIntoState(prefix) {
@@ -891,6 +905,76 @@
         return [];
     }
 
+    function isAppleTouch() {
+        return /iP(hone|ad|od)/.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function syncTimeFieldHitState(input) {
+        if (!input) {
+            return;
+        }
+        var wrap = input.closest('.esc-time-field');
+        if (!wrap) {
+            return;
+        }
+        wrap.classList.toggle('esc-time-field--disabled', !!input.disabled);
+    }
+
+    function openNativeTimePicker(input) {
+        if (!input || input.disabled) {
+            return;
+        }
+        try {
+            input.focus({ preventScroll: true });
+        } catch (errFocus) {
+            input.focus();
+        }
+        if (typeof input.showPicker === 'function') {
+            try {
+                input.showPicker();
+            } catch (err) {
+                /* iOS / some browsers reject showPicker outside a direct input tap. */
+            }
+        }
+    }
+
+    function eventifyBindNativeTimePickers(root) {
+        var scope = root && root.querySelectorAll ? root : document;
+        var appleTouch = isAppleTouch();
+        scope.querySelectorAll('input[type="time"]').forEach(function (input) {
+            input.classList.add('esc-time-input');
+            var wrap = input.closest('.esc-time-field');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'esc-time-field';
+                input.parentNode.insertBefore(wrap, input);
+                wrap.appendChild(input);
+            }
+            if (appleTouch) {
+                wrap.classList.add('esc-time-field--native');
+                syncTimeFieldHitState(input);
+                return;
+            }
+            wrap.classList.remove('esc-time-field--native');
+            var hit = wrap.querySelector('.esc-time-field__hit');
+            if (!hit) {
+                hit = document.createElement('button');
+                hit.type = 'button';
+                hit.className = 'esc-time-field__hit';
+                hit.tabIndex = -1;
+                hit.setAttribute('aria-label', 'Open time picker');
+                wrap.appendChild(hit);
+                hit.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openNativeTimePicker(input);
+                });
+            }
+            syncTimeFieldHitState(input);
+        });
+    }
+
     function eventifyInitSchedulePicker(prefix, initialOpts) {
         var block = getBlock(prefix);
         if (!block) {
@@ -948,6 +1032,7 @@
         });
 
         updateGlobalStartTimeRow(prefix);
+        eventifyBindNativeTimePickers(block.closest('form') || document);
     }
 
     function syncGlobalStartTimeFromDays(prefix) {
@@ -1198,10 +1283,38 @@
         return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     }
 
+    function eventifySetScheduleDates(prefix, dates, mode) {
+        var block = getBlock(prefix);
+        var next = Array.isArray(dates) ? dates.slice() : [];
+        if (mode && block) {
+            var radio = block.querySelector('.js-schedule-mode[value="' + mode + '"]');
+            if (radio) {
+                radio.checked = true;
+            }
+        }
+        if (!pickerState[prefix]) {
+            eventifyInitSchedulePicker(prefix, {
+                dates: next,
+                startDate: next[0] || ''
+            });
+            return;
+        }
+        applySelection(prefix, next);
+        updateGlobalStartTimeRow(prefix);
+    }
+
     global.eventifyInitSchedulePicker = eventifyInitSchedulePicker;
+    global.eventifySetScheduleDates = eventifySetScheduleDates;
     global.eventifyValidateScheduleOnSubmit = eventifyValidateScheduleOnSubmit;
     global.eventifySyncScheduleBeforeSubmit = eventifySyncScheduleBeforeSubmit;
     global.eventifyGetScheduleDisplayDates = eventifyGetScheduleDisplayDates;
     global.eventifyScheduleChangeDroppedSessions = eventifyScheduleChangeDroppedSessions;
     global.eventifyFormatScheduleDayLabel = eventifyFormatScheduleDayLabel;
+    global.eventifyBindNativeTimePickers = eventifyBindNativeTimePickers;
+
+    document.addEventListener('shown.bs.modal', function (e) {
+        if (e && e.target && e.target.querySelectorAll) {
+            eventifyBindNativeTimePickers(e.target);
+        }
+    });
 })(typeof window !== 'undefined' ? window : this);

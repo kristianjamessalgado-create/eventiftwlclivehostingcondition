@@ -68,40 +68,6 @@
                 syncDeptForSections(form, allCb);
             });
         }
-        form.addEventListener('submit', function (e) {
-            var anySpecific = Array.prototype.some.call(specifics, function (c) {
-                return c.checked;
-            });
-            var allOn = allCb && allCb.checked;
-            var hasSection = formHasSelectedSection(form);
-
-            // Section-only: keep All departments unchecked in the UI.
-            // Missing department[] posts as campus-wide in PHP, then section gate applies.
-            if (hasSection) {
-                syncDeptForSections(form, allCb);
-                allOn = allCb && allCb.checked;
-            }
-
-            if (!allOn && !anySpecific && !hasSection) {
-                e.preventDefault();
-                notify('Choose All departments, pick at least one college, or select a class section.', {
-                    title: 'Who can attend?',
-                    type: 'warning'
-                });
-                return;
-            }
-            if (form.getAttribute('data-create-mode') === 'admin') {
-                var orgSelect = document.getElementById('ceOrganizerId');
-                if (orgSelect && !String(orgSelect.value || '').trim()) {
-                    e.preventDefault();
-                    notify('Please choose who will organize this event (you or another organizer).', {
-                        title: 'Organizer required',
-                        type: 'warning'
-                    });
-                    orgSelect.focus();
-                }
-            }
-        });
     }
 
     function showMapLoadError(mapEl) {
@@ -180,71 +146,186 @@
         }
     }
 
-    function initCreateEventFormValidation() {
-        var ceForm = document.getElementById('createEventModalForm');
-        if (!ceForm) {
+    function focusCreateField(el) {
+        if (!el || typeof el.focus !== 'function') {
             return;
         }
-        ceForm.addEventListener('submit', function (e) {
-            if (typeof window.eventifySyncScheduleBeforeSubmit === 'function') {
-                window.eventifySyncScheduleBeforeSubmit('ce');
+        try {
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        } catch (err) {
+            /* ignore */
+        }
+        try {
+            el.focus({ preventScroll: true });
+        } catch (errFocus) {
+            el.focus();
+        }
+    }
+
+    function setCreateEventBusy(form, busy) {
+        if (!form) {
+            return;
+        }
+        form.classList.toggle('ce-form--publishing', !!busy);
+        var btn = document.getElementById('cePublishSubmit');
+        if (btn) {
+            btn.disabled = !!busy;
+            btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+            var idle = btn.querySelector('.ce-publish-idle');
+            var wait = btn.querySelector('.ce-publish-busy');
+            if (idle) {
+                idle.hidden = !!busy;
             }
-            if (typeof window.eventifyValidateScheduleOnSubmit === 'function' && !window.eventifyValidateScheduleOnSubmit('ce')) {
-                e.preventDefault();
+            if (wait) {
+                wait.hidden = !busy;
+            }
+        }
+        var cancel = document.getElementById('cePublishCancel');
+        if (cancel) {
+            cancel.disabled = !!busy;
+        }
+    }
+
+    function validateCreateEventAudience(form) {
+        var allCb = document.getElementById('ceDeptAll');
+        var specifics = form.querySelectorAll('.ce-dept-specific');
+        var anySpecific = Array.prototype.some.call(specifics, function (c) {
+            return c.checked;
+        });
+        var allOn = allCb && allCb.checked;
+        var hasSection = formHasSelectedSection(form);
+
+        if (hasSection) {
+            syncDeptForSections(form, allCb);
+            allOn = allCb && allCb.checked;
+        }
+
+        if (!allOn && !anySpecific && !hasSection) {
+            notify('Choose All departments, pick at least one college, or select a class section.', {
+                title: 'Who can attend?',
+                type: 'warning'
+            });
+            return false;
+        }
+        return true;
+    }
+
+    function validateCreateEventForm(form) {
+        var title = document.getElementById('ceTitle');
+        if (!title || !String(title.value || '').trim()) {
+            notify('Please enter an event title.', {
+                title: 'Event title required',
+                type: 'warning'
+            });
+            focusCreateField(title);
+            return false;
+        }
+
+        if (form.getAttribute('data-create-mode') === 'admin') {
+            var orgSelect = document.getElementById('ceOrganizerId');
+            if (orgSelect && !String(orgSelect.value || '').trim()) {
+                notify('Please choose who will organize this event (you or another organizer).', {
+                    title: 'Organizer required',
+                    type: 'warning'
+                });
+                focusCreateField(orgSelect);
                 return false;
             }
-            if (ceForm.getAttribute('data-require-geo') !== '1') {
-                return;
-            }
+        }
+
+        if (!validateCreateEventAudience(form)) {
+            return false;
+        }
+
+        if (typeof window.eventifySyncScheduleBeforeSubmit === 'function') {
+            window.eventifySyncScheduleBeforeSubmit('ce');
+        }
+        if (typeof window.eventifyValidateScheduleOnSubmit === 'function' && !window.eventifyValidateScheduleOnSubmit('ce')) {
+            return false;
+        }
+
+        var loc = document.getElementById('ceLocation');
+        var locSearch = document.getElementById('ceLocSearch');
+        if (loc && !String(loc.value || '').trim() && locSearch && String(locSearch.value || '').trim()) {
+            loc.value = String(locSearch.value || '').trim();
+        }
+        if (!loc || !String(loc.value || '').trim()) {
+            notify('Please enter the venue name / address.', {
+                title: 'Venue required',
+                type: 'warning'
+            });
+            focusCreateField(loc);
+            return false;
+        }
+
+        if (form.getAttribute('data-require-geo') === '1') {
             var lat = (document.getElementById('ceEventLatitude') || {}).value;
             var lng = (document.getElementById('ceEventLongitude') || {}).value;
             if (!lat || !lng || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) {
-                e.preventDefault();
                 notify('Please set the venue on the map, search and pick a result, or use your location.', {
                     title: 'Venue required',
                     type: 'warning'
                 });
+                focusCreateField(document.getElementById('ceLocSearch') || loc);
                 return false;
             }
-        });
+        }
+
+        return true;
     }
 
-    function initCreateEventPublishConfirm() {
+    function submitCreateEventForm(form) {
+        setCreateEventBusy(form, true);
+        window.setTimeout(function () {
+            form.submit();
+        }, 50);
+    }
+
+    function initCreateEventFormValidation() {
         var form = document.getElementById('createEventModalForm');
-        if (!form || form.getAttribute('data-create-mode') !== 'admin') {
+        if (!form) {
             return;
         }
-        var confirmModalEl = document.getElementById('confirmCreateEventPublishModal');
-        var confirmYesBtn = document.getElementById('confirmCreateEventPublishYes');
-        if (!confirmModalEl || !confirmYesBtn || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
-            return;
-        }
-
-        var confirmModal = bootstrap.Modal.getOrCreateInstance(confirmModalEl);
-        var publishConfirmed = false;
-
-        confirmYesBtn.addEventListener('click', function () {
-            publishConfirmed = true;
-            confirmModal.hide();
-            form.requestSubmit();
-        });
-
-        confirmModalEl.addEventListener('hidden.bs.modal', function () {
-            if (!publishConfirmed) {
-                publishConfirmed = false;
-            }
-        });
 
         form.addEventListener('submit', function (e) {
-            if (publishConfirmed) {
-                publishConfirmed = false;
+            if (form.getAttribute('data-ce-submitting') === '1') {
+                e.preventDefault();
                 return;
             }
-            if (e.defaultPrevented) {
-                return;
-            }
+
             e.preventDefault();
-            confirmModal.show();
+            if (!validateCreateEventForm(form)) {
+                setCreateEventBusy(form, false);
+                return;
+            }
+
+            function proceed() {
+                form.setAttribute('data-ce-submitting', '1');
+                submitCreateEventForm(form);
+            }
+
+            if (form.getAttribute('data-create-mode') !== 'admin') {
+                proceed();
+                return;
+            }
+
+            var ask = (typeof window.eventifyConfirm === 'function')
+                ? window.eventifyConfirm('Are you sure you want to publish this event? It will go live on the student calendar right away.', {
+                    title: 'Publish event',
+                    type: 'warning',
+                    confirmLabel: 'Yes, publish',
+                    cancelLabel: 'No',
+                    icon: 'fa-check-circle'
+                })
+                : Promise.resolve(window.confirm('Are you sure you want to publish this event?'));
+
+            ask.then(function (ok) {
+                if (!ok) {
+                    setCreateEventBusy(form, false);
+                    return;
+                }
+                proceed();
+            });
         });
     }
 
@@ -257,6 +338,38 @@
         openFromMyEvents.addEventListener('click', function () {
             bootstrap.Modal.getOrCreateInstance(createModal).show();
         });
+    }
+
+    function applyPrefillDate() {
+        var ymd = String(window.__cePrefillDate || '').slice(0, 10);
+        if (!ymd) {
+            return;
+        }
+        window.__cePrefillDate = '';
+        if (typeof window.eventifySetScheduleDates === 'function') {
+            window.eventifySetScheduleDates('ce', [ymd], 'single');
+        }
+        var dateEl = document.getElementById('ceDate');
+        if (dateEl) {
+            dateEl.value = ymd;
+        }
+        var singleMode = document.getElementById('ceModeSingle');
+        if (singleMode) {
+            singleMode.checked = true;
+        }
+        var schedule = document.querySelector('#createEventModal .event-schedule-block');
+        if (schedule && typeof schedule.scrollIntoView === 'function') {
+            schedule.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    function eventifyOpenCreateEventForDate(ymd) {
+        window.__cePrefillDate = String(ymd || '').slice(0, 10);
+        var createModal = document.getElementById('createEventModal');
+        if (!createModal || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            return;
+        }
+        bootstrap.Modal.getOrCreateInstance(createModal).show();
     }
 
     function maybeOpenCreateFromQuery() {
@@ -274,8 +387,15 @@
         initCreateEventDeptAudience();
         initCreateEventLocationPicker();
         initCreateEventFormValidation();
-        initCreateEventPublishConfirm();
         initOpenCreateFromMyEvents();
         maybeOpenCreateFromQuery();
+        var createModal = document.getElementById('createEventModal');
+        if (createModal) {
+            createModal.addEventListener('shown.bs.modal', function () {
+                applyPrefillDate();
+            });
+        }
     });
+
+    window.eventifyOpenCreateEventForDate = eventifyOpenCreateEventForDate;
 })();

@@ -62,14 +62,15 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=3">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=24">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=28">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/attendance_proof.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=4">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=2">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=3">
     <link rel="manifest" href="<?= BASE_URL; ?>/manifest-student.php">
     <?php if (!empty($eventifyVapidPublicKey ?? '')): ?>
     <meta name="eventify-vapid-key" content="<?= htmlspecialchars($eventifyVapidPublicKey, ENT_QUOTES, 'UTF-8') ?>">
@@ -196,6 +197,11 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                         <i class="fas fa-clipboard-check me-2"></i> Check-in history
                     </a>
                 </li>
+                <li>
+                    <a class="dropdown-item" href="<?= BASE_URL ?>/activity_card.php">
+                        <i class="fas fa-file-signature me-2"></i> My activity card
+                    </a>
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logoutModal">
@@ -301,6 +307,10 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                     <span class="badge bg-success ms-1"><?= $student_attendance_count ?></span>
                 <?php endif; ?>
             </button>
+            <a class="action-btn w-100 text-start text-decoration-none" href="<?= BASE_URL ?>/activity_card.php">
+                <i class="fas fa-file-signature"></i>
+                <span>My activity card</span>
+            </a>
         </div>
 
         <!-- My Department Info -->
@@ -585,7 +595,9 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                 <span class="efy-modal__eyebrow">Student</span>
                 <h2 class="efy-modal__title mb-0"><i class="fas fa-user" aria-hidden="true"></i> My information</h2>
             </div>
-            <button type="button" class="profile-close btn-close btn-close-white" onclick="closeProfileModal()" aria-label="Close">&times;</button>
+            <button type="button" class="profile-close" id="profileModalCloseBtn" onclick="closeProfileModal()" aria-label="Close">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
         </div>
         <div class="profile-modal-body efy-modal__body">
         <form id="profileForm" action="<?= BASE_URL ?>/backend/auth/update_student_profile.php" method="POST" enctype="multipart/form-data" onsubmit="event.preventDefault(); confirmProfileChanges(this);">
@@ -697,8 +709,11 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                 <small class="text-muted">Academic year (e.g. 2025-2026).</small>
             </div>
 
-            <button type="submit" class="btn efy-btn-primary w-100">Save info</button>
         </form>
+        </div>
+        <div class="profile-modal-footer efy-modal__footer">
+            <button type="button" class="btn efy-btn-muted" id="profileModalCancelBtn" onclick="closeProfileModal()">Cancel</button>
+            <button type="submit" class="btn efy-btn-primary" form="profileForm">Save info</button>
         </div>
     </div>
 </div>
@@ -1176,15 +1191,16 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 
 <!-- jsQR for QR code decoding -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=2"></script>
+<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=5"></script>
 <!-- Dashboard Scripts -->
-<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=10"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=7"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=29"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=31"></script>
+<script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=1"></script>
 <script>window.__myTicketsBootstrap = <?= json_encode($student_tickets_bootstrap, JSON_UNESCAPED_UNICODE) ?>;</script>
 
 <script>
@@ -1239,9 +1255,9 @@ function confirmProfileChanges(form) {
     setTimeout(function() {
         var backdrop = document.querySelector('.modal-backdrop');
         if (backdrop) {
-            backdrop.style.zIndex = '1199';
+            backdrop.style.zIndex = '12240';
         }
-        modalEl.style.zIndex = '1200';
+        modalEl.style.zIndex = '12250';
     }, 10);
 }
 

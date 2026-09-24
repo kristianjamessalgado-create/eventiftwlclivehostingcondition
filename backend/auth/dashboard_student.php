@@ -15,6 +15,7 @@ require_once __DIR__ . '/../lib/event_calendar.php';
 require_once __DIR__ . '/../lib/event_ticketing.php';
 require_once __DIR__ . '/../lib/event_evaluation.php';
 require_once __DIR__ . '/../lib/student_photo_gallery.php';
+require_once __DIR__ . '/../lib/attendance_proof.php';
 
 eventify_ticketing_ensure_schema($conn);
 
@@ -197,8 +198,10 @@ if (function_exists('eventify_student_may_access_event')) {
 
 // Fetch this student's attendance records (events they checked into via QR)
 $attendance_records = [];
+eventify_attendance_proof_ensure_columns($conn);
+$eventProofSql = eventify_attendance_proof_column_exists($conn, 'registrations') ? ', r.proof_photo' : '';
 $stmt_att = $conn->prepare("
-    SELECT r.id, r.event_id, r.status, r.time_in, r.time_out,
+    SELECT r.id, r.event_id, r.status, r.time_in, r.time_out{$eventProofSql},
            e.title AS event_title, e.date AS event_date, e.end_date AS event_end_date,
            e.start_time, e.end_time, e.end_time_na,
            e.location AS event_location, e.status AS event_status
@@ -409,15 +412,16 @@ $my_registered_events = array_values(array_filter($events, static function ($row
 $activity_attendance_records = [];
 try {
     eventify_event_day_sessions_ensure_enhanced($conn);
+    $actProofSql = eventify_attendance_proof_column_exists($conn, 'event_day_session_attendance') ? ', a.proof_photo' : '';
     $stmtActAtt = $conn->prepare(
-        'SELECT a.checked_in_at, s.id AS session_id, s.title AS activity_title, s.schedule_date, s.start_time, s.end_time,
+        "SELECT a.id AS attendance_id, a.checked_in_at{$actProofSql}, s.id AS session_id, s.title AS activity_title, s.schedule_date, s.start_time, s.end_time,
                 e.id AS event_id, e.title AS event_title
          FROM event_day_session_attendance a
          INNER JOIN event_day_sessions s ON s.id = a.session_id
          INNER JOIN events e ON e.id = s.event_id
          WHERE a.user_id = ?
          ORDER BY a.checked_in_at DESC
-         LIMIT 30'
+         LIMIT 30"
     );
     if ($stmtActAtt) {
         $stmtActAtt->bind_param('i', $session_user_id);

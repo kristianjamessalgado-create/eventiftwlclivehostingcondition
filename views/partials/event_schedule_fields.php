@@ -24,7 +24,7 @@ $calendarId = $idPrefix . 'ScheduleClickCalendar';
 $calendarWrapId = $idPrefix . 'ScheduleCalendarWrap';
 $hintId = $idPrefix . 'ScheduleModeHint';
 $minDate = date('Y-m-d');
-$scheduleCss = (defined('BASE_URL') ? BASE_URL : '') . '/assets/css/event_schedule_picker.css?v=3';
+$scheduleCss = (defined('BASE_URL') ? BASE_URL : '') . '/assets/css/event_schedule_picker.css?v=7';
 $startDateInputId = $idPrefix === 'ce' ? 'ceDate' : ($idPrefix === 'standalone' ? 'date' : $idPrefix . 'Date');
 ?>
 <link rel="stylesheet" href="<?= htmlspecialchars($scheduleCss) ?>">
@@ -55,7 +55,7 @@ $startDateInputId = $idPrefix === 'ce' ? 'ceDate' : ($idPrefix === 'standalone' 
     <div id="<?= htmlspecialchars($calendarId) ?>" class="event-schedule-click-calendar" role="application" aria-label="Pick event days"></div>
   </div>
 
-  <input type="hidden" name="date" id="<?= htmlspecialchars($startDateInputId) ?>" value="<?= htmlspecialchars($postedStartDate) ?>" required>
+  <input type="hidden" name="date" id="<?= htmlspecialchars($startDateInputId) ?>" value="<?= htmlspecialchars($postedStartDate) ?>">
   <?php if (!empty($eventsHasEndDate)): ?>
   <input type="hidden" name="end_date" id="<?= htmlspecialchars($idPrefix) ?>EndDate" value="<?= htmlspecialchars($postedEndDate) ?>">
   <?php endif; ?>

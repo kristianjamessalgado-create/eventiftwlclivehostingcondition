@@ -1,7 +1,32 @@
 <?php
 if (!defined('EVENTIFY_ADMIN_DASHBOARD_LOADED')) {
-    require_once __DIR__ . '/../config/config.php';
-    header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
+    $bootCandidates = [
+        __DIR__ . '/../backend/admin/dashboard_boot.php',
+        __DIR__ . '/dashboard_boot.php',
+    ];
+    foreach ($bootCandidates as $boot) {
+        if (is_file($boot)) {
+            require $boot;
+            exit;
+        }
+    }
+    $configCandidates = [
+        __DIR__ . '/../config/config.php',
+        __DIR__ . '/../../config/config.php',
+    ];
+    foreach ($configCandidates as $cfg) {
+        if (is_file($cfg)) {
+            require_once $cfg;
+            break;
+        }
+    }
+    if (defined('BASE_URL')) {
+        header('Location: ' . BASE_URL . '/index.php?auth_modal=login');
+        exit;
+    }
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Upload backend/admin/dashboard_boot.php and keep this layout at /admin/dashboard.php.\n";
     exit;
 }
 $admin_name    = $admin_name    ?? 'Admin';
@@ -118,16 +143,16 @@ $peerLabel = 'Organizers';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=3">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=8">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=11">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=5">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=12">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=35">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=37">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=3">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=6">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=13">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 <body class="admin-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="adminSidebar" data-eventify-calendar="calendar" data-eventify-main=".admin-dashboard .main-content" data-eventify-pull-refresh="1">
@@ -936,7 +961,8 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
           </div>
           <p class="efy-detail-row mb-1"><strong>Location:</strong> <span id="eventLocation"></span></p>
           <p class="efy-detail-row mb-1"><strong>Status:</strong> <span id="eventStatus" class="badge bg-success"></span></p>
-          <p class="efy-detail-row mb-1"><strong>Entry:</strong> <span id="eventRegistrationModeBadge"></span></p>
+          <div id="eventSegmentAttendanceNote" class="eventify-segment-note" hidden></div>
+          <p class="efy-detail-row mb-1"><strong>Entry:</strong> <span id="eventRegistrationModeBadge"></span> <span class="efy-form-help d-inline" id="eventRegistrationHint">— use <strong>Ticket sales</strong> below to add types and prices</span></p>
           <p class="efy-detail-row mb-1"><strong>Audience:</strong> <span id="eventDepartment"></span></p>
           <p class="efy-detail-row mb-1"><strong>Organizer:</strong> <span id="eventOrganizer"></span></p>
           <div id="eventAttendanceSummaryWrap" class="adm-event-attendance-summary mt-2 mb-1" style="display:none;">
@@ -960,6 +986,7 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
       <div class="modal-footer efy-modal__footer flex-wrap gap-2">
         <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
         <a href="#" id="eventEditLink" class="btn btn-outline-primary btn-sm" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</a>
+        <a href="#" id="eventTicketsLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
         <a href="#" id="eventQrLink" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> QR</a>
         <a href="#" id="eventAttendanceLink" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
         <a href="#" id="eventRsvpLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-user-check me-1"></i> RSVP</a>
@@ -1191,19 +1218,19 @@ if (typeof window.L === 'undefined') {
 window.BASE_URL = window.BASE_URL || <?= json_encode(BASE_URL) ?>;
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=4"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=21"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=26"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=7"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=31"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=11"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=35"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=27"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=28"></script>
 </body>
 </html>

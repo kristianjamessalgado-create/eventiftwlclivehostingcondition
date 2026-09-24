@@ -1348,7 +1348,7 @@ $idPrefix = 'edit';
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=21"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=26"></script>
     <script>
     window.__editEventScheduleContext = {
         oldDisplayDates: <?= json_encode(array_values($oldEventDisplayDates), JSON_UNESCAPED_UNICODE) ?>,

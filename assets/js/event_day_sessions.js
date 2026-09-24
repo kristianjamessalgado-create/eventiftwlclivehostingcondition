@@ -93,15 +93,19 @@
         var clickedYmd = null;
 
         if (clickContext) {
-            if (clickContext.jsEvent && props.calendar_range_multiday) {
-                clickedYmd = resolveClickYmdFromPointer(event, clickContext.jsEvent);
-            }
-            if (!clickedYmd && typeof global.eventifyGetSegmentYmdFromEl === 'function') {
-                if (clickContext.clickEl) {
-                    clickedYmd = global.eventifyGetSegmentYmdFromEl(clickContext.clickEl);
+            if (typeof global.eventifyResolveClickedYmd === 'function') {
+                clickedYmd = global.eventifyResolveClickedYmd(event, clickContext);
+            } else {
+                if (clickContext.jsEvent && props.calendar_range_multiday) {
+                    clickedYmd = resolveClickYmdFromPointer(event, clickContext.jsEvent);
                 }
-                if (!clickedYmd && clickContext.jsEvent && clickContext.jsEvent.target) {
-                    clickedYmd = global.eventifyGetSegmentYmdFromEl(clickContext.jsEvent.target);
+                if (!clickedYmd && typeof global.eventifyGetSegmentYmdFromEl === 'function') {
+                    if (clickContext.clickEl) {
+                        clickedYmd = global.eventifyGetSegmentYmdFromEl(clickContext.clickEl);
+                    }
+                    if (!clickedYmd && clickContext.jsEvent && clickContext.jsEvent.target) {
+                        clickedYmd = global.eventifyGetSegmentYmdFromEl(clickContext.jsEvent.target);
+                    }
                 }
             }
         }
@@ -162,23 +166,84 @@
 
     var edsMessageModalInstance = null;
 
-    function ensureEdsMessageModal() {
-        if (document.getElementById('edsMessageModal')) {
+    function edsHelperModalMarkup(id, titleId, iconId, titleSpanId, bodyId, footerInner) {
+        return (
+            '<div class="modal fade eds-helper-modal" id="' + id + '" tabindex="-1" aria-labelledby="' + titleId + '" aria-hidden="true">' +
+            '<div class="modal-dialog modal-dialog-centered">' +
+            '<div class="modal-content efy-modal efy-modal--compact">' +
+            '<div class="modal-header efy-modal__header">' +
+            '<div>' +
+            '<span class="efy-modal__eyebrow" id="' + id + 'Eyebrow">EVENTIFY</span>' +
+            '<h5 class="modal-title efy-modal__title efy-modal__title--sm" id="' + titleId + '">' +
+            '<i class="fas fa-info-circle" aria-hidden="true" id="' + iconId + '"></i>' +
+            '<span id="' + titleSpanId + '">Notice</span>' +
+            '</h5>' +
+            '</div>' +
+            '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>' +
+            '</div>' +
+            '<div class="modal-body efy-modal__body efy-modal__body--compact">' +
+            '<p class="efy-confirm-message mb-0" id="' + bodyId + '"></p>' +
+            (id === 'edsConfirmModal'
+                ? '<div class="efy-confirm-detail" id="edsConfirmModalDetail" hidden></div>' +
+                  '<p class="efy-confirm-hint mb-0" id="edsConfirmModalHint" hidden></p>'
+                : '') +
+            '</div>' +
+            '<div class="modal-footer efy-modal__footer">' + footerInner + '</div>' +
+            '</div></div></div>'
+        );
+    }
+
+    function edsEnsureBrandedModal(id, html) {
+        var existing = document.getElementById(id);
+        if (existing && existing.querySelector('.efy-modal')) {
             return;
         }
-        document.body.insertAdjacentHTML(
-            'beforeend',
-            '<div class="modal fade" id="edsMessageModal" tabindex="-1" aria-labelledby="edsMessageModalLabel" aria-hidden="true">' +
-            '<div class="modal-dialog modal-dialog-centered">' +
-            '<div class="modal-content">' +
-            '<div class="modal-header">' +
-            '<h5 class="modal-title" id="edsMessageModalLabel"><i class="fas fa-info-circle me-2" id="edsMessageModalIcon"></i><span id="edsMessageModalTitle">Notice</span></h5>' +
-            '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
-            '</div>' +
-            '<div class="modal-body"><p class="mb-0" id="edsMessageModalBody"></p></div>' +
-            '<div class="modal-footer">' +
-            '<button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>' +
-            '</div></div></div></div>'
+        if (existing) {
+            existing.remove();
+        }
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
+
+    function edsSetOptionalText(el, text) {
+        if (!el) {
+            return;
+        }
+        var t = String(text || '').trim();
+        el.textContent = t;
+        el.hidden = !t;
+    }
+
+    function edsMapConfirmBtnClass(cls) {
+        cls = String(cls || 'btn-primary');
+        if (cls.indexOf('danger') !== -1) {
+            return 'btn efy-btn-danger';
+        }
+        return 'btn efy-btn-primary';
+    }
+
+    function edsMapConfirmBtnIcon(options) {
+        if (options && options.confirmIcon) {
+            return options.confirmIcon;
+        }
+        var cls = String((options && options.confirmClass) || '');
+        if (cls.indexOf('danger') !== -1) {
+            return 'fa-trash-alt';
+        }
+        return 'fa-check';
+    }
+
+    function ensureEdsMessageModal() {
+        edsEnsureBrandedModal(
+            'edsMessageModal',
+            edsHelperModalMarkup(
+                'edsMessageModal',
+                'edsMessageModalLabel',
+                'edsMessageModalIcon',
+                'edsMessageModalTitle',
+                'edsMessageModalBody',
+                '<button type="button" class="btn efy-btn-primary" data-bs-dismiss="modal" id="edsMessageModalOk">' +
+                '<i class="fas fa-check me-1" aria-hidden="true"></i>OK</button>'
+            )
         );
     }
 
@@ -197,10 +262,18 @@
         if (titleEl) {
             titleEl.textContent = options.title || 'Notice';
         }
+        var eyebrowEl = document.getElementById('edsMessageModalEyebrow');
+        if (eyebrowEl) {
+            eyebrowEl.textContent = options.eyebrow || 'EVENTIFY';
+        }
         if (iconEl) {
-            iconEl.className = 'fas ' + (options.icon || 'fa-info-circle') + ' me-2';
+            iconEl.className = 'fas ' + (options.icon || 'fa-info-circle');
         }
         bodyEl.textContent = msg;
+        var okBtn = document.getElementById('edsMessageModalOk');
+        if (okBtn) {
+            okBtn.innerHTML = '<i class="fas fa-check me-1" aria-hidden="true"></i>' + (options.okLabel || 'OK');
+        }
         if (typeof global.bootstrap !== 'undefined' && global.bootstrap.Modal) {
             edsPrepareStackedModal(modalEl);
             edsMessageModalInstance = edsCreateHelperModalInstance(modalEl);
@@ -264,14 +337,17 @@
     function edsPrepareStackedModal(modalEl) {
         var openCount = edsCountOpenModals();
         if (openCount > 0) {
-            modalEl.style.zIndex = String(1055 + (openCount * 10));
+            modalEl.style.zIndex = String(2000 + (openCount * 10));
+            modalEl.classList.add('eds-helper-modal--stacked');
         } else {
             modalEl.style.removeProperty('z-index');
+            modalEl.classList.remove('eds-helper-modal--stacked');
         }
     }
 
     function edsResetHelperModal(modalEl) {
         modalEl.style.removeProperty('z-index');
+        modalEl.classList.remove('eds-helper-modal--stacked');
         edsForceModalCleanupIfIdle();
     }
 
@@ -292,28 +368,24 @@
             helper.setAttribute('aria-hidden', 'true');
             helper.style.removeProperty('display');
             helper.style.removeProperty('z-index');
+            helper.classList.remove('eds-helper-modal--stacked');
         });
         edsForceModalCleanupIfIdle();
     }
 
     function ensureEdsConfirmModal() {
-        if (document.getElementById('edsConfirmModal')) {
-            return;
-        }
-        document.body.insertAdjacentHTML(
-            'beforeend',
-            '<div class="modal fade" id="edsConfirmModal" tabindex="-1" aria-labelledby="edsConfirmModalLabel" aria-hidden="true">' +
-            '<div class="modal-dialog modal-dialog-centered">' +
-            '<div class="modal-content">' +
-            '<div class="modal-header">' +
-            '<h5 class="modal-title" id="edsConfirmModalLabel"><i class="fas fa-question-circle me-2" id="edsConfirmModalIcon"></i><span id="edsConfirmModalTitle">Confirm</span></h5>' +
-            '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
-            '</div>' +
-            '<div class="modal-body"><p class="mb-0" id="edsConfirmModalBody"></p></div>' +
-            '<div class="modal-footer">' +
-            '<button type="button" class="btn btn-secondary" id="edsConfirmCancelBtn" data-bs-dismiss="modal">Cancel</button>' +
-            '<button type="button" class="btn btn-primary" id="edsConfirmYesBtn">Confirm</button>' +
-            '</div></div></div></div>'
+        edsEnsureBrandedModal(
+            'edsConfirmModal',
+            edsHelperModalMarkup(
+                'edsConfirmModal',
+                'edsConfirmModalLabel',
+                'edsConfirmModalIcon',
+                'edsConfirmModalTitle',
+                'edsConfirmModalBody',
+                '<button type="button" class="btn efy-btn-muted" id="edsConfirmCancelBtn" data-bs-dismiss="modal">Cancel</button>' +
+                '<button type="button" class="btn efy-btn-primary" id="edsConfirmYesBtn">' +
+                '<i class="fas fa-check me-1" aria-hidden="true"></i>Confirm</button>'
+            )
         );
     }
 
@@ -334,13 +406,22 @@
             if (titleEl) {
                 titleEl.textContent = options.title || 'Confirm';
             }
+            var eyebrowEl = document.getElementById('edsConfirmModalEyebrow');
+            if (eyebrowEl) {
+                eyebrowEl.textContent = options.eyebrow || 'EVENTIFY';
+            }
             if (iconEl) {
-                iconEl.className = 'fas ' + (options.icon || 'fa-question-circle') + ' me-2';
+                iconEl.className = 'fas ' + (options.icon || 'fa-question-circle');
             }
             bodyEl.textContent = options.message || 'Are you sure?';
-            yesBtn.textContent = options.confirmLabel || 'Confirm';
-            yesBtn.className = 'btn ' + (options.confirmClass || 'btn-primary');
+            edsSetOptionalText(document.getElementById('edsConfirmModalDetail'), options.detail);
+            edsSetOptionalText(document.getElementById('edsConfirmModalHint'), options.hint);
+            yesBtn.className = edsMapConfirmBtnClass(options.confirmClass);
+            yesBtn.innerHTML =
+                '<i class="fas ' + edsMapConfirmBtnIcon(options) + ' me-1" aria-hidden="true"></i>' +
+                (options.confirmLabel || 'Confirm');
             if (cancelBtn) {
+                cancelBtn.className = 'btn efy-btn-muted';
                 cancelBtn.textContent = options.cancelLabel || 'Cancel';
             }
 
@@ -1865,9 +1946,12 @@
                 }
                 showEdsConfirmModal({
                     title: 'Remove activity',
-                    message: 'Are you sure you want to remove this activity?',
+                    eyebrow: 'Organizer',
+                    message: 'Remove this activity from the day\'s schedule?',
+                    hint: 'This cannot be undone.',
                     confirmLabel: 'Yes, remove',
                     confirmClass: 'btn-danger',
+                    confirmIcon: 'fa-trash-alt',
                     icon: 'fa-trash-alt'
                 }).then(function (ok) {
                     if (!ok) {
@@ -2102,16 +2186,19 @@
             }
             var isEdit = !!state.editingId;
             var activityName = els.title ? String(els.title.value || '').trim() : '';
-            var confirmMessage = isEdit
-                ? 'Are you sure you want to save your changes to this activity?'
-                : (activityName
-                    ? 'Are you sure you want to submit "' + activityName + '"?'
-                    : 'Are you sure you want to submit this activity?');
             showEdsConfirmModal({
                 title: isEdit ? 'Save changes' : 'Submit activity',
-                message: confirmMessage,
+                eyebrow: 'Organizer',
+                message: isEdit
+                    ? 'Save your updates to this activity?'
+                    : 'Submit this activity to this day\'s schedule?',
+                detail: activityName,
+                hint: isEdit
+                    ? 'Your updates will appear on the activities hub.'
+                    : 'Students will see it on the activities hub after you save.',
                 confirmLabel: isEdit ? 'Yes, save' : 'Yes, submit',
                 confirmClass: 'btn-primary',
+                confirmIcon: isEdit ? 'fa-save' : 'fa-check',
                 icon: 'fa-save'
             }).then(function (ok) {
                 if (!ok) {
@@ -2178,6 +2265,9 @@
             state.scheduleDates = [state.scheduleDate];
         } else {
             state.scheduleDates = [];
+        }
+        if (!state.scheduleDate && state.scheduleDates.length) {
+            state.scheduleDate = state.scheduleDates[0];
         }
         if (!state.eventId || !state.scheduleDate) {
             showEdsMessageModal('Choose an event day before adding an activity.', {

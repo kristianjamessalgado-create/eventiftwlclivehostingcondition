@@ -137,8 +137,7 @@ if ($action === 'search') {
 
     $data = json_decode($res['body'], true);
     if (!is_array($data)) {
-        echo json_encode(['ok' => true, 'results' => []]);
-        exit;
+        $data = [];
     }
 
     $out = [];
@@ -170,6 +169,39 @@ if ($action === 'search') {
                         'lat'   => (float) $row['lat'],
                         'lon'   => (float) $row['lon'],
                         'label' => (string) ($row['display_name'] ?? ''),
+                    ];
+                }
+            }
+        }
+    }
+
+    if ($out === []) {
+        $photonUrl = 'https://photon.komoot.io/api/?limit=8&lang=en&q=' . rawurlencode($q);
+        $resP = eventify_http_get($photonUrl, $ua);
+        if ($resP['body'] !== null && $resP['http'] < 400) {
+            $pj = json_decode($resP['body'], true);
+            $feats = is_array($pj) ? ($pj['features'] ?? []) : [];
+            if (is_array($feats)) {
+                foreach ($feats as $feat) {
+                    if (!is_array($feat)) {
+                        continue;
+                    }
+                    $coords = $feat['geometry']['coordinates'] ?? null;
+                    $props = is_array($feat['properties'] ?? null) ? $feat['properties'] : [];
+                    if (!is_array($coords) || count($coords) < 2) {
+                        continue;
+                    }
+                    $bits = [];
+                    foreach (['name', 'street', 'city', 'state', 'country'] as $k) {
+                        $v = trim((string) ($props[$k] ?? ''));
+                        if ($v !== '' && !in_array($v, $bits, true)) {
+                            $bits[] = $v;
+                        }
+                    }
+                    $out[] = [
+                        'lat'   => (float) $coords[1],
+                        'lon'   => (float) $coords[0],
+                        'label' => $bits !== [] ? implode(', ', $bits) : ((string) ($props['name'] ?? '')),
                     ];
                 }
             }

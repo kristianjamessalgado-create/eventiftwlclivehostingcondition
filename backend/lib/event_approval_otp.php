@@ -178,7 +178,7 @@ function eventify_send_event_approval_otp(mysqli $conn, int $eventId, int $creat
     $deliveredLabel = 'in-app notification (bell icon)';
     $deliveryNote = '';
     if ($deliveryMethod === 'email') {
-        $subject = '[EVENTIFY] Event approval OTP';
+        $subject = 'Your EVENTIFY event verification code';
         $body = $msg . "\n\nEnter this code in My Events to verify and activate your event.";
         $emailResult = eventify_send_email($deliveryTarget, $subject, $body);
         if (!empty($emailResult['ok'])) {
@@ -195,7 +195,7 @@ function eventify_send_event_approval_otp(mysqli $conn, int $eventId, int $creat
             } else {
                 $deliveryNote = ' SMS failed: ' . ($smsResult['error'] ?? 'unknown error');
                 if ($fallbackEmail !== '') {
-                    $subject = '[EVENTIFY] Event approval OTP';
+                    $subject = 'Your EVENTIFY event verification code';
                     $body = $msg . "\n\nSMS delivery failed, so this OTP was sent by email.";
                     $fallbackEmailResult = eventify_send_email($fallbackEmail, $subject, $body);
                     if (!empty($fallbackEmailResult['ok'])) {
@@ -211,7 +211,7 @@ function eventify_send_event_approval_otp(mysqli $conn, int $eventId, int $creat
         } else {
             $deliveryNote = ' SMS failed: invalid phone number.';
             if ($fallbackEmail !== '') {
-                $subject = '[EVENTIFY] Event approval OTP';
+                $subject = 'Your EVENTIFY event verification code';
                 $body = $msg . "\n\nSMS delivery failed, so this OTP was sent by email.";
                 $fallbackEmailResult = eventify_send_email($fallbackEmail, $subject, $body);
                 if (!empty($fallbackEmailResult['ok'])) {

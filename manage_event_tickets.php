@@ -119,7 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && csrf_validate()) {
 $types = eventify_load_ticket_types_for_event($conn, $eventId, false);
 $pendingOrders = eventify_load_pending_orders_for_event($conn, $eventId);
 $mode = eventify_event_registration_mode($event);
-$shopUrl = BASE_URL . '/event_tickets.php?id=' . $eventId;
 $salesSummary = eventify_load_ticket_sales_summary($conn, $eventId);
 
 if (isset($_GET['export']) && $_GET['export'] === 'csv' && $mode === 'paid_ticket') {
@@ -190,13 +189,6 @@ include __DIR__ . '/views/partials/standalone_page_shell_open.php';
             </form>
             <?php if ($mode === 'rsvp'): ?>
                 <p class="small mt-2 mb-0 text-muted">Main event stays <strong>free RSVP</strong>. Add ticket types below for paid hub activities (e.g. Mr &amp; Ms), then set each activity to <em>Ticket required</em> in the activities manager.</p>
-                <?php if ($eventLive && $types !== []): ?>
-                    <p class="small mt-1 mb-0">Activity ticket shop: <a href="<?= htmlspecialchars($shopUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($shopUrl) ?></a></p>
-                <?php endif; ?>
-            <?php elseif ($mode === 'paid_ticket' && $eventLive): ?>
-                <p class="small mt-2 mb-0">Student shop: <a href="<?= htmlspecialchars($shopUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($shopUrl) ?></a></p>
-            <?php elseif ($mode === 'paid_ticket'): ?>
-                <p class="small mt-2 mb-0 text-muted">Student shop is closed for this event.</p>
             <?php endif; ?>
         </div>
     </div>

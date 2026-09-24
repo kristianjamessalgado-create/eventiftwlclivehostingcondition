@@ -1016,24 +1016,25 @@ body.student-sidebar-collapsed .dashboard-layout {
 .profile-modal {
     display: none;
     position: fixed;
-    z-index: 1100;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
+    z-index: 12100;
+    inset: 0;
     overflow: auto;
     background-color: rgba(21, 51, 19, 0.55);
     justify-content: center;
-    align-items: center;
-    padding: 1rem;
+    align-items: flex-start;
+    padding: max(0.75rem, env(safe-area-inset-top, 0px)) 0.75rem calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.profile-modal.is-open {
+    display: flex;
 }
 
 .profile-modal-content.efy-modal {
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     max-width: 460px;
     width: 100%;
-    max-height: calc(100vh - 2rem);
+    max-height: min(92dvh, calc(100dvh - 1.5rem));
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -1045,24 +1046,52 @@ body.student-sidebar-collapsed .dashboard-layout {
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .profile-modal-body.efy-modal__body {
     overflow-y: auto;
     flex: 1;
     min-height: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.profile-modal-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .profile-close {
     position: static;
     flex-shrink: 0;
     opacity: 1;
-    font-size: 1.25rem;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: none;
-    background: transparent;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 1.15rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-close:hover,
+.profile-close:focus {
+    background: rgba(255, 255, 255, 0.28);
+    color: #fff;
+}
+
+body.student-profile-modal-open {
+    overflow: hidden;
 }
 
 .profile-modal-content h2,
@@ -1120,7 +1149,7 @@ body.student-sidebar-collapsed .dashboard-layout {
 
 /* Confirmation modal should appear above profile modal */
 #confirmProfileChangesModal {
-    z-index: 1200 !important;
+    z-index: 12250 !important;
 }
 
 .profile-picture-preview-container {
@@ -1339,9 +1368,13 @@ body.student-sidebar-collapsed .dashboard-layout {
     /* Calendar event text: ellipsis on small screens (avoid marquee overlap) */
     body.student-dashboard .fc-event {
         overflow: hidden !important;
-        max-width: 100% !important;
         min-height: 1.35em !important;
         line-height: 1.3 !important;
+    }
+
+    body.student-dashboard .fc-daygrid-block-event,
+    body.student-dashboard .fc-event.eventify-fc-range-event {
+        max-width: none !important;
     }
 
     body.student-dashboard .fc-event .fc-event-main,
@@ -3169,7 +3202,14 @@ body.student-dashboard .main-content > .student-dash-panel:not(.d-none):not([hid
     max-width: 100%;
 }
 
+.student-attendance-card > .att-proof {
+    padding-top: 0.15rem;
+}
+
 .student-attendance-panel__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1.1rem;
     margin-top: 0.5rem;
     padding-top: 0.75rem;
     border-top: 1px dashed rgba(1, 50, 32, 0.12);

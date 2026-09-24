@@ -14,7 +14,7 @@ $adminCreateOrganizerOptions = is_array($adminCreateOrganizerOptions ?? null) ? 
 $isAdminCreateMode = $createEventMode === 'admin';
 $formAction = BASE_URL . '/backend/auth/createevent.php';
 ?>
-<div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true">
+<div class="modal fade" id="createEventModal" tabindex="-1" aria-labelledby="createEventModalLabel" aria-hidden="true" data-bs-focus="false">
   <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-md-down ce-modal-dialog">
     <div class="modal-content ce-modal">
       <div class="modal-header ce-modal__header">
@@ -27,7 +27,7 @@ $formAction = BASE_URL . '/backend/auth/createevent.php';
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="POST" action="<?= htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8') ?>" id="createEventModalForm" data-require-geo="<?= !empty($eventsHasGeo) ? '1' : '0' ?>" data-create-mode="<?= $isAdminCreateMode ? 'admin' : 'organizer' ?>">
+      <form method="POST" action="<?= htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8') ?>" id="createEventModalForm" novalidate data-require-geo="<?= !empty($eventsHasGeo) ? '1' : '0' ?>" data-create-mode="<?= $isAdminCreateMode ? 'admin' : 'organizer' ?>">
         <?= csrf_field() ?>
         <?php if ($createEventRedirectTo !== ''): ?>
           <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($createEventRedirectTo, ENT_QUOTES, 'UTF-8') ?>">
@@ -131,7 +131,7 @@ $formAction = BASE_URL . '/backend/auth/createevent.php';
               <div class="col-md-6">
                 <label for="ceStartTime" class="form-label ce-form-label">Event start time <span class="ce-required">*</span></label>
                 <p class="ce-form-help mb-1">For multi-day events, use “Same time every day” below the calendar — one start/end applies to all days.</p>
-                <input type="time" name="start_time" id="ceStartTime" class="form-control ce-form-control" required>
+                <input type="time" name="start_time" id="ceStartTime" class="form-control ce-form-control" step="60" required>
               </div>
             </div>
             <?php
@@ -180,41 +180,23 @@ $formAction = BASE_URL . '/backend/auth/createevent.php';
           ?>
         </div>
         <div class="modal-footer ce-modal__footer">
-          <button type="submit" class="btn ce-btn-primary">
-            <?php if ($isAdminCreateMode): ?>
-              <i class="fas fa-check me-1"></i>Publish event
-            <?php else: ?>
-              <i class="fas fa-check me-1"></i>Submit for approval
-            <?php endif; ?>
+          <button type="submit" class="btn ce-btn-primary" id="cePublishSubmit">
+            <span class="ce-publish-idle">
+              <?php if ($isAdminCreateMode): ?>
+                <i class="fas fa-check me-1" aria-hidden="true"></i>Publish event
+              <?php else: ?>
+                <i class="fas fa-check me-1" aria-hidden="true"></i>Submit for approval
+              <?php endif; ?>
+            </span>
+            <span class="ce-publish-busy" hidden>
+              <span class="spinner-border spinner-border-sm ce-publish-spinner" role="status" aria-hidden="true"></span>
+              <?= $isAdminCreateMode ? 'Publishing…' : 'Submitting…' ?>
+            </span>
           </button>
-          <button type="button" class="btn ce-btn-muted" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn ce-btn-muted" data-bs-dismiss="modal" id="cePublishCancel">Cancel</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<?php if ($isAdminCreateMode): ?>
-<div class="modal fade" id="confirmCreateEventPublishModal" tabindex="-1" aria-labelledby="confirmCreateEventPublishLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content efy-modal efy-modal--compact">
-      <div class="modal-header efy-modal__header">
-        <div>
-          <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="confirmCreateEventPublishLabel">
-            <i class="fas fa-check-circle" aria-hidden="true"></i>
-            Publish event
-          </h5>
-        </div>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body efy-modal__body efy-modal__body--compact">
-        <p class="efy-confirm-message mb-0">Are you sure you want to publish this event? It will go live on the student calendar right away.</p>
-      </div>
-      <div class="modal-footer efy-modal__footer">
-        <button type="button" class="btn efy-btn-primary" id="confirmCreateEventPublishYes">Yes, publish</button>
-        <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">No</button>
-      </div>
-    </div>
-  </div>
-</div>
-<?php endif; ?>

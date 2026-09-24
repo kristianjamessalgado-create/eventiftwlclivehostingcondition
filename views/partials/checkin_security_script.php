@@ -55,16 +55,52 @@ $geo_radius_m = isset($geo_radius_m) && is_numeric($geo_radius_m) ? (float) $geo
     return haversineM(lat, lng, venueLat, venueLng) <= geoRadiusM;
   }
 
+  function randomDeviceId() {
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+    } catch (e) {}
+    var bytes = new Uint8Array(16);
+    try {
+      window.crypto.getRandomValues(bytes);
+    } catch (e2) {
+      for (var i = 0; i < bytes.length; i++) {
+        bytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    return Array.from(bytes).map(function (b) {
+      return b.toString(16).padStart(2, '0');
+    }).join('');
+  }
+
+  function readStoredDeviceId() {
+    var key = 'eventify_device_id_v2';
+    var stores = [];
+    try { stores.push(window.localStorage); } catch (e) {}
+    try { stores.push(window.sessionStorage); } catch (e2) {}
+    var i;
+    for (i = 0; i < stores.length; i++) {
+      try {
+        var existing = stores[i].getItem(key);
+        if (existing && existing.length >= 16) {
+          return existing;
+        }
+      } catch (e3) {}
+    }
+    var created = randomDeviceId();
+    for (i = 0; i < stores.length; i++) {
+      try {
+        stores[i].setItem(key, created);
+      } catch (e4) {}
+    }
+    return created;
+  }
+
   async function buildDeviceHash() {
-    var fpRaw = [
-      navigator.userAgent || '',
-      navigator.platform || '',
-      navigator.language || '',
-      (screen && screen.width ? screen.width : 0) + 'x' + (screen && screen.height ? screen.height : 0),
-      Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-      String(navigator.hardwareConcurrency || 0),
-      String(navigator.maxTouchPoints || 0)
-    ].join('|');
+    // One random ID per browser on this phone — not phone model/UA.
+    // Same-model phones were colliding and blocking students who never checked in.
+    var fpRaw = 'v2|' + readStoredDeviceId();
     try {
       var enc = new TextEncoder();
       var data = enc.encode(fpRaw);

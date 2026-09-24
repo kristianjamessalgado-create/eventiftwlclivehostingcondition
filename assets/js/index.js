@@ -866,48 +866,65 @@ document.addEventListener('DOMContentLoaded', function () {
 // ===============================
 // MODAL LOGIC
 // ===============================
-function closeAllLegalModals() {
+var legalDocCloseGuardUntil = 0;
+
+function setLegalDocOpen(open) {
+    document.body.classList.toggle('legal-doc-open', !!open);
+}
+
+function hideLegalModalEl(el) {
+    if (!el) return;
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+}
+
+function anyLegalModalOpen() {
     var p = document.getElementById('legalPrivacyModal');
     var t = document.getElementById('legalTermsModal');
-    if (p) {
-        p.style.display = 'none';
-        p.setAttribute('aria-hidden', 'true');
-    }
-    if (t) {
-        t.style.display = 'none';
-        t.setAttribute('aria-hidden', 'true');
-    }
+    return (p && p.style.display === 'flex') || (t && t.style.display === 'flex');
+}
+
+function closeAllLegalModals() {
+    hideLegalModalEl(document.getElementById('legalPrivacyModal'));
+    hideLegalModalEl(document.getElementById('legalTermsModal'));
+    setLegalDocOpen(false);
 }
 
 function openLegalPrivacyModal() {
+    if (Date.now() < legalDocCloseGuardUntil) return;
     var el = document.getElementById('legalPrivacyModal');
     if (!el) return;
-    closeLegalTermsModal();
+    hideLegalModalEl(document.getElementById('legalTermsModal'));
     el.style.display = 'flex';
     el.setAttribute('aria-hidden', 'false');
+    el.scrollTop = 0;
+    setLegalDocOpen(true);
 }
 
 function closeLegalPrivacyModal() {
-    var el = document.getElementById('legalPrivacyModal');
-    if (el) {
-        el.style.display = 'none';
-        el.setAttribute('aria-hidden', 'true');
+    hideLegalModalEl(document.getElementById('legalPrivacyModal'));
+    legalDocCloseGuardUntil = Date.now() + 600;
+    if (!anyLegalModalOpen()) {
+        setLegalDocOpen(false);
     }
 }
 
 function openLegalTermsModal() {
+    if (Date.now() < legalDocCloseGuardUntil) return;
     var el = document.getElementById('legalTermsModal');
     if (!el) return;
-    closeLegalPrivacyModal();
+    hideLegalModalEl(document.getElementById('legalPrivacyModal'));
     el.style.display = 'flex';
     el.setAttribute('aria-hidden', 'false');
+    el.scrollTop = 0;
+    setLegalDocOpen(true);
 }
 
 function closeLegalTermsModal() {
-    var el = document.getElementById('legalTermsModal');
-    if (el) {
-        el.style.display = 'none';
-        el.setAttribute('aria-hidden', 'true');
+    hideLegalModalEl(document.getElementById('legalTermsModal'));
+    legalDocCloseGuardUntil = Date.now() + 600;
+    if (!anyLegalModalOpen()) {
+        setLegalDocOpen(false);
     }
 }
 
@@ -1258,6 +1275,9 @@ document.addEventListener('click', function (e) {
     if (!opener) return;
     e.preventDefault();
     e.stopPropagation();
+    if (Date.now() < legalDocCloseGuardUntil) {
+        return;
+    }
     var kind = opener.getAttribute('data-legal-open');
     if (kind === 'privacy') {
         openLegalPrivacyModal();
@@ -1265,6 +1285,14 @@ document.addEventListener('click', function (e) {
         openLegalTermsModal();
     }
 }, true);
+
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (anyLegalModalOpen()) {
+        closeAllLegalModals();
+        legalDocCloseGuardUntil = Date.now() + 600;
+    }
+});
 
 // ===============================
 // GET STARTED — new-user flashcard guide

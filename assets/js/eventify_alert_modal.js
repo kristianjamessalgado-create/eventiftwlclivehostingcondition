@@ -55,6 +55,7 @@
             '<p class="efy-confirm-message mb-0" id="' + MODAL_ID + 'Body"></p>' +
             '</div>' +
             '<div class="modal-footer efy-modal__footer">' +
+            '<button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal" id="' + MODAL_ID + 'Cancel" hidden>Cancel</button>' +
             '<button type="button" class="btn efy-btn-primary" data-bs-dismiss="modal" id="' + MODAL_ID + 'Ok">' +
             '<i class="fas fa-check me-1" aria-hidden="true"></i>OK' +
             '</button>' +
@@ -91,6 +92,17 @@
         });
     }
 
+    var pendingConfirm = null;
+
+    function settleConfirm(result) {
+        if (typeof pendingConfirm !== 'function') {
+            return;
+        }
+        var done = pendingConfirm;
+        pendingConfirm = null;
+        done(!!result);
+    }
+
     /**
      * @param {string} message
      * @param {{ title?: string, type?: string, okLabel?: string, icon?: string }} [options]
@@ -104,11 +116,14 @@
         var bodyEl = document.getElementById(MODAL_ID + 'Body');
         var iconEl = document.getElementById(MODAL_ID + 'Icon');
         var okBtn = document.getElementById(MODAL_ID + 'Ok');
+        var cancelBtn = document.getElementById(MODAL_ID + 'Cancel');
 
         if (!modalEl || !bodyEl) {
             window.alert(msg);
             return;
         }
+
+        settleConfirm(false);
 
         if (titleEl) {
             titleEl.textContent = options.title || 'Notifications';
@@ -117,9 +132,15 @@
             iconEl.className = 'fas ' + (options.icon || iconFor(type));
         }
         bodyEl.textContent = msg;
+        if (cancelBtn) {
+            cancelBtn.hidden = true;
+        }
         if (okBtn) {
             var label = options.okLabel || 'OK';
+            okBtn.className = 'btn efy-btn-primary';
+            okBtn.setAttribute('data-bs-dismiss', 'modal');
             okBtn.innerHTML = '<i class="fas fa-check me-1" aria-hidden="true"></i>' + label;
+            okBtn.onclick = null;
         }
 
         if (typeof global.bootstrap !== 'undefined' && global.bootstrap.Modal) {
@@ -139,9 +160,85 @@
         window.alert(msg);
     }
 
+    /**
+     * @param {string} message
+     * @param {{ title?: string, type?: string, confirmLabel?: string, cancelLabel?: string, icon?: string }} [options]
+     * @returns {Promise<boolean>}
+     */
+    function showConfirm(message, options) {
+        options = options || {};
+        var msg = String(message || '').trim() || 'Are you sure?';
+        var type = options.type || 'warning';
+
+        if (typeof global.bootstrap === 'undefined' || !global.bootstrap.Modal) {
+            return Promise.resolve(window.confirm(msg));
+        }
+
+        return new Promise(function (resolve) {
+            var modalEl = ensureModal();
+            var titleEl = document.getElementById(MODAL_ID + 'Title');
+            var bodyEl = document.getElementById(MODAL_ID + 'Body');
+            var iconEl = document.getElementById(MODAL_ID + 'Icon');
+            var okBtn = document.getElementById(MODAL_ID + 'Ok');
+            var cancelBtn = document.getElementById(MODAL_ID + 'Cancel');
+
+            if (!modalEl || !bodyEl || !okBtn) {
+                resolve(window.confirm(msg));
+                return;
+            }
+
+            settleConfirm(false);
+            pendingConfirm = resolve;
+
+            if (titleEl) {
+                titleEl.textContent = options.title || 'Please confirm';
+            }
+            if (iconEl) {
+                iconEl.className = 'fas ' + (options.icon || iconFor(type));
+            }
+            bodyEl.textContent = msg;
+            if (cancelBtn) {
+                cancelBtn.hidden = false;
+                cancelBtn.textContent = options.cancelLabel || 'Cancel';
+            }
+            okBtn.removeAttribute('data-bs-dismiss');
+            okBtn.className = type === 'warning' ? 'btn btn-warning' : 'btn efy-btn-primary';
+            okBtn.innerHTML = '<i class="fas fa-check me-1" aria-hidden="true"></i>' + (options.confirmLabel || 'Yes');
+            okBtn.onclick = function (e) {
+                e.preventDefault();
+                settleConfirm(true);
+                if (instance) {
+                    instance.hide();
+                }
+            };
+
+            prepareStacked(modalEl);
+            instance = createInstance(modalEl);
+            modalEl.addEventListener('hidden.bs.modal', function onHidden() {
+                okBtn.onclick = null;
+                if (okBtn) {
+                    okBtn.setAttribute('data-bs-dismiss', 'modal');
+                    okBtn.className = 'btn efy-btn-primary';
+                }
+                if (cancelBtn) {
+                    cancelBtn.hidden = true;
+                }
+                modalEl.style.removeProperty('z-index');
+                modalEl.classList.remove('eventify-alert-modal--stacked');
+                forceCleanupIfIdle();
+                settleConfirm(false);
+            }, { once: true });
+            if (instance) {
+                instance.show();
+            }
+        });
+    }
+
     global.eventifyAlert = showAlert;
+    global.eventifyConfirm = showConfirm;
     global.eventifyAlertModal = {
         show: showAlert,
+        confirm: showConfirm,
         success: function (msg, opts) {
             opts = opts || {};
             opts.type = 'success';

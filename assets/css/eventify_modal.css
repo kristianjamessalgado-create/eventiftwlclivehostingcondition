@@ -229,6 +229,32 @@
     line-height: 1.5;
 }
 
+.efy-confirm-detail {
+    margin-top: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    background: #fff;
+    border: 1px solid var(--efy-border);
+    border-left: 4px solid var(--efy-gold);
+    border-radius: 12px;
+    font-weight: 800;
+    color: var(--efy-forest);
+    font-size: 0.95rem;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.efy-confirm-hint {
+    margin-top: 0.65rem;
+    font-size: 0.78rem;
+    color: var(--efy-muted);
+    line-height: 1.45;
+}
+
+#edsConfirmModal.eds-helper-modal--stacked,
+#edsMessageModal.eds-helper-modal--stacked {
+    z-index: 2000 !important;
+}
+
 /* Stat cards (feedback, analytics) */
 .efy-stat-grid {
     display: grid;

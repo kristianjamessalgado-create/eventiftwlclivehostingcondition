@@ -143,7 +143,8 @@ $conn->close();
     <title>Pay for tickets | EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_tickets.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=8">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_tickets.css?v=2">
 </head>
 <body class="ticket-shop-page">
 <div class="container py-4" style="max-width: 520px;">
@@ -219,7 +220,7 @@ $conn->close();
             <div class="card-body">
                 <h2 class="h6">Demo / test payment</h2>
                 <p class="small text-muted mb-2">For school demo only — marks this order as paid instantly and issues digital passes.</p>
-                <form method="post" onsubmit="return confirm('Mark this order as paid for demo?');">
+                <form method="post" id="ticketDemoPayForm">
                     <?= csrf_field() ?>
                     <input type="hidden" name="payment_action" value="simulate">
                     <button type="submit" class="btn btn-warning w-100">Pay now (demo)</button>
@@ -230,5 +231,40 @@ $conn->close();
 
     <a href="<?= BASE_URL ?>/event_tickets.php?id=<?= (int) ($order['event_id'] ?? 0) ?>" class="btn btn-link">← Back to tickets</a>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=2"></script>
+<script>
+(function () {
+    var form = document.getElementById('ticketDemoPayForm');
+    if (!form) {
+        return;
+    }
+    form.addEventListener('submit', function (e) {
+        if (form.getAttribute('data-confirmed') === '1') {
+            return;
+        }
+        e.preventDefault();
+        var ask = (typeof window.eventifyConfirm === 'function')
+            ? window.eventifyConfirm('Mark this order as paid for demo? Digital passes will be issued immediately.', {
+                title: 'Demo payment',
+                type: 'warning',
+                confirmLabel: 'Yes, pay',
+                cancelLabel: 'Cancel'
+            })
+            : Promise.resolve(window.confirm('Mark this order as paid for demo?'));
+        ask.then(function (ok) {
+            if (!ok) {
+                return;
+            }
+            form.setAttribute('data-confirmed', '1');
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        });
+    });
+}());
+</script>
 </body>
 </html>

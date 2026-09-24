@@ -1,0 +1,474 @@
+/* Student activity card — screen preview + paper print */
+
+.ac-page {
+    --ac-ink: #12241a;
+    --ac-line: #1f3d2c;
+    --ac-muted: #4b5f54;
+    --ac-rule: #9aa89f;
+    --ac-paper: #fff;
+    --ac-forest: #0a3c26;
+}
+
+.ac-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.ac-toolbar__hint {
+    margin: 0;
+    color: var(--ac-muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+    max-width: 38rem;
+}
+
+.ac-toolbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ac-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.55rem 1rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.ac-btn--print {
+    background: var(--ac-forest);
+    color: #fff;
+}
+
+.ac-btn--print:hover,
+.ac-btn--print:focus {
+    background: #072c1b;
+    color: #fff;
+}
+
+.ac-btn--ghost {
+    background: #e8f2ec;
+    color: var(--ac-forest);
+}
+
+.ac-btn--ghost:hover,
+.ac-btn--ghost:focus {
+    background: #d5e8dc;
+    color: var(--ac-forest);
+}
+
+.ac-filters {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    padding: 0.85rem 0.95rem;
+    background: #fff;
+    border: 1px solid #d5ddd8;
+    border-radius: 0.9rem;
+}
+
+.ac-filters__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.ac-filters__chips--format {
+    padding-bottom: 0.7rem;
+    margin-bottom: 0.15rem;
+    border-bottom: 1px dashed #d5ddd8;
+}
+
+.ac-filters__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(1, 50, 32, 0.12);
+    background: #fff;
+    color: #12241a;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.ac-filters__chip:hover,
+.ac-filters__chip:focus {
+    border-color: rgba(229, 178, 45, 0.45);
+    color: #064e3b;
+}
+
+.ac-filters__chip.is-active {
+    background: linear-gradient(180deg, #f0c85a 0%, #e5b22d 100%);
+    border-color: #c99714;
+    color: #0a3c26;
+    font-weight: 800;
+}
+
+.ac-filters__count {
+    font-size: 0.68rem;
+    opacity: 0.85;
+}
+
+.ac-filters__fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.ac-filters__field {
+    display: grid;
+    gap: 0.28rem;
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ac-muted);
+}
+
+.ac-filters__field select {
+    width: 100%;
+    border: 1px solid #c5d0c9;
+    border-radius: 0.55rem;
+    padding: 0.45rem 0.55rem;
+    background: #fff;
+    color: var(--ac-ink);
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.ac-filters__field select:focus {
+    outline: 2px solid rgba(10, 60, 38, 0.28);
+    outline-offset: 1px;
+}
+
+.ac-filters__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem 0.85rem;
+}
+
+.ac-filters__summary {
+    margin: 0;
+    color: var(--ac-muted);
+    font-size: 0.82rem;
+}
+
+.ac-filters__clear {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--ac-forest);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.ac-filters__clear:hover,
+.ac-filters__clear:focus {
+    text-decoration: underline;
+}
+
+.ac-filters__empty {
+    margin: 0 0 0.85rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.7rem;
+    background: #fff6db;
+    color: #5c4a10;
+    font-size: 0.88rem;
+}
+
+@media (max-width: 760px) {
+    .ac-filters__fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ac-sheet-wrap {
+    background: #e7eee9;
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.ac-sheet {
+    background: var(--ac-paper);
+    color: var(--ac-ink);
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 14mm 12mm 12mm;
+    box-shadow: 0 10px 28px rgba(10, 60, 38, 0.12);
+    border: 1px solid #d5ddd8;
+}
+
+.ac-school {
+    text-align: center;
+    margin: 0 0 1.15rem;
+}
+
+.ac-school__name {
+    margin: 0;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ac-ink);
+}
+
+.ac-school__sub {
+    margin: 0.2rem 0 0;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ac-muted);
+}
+
+.ac-fields {
+    display: grid;
+    gap: 0.7rem;
+    margin-bottom: 1rem;
+}
+
+.ac-field {
+    display: grid;
+    grid-template-columns: 7.2rem 1fr;
+    align-items: end;
+    gap: 0.45rem;
+}
+
+.ac-field__label {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.ac-field__value {
+    min-height: 1.35rem;
+    border-bottom: 1.5px solid var(--ac-line);
+    padding: 0 0.15rem 0.1rem;
+    font-size: 0.98rem;
+}
+
+.ac-table-wrap {
+    overflow-x: auto;
+}
+
+.ac-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 0.86rem;
+}
+
+.ac-table th,
+.ac-table td {
+    border: 1.25px solid var(--ac-line);
+    padding: 0.45rem 0.4rem;
+    vertical-align: middle;
+}
+
+.ac-table th {
+    background: #f3f6f4;
+    text-align: center;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.74rem;
+}
+
+.ac-table td {
+    height: 2.15rem;
+}
+
+.ac-col-date { width: 18%; }
+.ac-col-in,
+.ac-col-out { width: 14%; }
+.ac-col-event { width: 36%; }
+.ac-col-sign { width: 18%; }
+
+.ac-day {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+}
+
+.ac-day + .ac-day {
+    margin-top: 1.15rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #c5d0c9;
+}
+
+.ac-day__date {
+    margin-bottom: 0.45rem;
+}
+
+.ac-day__events {
+    margin: 0 0 0.55rem;
+    color: var(--ac-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.ac-table--daily {
+    table-layout: auto;
+}
+
+.ac-table--daily th,
+.ac-table--daily td {
+    width: auto;
+}
+
+.ac-td-center {
+    text-align: center;
+}
+
+.ac-sign-line {
+    display: block;
+    min-height: 1.2rem;
+    border-bottom: 1px solid var(--ac-rule);
+    margin: 0 0.15rem;
+}
+
+.ac-row--blank td {
+    background: #fff;
+}
+
+.ac-row--hidden {
+    display: none;
+}
+
+.ac-note {
+    margin: 0.85rem 0 0;
+    font-size: 0.78rem;
+    color: var(--ac-muted);
+    line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+    .ac-sheet {
+        padding: 1.1rem 0.85rem 1rem;
+    }
+
+    .ac-school__name {
+        font-size: 1.2rem;
+        letter-spacing: 0.02em;
+    }
+
+    .ac-field {
+        grid-template-columns: 5.4rem 1fr;
+    }
+
+    .ac-table {
+        min-width: 38rem;
+    }
+
+    .ac-table--daily {
+        min-width: 42rem;
+    }
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+    }
+
+    html, body {
+        background: #fff !important;
+    }
+
+    .eah-topbar,
+    .eah-nav-drawer,
+    .eah-student-hub-hero,
+    .ac-toolbar,
+    .ac-filters,
+    .ac-sheet-wrap {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    .ac-screen-only,
+    .eah-topbar,
+    .eah-nav-drawer,
+    #scanQRModal,
+    .modal,
+    .modal-backdrop {
+        display: none !important;
+    }
+
+    .eah-wrap,
+    .eah-hub-panel,
+    .eah-student-hub-shell,
+    .eah-student-hub-body,
+    .ac-sheet-wrap {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+        background: #fff !important;
+        box-shadow: none !important;
+    }
+
+    .ac-sheet {
+        max-width: none;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .ac-table-wrap {
+        overflow: visible;
+    }
+
+    .ac-table {
+        min-width: 0;
+        font-size: 11pt;
+    }
+
+    .ac-table th,
+    .ac-table td {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .ac-table td {
+        height: 11mm;
+    }
+
+    .ac-row--hidden {
+        display: none !important;
+    }
+
+    .ac-format[hidden] {
+        display: none !important;
+    }
+
+    .ac-day {
+        page-break-inside: avoid;
+    }
+
+    .ac-table--daily {
+        min-width: 0;
+    }
+}

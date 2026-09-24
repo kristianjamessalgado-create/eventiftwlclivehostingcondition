@@ -1,13 +1,20 @@
 <?php
 /**
- * GoDaddy / cPanel production SMTP (copy to config/smtp.local.php on your live server).
- * GoDaddy blocks outbound Gmail SMTP — use their relay instead.
+ * GoDaddy / cPanel production SMTP (copy to config/smtp.local.php on the live server).
+ * Do not commit this file with secrets.
  *
- * 1. Create an email on your domain in cPanel (e.g. noreply@eventifywlc.com).
- * 2. Add SPF in DNS: v=spf1 include:secureserver.net -all
- * 3. Upload this file as config/smtp.local.php on GoDaddy (do not commit credentials).
+ * Shared hosting blocks outbound SMTP (Gmail, smtpout.secureserver.net:465).
+ * The website must send through local port 25. Do not AUTH — local Exim
+ * returns 535 if you pass the mailbox password. That password is for
+ * Outlook / phone (Connect Devices), not for PHP.
+ *
+ * Inbox still needs DNS:
+ *    SPF:   v=spf1 include:secureserver.net -all
+ *    DKIM:  cPanel → Email Deliverability → Enable for eventifywlc.com
+ *    DMARC: v=DMARC1; p=none; rua=mailto:noreply@eventifywlc.com
  */
-define('EVENTIFY_SMTP_HOST', 'relay-hosting.secureserver.net');
+
+define('EVENTIFY_SMTP_HOST', 'localhost');
 define('EVENTIFY_SMTP_PORT', 25);
 define('EVENTIFY_SMTP_USERNAME', '');
 define('EVENTIFY_SMTP_PASSWORD', '');
@@ -16,5 +23,7 @@ define('EVENTIFY_SMTP_FROM_NAME', 'EVENTIFY');
 define('EVENTIFY_SMTP_NO_AUTH', true);
 define('EVENTIFY_SMTP_DISABLE_TLS', true);
 define('EVENTIFY_SMTP_EHLO_HOST', 'eventifywlc.com');
-define('EVENTIFY_SMTP_ALLOW_INSECURE_TLS', false);
-define('EVENTIFY_SMTP_FALLBACK_MAIL', true);
+define('EVENTIFY_SMTP_FALLBACK_MAIL', false);
+
+// If localhost is refused, use GoDaddy's local relay (same no-auth rules):
+// define('EVENTIFY_SMTP_HOST', 'relay-hosting.secureserver.net');

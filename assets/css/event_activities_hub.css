@@ -261,6 +261,19 @@ body.event-activities-hub {
     color: var(--efy-brand-text-on-gold);
 }
 
+.eah-topbar__action--import {
+    background: transparent;
+    color: var(--org-emerald);
+    border: 1px solid rgba(229, 178, 45, 0.45);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+}
+
+.eah-topbar__action--import:hover {
+    background: var(--org-emerald-muted);
+    color: var(--org-emerald);
+}
+
 .eah-topbar__logo {
     display: inline-flex;
     align-items: center;
@@ -1749,48 +1762,10 @@ body.event-activities-hub #logoutModal .btn-secondary {
     color: var(--eah-text);
 }
 
-/* Shared confirm/message modals (RSVP, cancel, etc.) — inherit hub colors, not white Bootstrap shell */
-body.event-activities-hub #edsConfirmModal .modal-content,
-body.event-activities-hub #edsMessageModal .modal-content {
-    background: var(--eah-surface);
-    color: var(--eah-text);
-    border: 1px solid var(--eah-border);
-    border-radius: var(--eah-radius);
-}
-
-body.event-activities-hub #edsConfirmModal .modal-header,
-body.event-activities-hub #edsConfirmModal .modal-footer,
-body.event-activities-hub #edsMessageModal .modal-header,
-body.event-activities-hub #edsMessageModal .modal-footer {
-    border-color: var(--eah-border);
-    background: var(--eah-surface);
-}
-
-body.event-activities-hub #edsConfirmModal .modal-title,
-body.event-activities-hub #edsMessageModal .modal-title {
-    color: var(--eah-text);
-    font-weight: 800;
-}
-
-body.event-activities-hub #edsConfirmModal .modal-body,
-body.event-activities-hub #edsMessageModal .modal-body {
-    color: var(--eah-muted);
-}
-
-body.event-activities-hub #edsConfirmModal .modal-body p,
-body.event-activities-hub #edsMessageModal .modal-body p {
-    color: var(--eah-text);
-}
-
-body.event-activities-hub #edsConfirmModal .btn-close,
-body.event-activities-hub #edsMessageModal .btn-close {
-    filter: none;
-}
-
-body.event-activities-hub #edsConfirmModal .btn-secondary {
-    background: var(--eah-surface-2);
-    border-color: var(--eah-border);
-    color: var(--eah-text);
+/* Confirm/message helpers use eventify_modal.css (efy-modal). Do not restyle the header. */
+body.event-activities-hub #edsConfirmModal.eds-helper-modal--stacked,
+body.event-activities-hub #edsMessageModal.eds-helper-modal--stacked {
+    z-index: 2100 !important;
 }
 
 button.eah-nav-drawer__link,
@@ -2410,6 +2385,8 @@ body.event-activities-hub #eahUploadPhotosModal .btn-close {
 }
 
 .eah-hero-create-btn {
+    appearance: none;
+    -webkit-appearance: none;
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -2431,14 +2408,16 @@ body.event-activities-hub #eahUploadPhotosModal .btn-close {
 }
 
 .eah-hero-end-btn {
+    appearance: none;
+    -webkit-appearance: none;
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     padding: 0.45rem 0.85rem;
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.08);
-    color: #fde68a;
+    border: 1px solid rgba(217, 119, 6, 0.55);
+    background: #fff7ed;
+    color: #9a3412;
     font-size: 0.78rem;
     font-weight: 700;
     font-family: inherit;
@@ -2447,8 +2426,8 @@ body.event-activities-hub #eahUploadPhotosModal .btn-close {
 }
 
 .eah-hero-end-btn:hover {
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
+    background: #ffedd5;
+    color: #7c2d12;
 }
 
 .eah-organizer-actions {
@@ -2701,6 +2680,43 @@ body.event-activities-hub #eahUploadPhotosModal .btn-close {
 
 .eah-section--all-activities {
     scroll-margin-top: 5.5rem;
+}
+
+.eah-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    margin: 0 0 0.65rem;
+}
+
+.eah-section__head .eah-section__title {
+    margin: 0;
+}
+
+.eah-section__add {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 34px;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid #0A3C26;
+    border-radius: 999px;
+    background: #0A3C26;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.eah-section__add:hover {
+    background: #083220;
+    color: #ffffff;
 }
 
 .eah-section__title {
@@ -3601,6 +3617,25 @@ body.event-activities-hub--student .eah-attendance-timeline .eah-activity-row {
 .eah-attendance-row .eah-row-chevron {
     color: var(--eah-muted);
     font-size: 0.75rem;
+}
+
+.eah-attendance-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.eah-attendance-row__goto {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.eah-attendance-row__goto:hover,
+.eah-attendance-row__goto:focus {
+    color: inherit;
 }
 
 /* ===============================
@@ -4783,9 +4818,188 @@ body.event-activities-hub--organizer .eah-organizer-actions--hero {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.55rem;
     margin: 1.15rem 1.15rem 1.25rem;
     padding-top: 0;
+}
+
+body.event-activities-hub--organizer .eah-hero-create-btn,
+body.event-activities-hub--organizer .eah-hero-end-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 42px;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: none;
+}
+
+body.event-activities-hub--organizer .eah-hero-create-btn {
+    background: #0A3C26;
+    border: 1px solid #0A3C26;
+    color: #ffffff;
+}
+
+body.event-activities-hub--organizer .eah-hero-create-btn:hover {
+    background: #083220;
+    border-color: #083220;
+    color: #ffffff;
+}
+
+body.event-activities-hub--organizer .eah-hero-end-btn {
+    background: #9a3412;
+    border: 1px solid #7c2d12;
+    color: #ffffff;
+}
+
+body.event-activities-hub--organizer .eah-hero-end-btn:hover {
+    background: #7c2d12;
+    border-color: #7c2d12;
+    color: #ffffff;
+}
+
+body.event-activities-hub--organizer .eah-hero-import-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 42px;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: inherit;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    background: #ffffff;
+    border: 1px solid #0A3C26;
+    color: #0A3C26;
+    box-shadow: none;
+}
+
+body.event-activities-hub--organizer .eah-hero-import-btn:hover {
+    background: #f0fdf4;
+    color: #0A3C26;
+}
+
+.eah-import-help {
+    font-size: 0.9rem;
+    color: var(--eah-muted);
+    margin: 0 0 0.85rem;
+}
+
+.eah-import-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    margin: 0 0 0.35rem;
+}
+
+.eah-import-pick .efy-btn-primary {
+    align-self: flex-start;
+    min-height: 44px;
+}
+
+.eah-import-pick .form-control {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+    background: #ffffff;
+    color: #1a1a2e;
+}
+
+.eah-import-file {
+    display: none;
+}
+
+.eah-import-file input {
+    display: none;
+}
+
+.eah-import-preview {
+    display: block;
+    width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    margin: 0.85rem 0 0;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--eah-border);
+}
+
+.eah-import-status {
+    margin: 0.75rem 0 0;
+    font-size: 0.85rem;
+    color: #0A3C26;
+}
+
+.eah-import-status.is-error {
+    color: #b91c1c;
+}
+
+.eah-import-venue {
+    margin-top: 0.9rem;
+}
+
+.eah-import-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-top: 0.9rem;
+}
+
+.eah-import-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) 6.5rem 6.5rem auto;
+    gap: 0.45rem;
+    align-items: end;
+}
+
+.eah-import-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.eah-import-row__remove {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff;
+    color: #b91c1c;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    .eah-import-row {
+        grid-template-columns: 1fr 1fr auto;
+    }
+    .eah-import-row label:first-child {
+        grid-column: 1 / -1;
+    }
 }
 
 body.event-activities-hub--organizer .eah-organizer-actions--after-banner {

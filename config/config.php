@@ -102,6 +102,18 @@ if (!defined('EVENTIFY_CHECKIN_EARLY_MINUTES')) {
 
 
 
+/** Require a 6-digit email OTP before creating a new account. Super admin still activates accounts after verification. */
+
+if (!defined('EVENTIFY_REGISTER_OTP_REQUIRED')) {
+
+    $registerOtp = strtolower(trim((string) (eventify_env('EVENTIFY_REGISTER_OTP_REQUIRED', 'true') ?? 'true')));
+
+    define('EVENTIFY_REGISTER_OTP_REQUIRED', in_array($registerOtp, ['1', 'true', 'yes', 'on'], true));
+
+}
+
+
+
 /** Ticket payment: simulate (demo), gcash_manual (reference + organizer confirm), both */
 
 if (!defined('EVENTIFY_PAYMENT_MODE')) {
@@ -204,7 +216,8 @@ if (!defined('EVENTIFY_SMTP_EHLO_HOST')) {
 }
 
 if (!defined('EVENTIFY_SMTP_FALLBACK_MAIL')) {
-    $fallbackMail = strtolower(eventify_env('EVENTIFY_SMTP_FALLBACK_MAIL', 'true') ?? 'true');
+    // Default off: PHP mail() on shared hosting is slow and usually lands in spam.
+    $fallbackMail = strtolower(eventify_env('EVENTIFY_SMTP_FALLBACK_MAIL', 'false') ?? 'false');
     define('EVENTIFY_SMTP_FALLBACK_MAIL', in_array($fallbackMail, ['1', 'true', 'yes'], true));
 }
 

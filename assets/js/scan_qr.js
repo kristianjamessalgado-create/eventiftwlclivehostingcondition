@@ -245,37 +245,58 @@ function initScanQRModal() {
         });
     });
 
+    function processQrImageFile(file) {
+        if (!file) {
+            return;
+        }
+        statusEl.textContent = 'Reading QR from photo…';
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+            canvasEl.width = img.naturalWidth || img.width;
+            canvasEl.height = img.naturalHeight || img.height;
+            if (!canvasEl.width || !canvasEl.height) {
+                URL.revokeObjectURL(url);
+                statusEl.textContent = 'Could not read that image.';
+                return;
+            }
+            var ctx = canvasEl.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            var imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+            var code = decodeQrFromImageData(imageData);
+            if (code && code.data && handleQrText(code.data)) {
+                return;
+            }
+            statusEl.textContent = 'No valid EVENTIFY check-in QR found in that image.';
+        };
+        img.onerror = function () {
+            URL.revokeObjectURL(url);
+            statusEl.textContent = 'Could not load that photo. Try a screenshot or a JPG/PNG of the QR.';
+        };
+        img.src = url;
+    }
+
     var fileInput = document.getElementById('scanQRFileInput');
     if (fileInput) {
+        fileInput.removeAttribute('capture');
+        fileInput.removeAttribute('accept');
         fileInput.addEventListener('change', function () {
             var file = fileInput.files && fileInput.files[0];
             fileInput.value = '';
-            if (!file) return;
-            statusEl.textContent = 'Reading QR from photo…';
-            var reader = new FileReader();
-            reader.onload = function () {
-                var img = new Image();
-                img.onload = function () {
-                    canvasEl.width = img.width;
-                    canvasEl.height = img.height;
-                    var ctx = canvasEl.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    var imageData = ctx.getImageData(0, 0, img.width, img.height);
-                    var code = decodeQrFromImageData(imageData);
-                    if (code && code.data && handleQrText(code.data)) {
-                        return;
-                    }
-                    statusEl.textContent = 'No valid EVENTIFY check-in QR found in that image.';
-                };
-                img.onerror = function () {
-                    statusEl.textContent = 'Could not load that image.';
-                };
-                img.src = reader.result;
-            };
-            reader.onerror = function () {
-                statusEl.textContent = 'Could not read that file.';
-            };
-            reader.readAsDataURL(file);
+            processQrImageFile(file);
+        });
+    }
+    var fileBtn = document.getElementById('scanQRFileBtn');
+    if (fileBtn) {
+        fileBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (fileInput) {
+                fileInput.removeAttribute('capture');
+                fileInput.removeAttribute('accept');
+                fileInput.click();
+            }
         });
     }
 

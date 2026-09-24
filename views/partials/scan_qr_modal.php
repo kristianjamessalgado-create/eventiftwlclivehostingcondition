@@ -23,12 +23,17 @@
           </div>
         </div>
         <p id="scanQRStatus" class="small text-muted mt-2 mb-0">Scan an <strong>event</strong> or <strong>activity</strong> QR code. Location may be required at the venue.</p>
+        <div id="scanQRUpload" class="mt-3 pt-3 border-top">
+          <p class="small fw-semibold mb-2">Or upload a QR photo</p>
+          <button type="button" class="btn btn-outline-success btn-sm w-100 mb-2" id="scanQRFileBtn">
+            <i class="fas fa-images me-1"></i>Upload QR from Photos
+          </button>
+          <label class="form-label small mb-1" for="scanQRFileInput">Photo library</label>
+          <input type="file" id="scanQRFileInput" class="form-control form-control-sm">
+          <p class="small text-muted mt-1 mb-0">Select <strong>Photo Library</strong> or <strong>Browse</strong>. Do not choose Take Photo.</p>
+        </div>
         <div id="scanQRFallback" class="mt-3 pt-3 border-top" style="display:none;">
-          <p class="small fw-semibold mb-2">Camera blocked? Use one of these:</p>
-          <label class="btn btn-outline-primary btn-sm w-100 mb-2" for="scanQRFileInput">
-            <i class="fas fa-image me-1"></i>Upload QR photo
-          </label>
-          <input type="file" id="scanQRFileInput" accept="image/*" capture="environment" class="d-none">
+          <p class="small fw-semibold mb-2">Camera blocked? Paste the check-in link:</p>
           <div class="input-group input-group-sm">
             <input type="url" class="form-control" id="scanQRLinkInput" placeholder="Paste check-in link from QR" autocomplete="off" inputmode="url">
             <button type="button" class="btn btn-primary" id="scanQRLinkGo">Open</button>

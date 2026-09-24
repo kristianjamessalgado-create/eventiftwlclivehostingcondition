@@ -373,10 +373,12 @@ body.admin-dashboard .eventify-dashboard-cal-container .fc-scroller::-webkit-scr
 
     body.organizer-dashboard .eventify-dashboard-cal-controls,
     body.admin-dashboard .eventify-dashboard-cal-controls {
-        margin: 0 1rem;
+        margin: 0 0.75rem;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.65rem;
+        max-width: calc(100vw - 1.5rem);
+        box-sizing: border-box;
     }
 
     body.organizer-dashboard .eventify-dashboard-cal-controls .controls-right,

@@ -2861,7 +2861,7 @@ function eventify_notify_session_changes(mysqli $conn, int $eventId, array $oldS
         $msg = '"' . $title . '" on ' . $dateLabel . ' has been cancelled.';
     } elseif ($newStatus === 'completed' && $oldStatus !== 'completed') {
         $notify = true;
-        $msg = '"' . $title . '" on ' . $dateLabel . ' has ended early.';
+        $msg = '"' . $title . '" on ' . $dateLabel . ' has ended.';
     } elseif ($newStatus === 'delayed' && $oldStatus !== 'delayed') {
         $notify = true;
         $msg = '"' . $title . '" on ' . $dateLabel . ' has been delayed.';
@@ -3113,7 +3113,10 @@ function eventify_load_activities_hub_picker_events(mysqli $conn, int $userId, s
             WHERE 1=1";
 
     if (!$isOrganizer) {
-        $sql .= " AND e.title NOT LIKE 'sample%' AND {$sessionCountSql} > 0";
+        $sql .= " AND {$sessionCountSql} > 0";
+        if ($role !== 'multimedia') {
+            $sql .= " AND e.title NOT LIKE 'sample%'";
+        }
     }
 
     if ($isOrganizer) {
@@ -3771,7 +3774,7 @@ function eventify_session_checkin_unavailable_reason(array $session, ?DateTimeIn
         return 'This activity has been cancelled.';
     }
     if (eventify_session_is_completed($session)) {
-        return 'This activity was ended early by the organizer.';
+        return 'This activity has ended.';
     }
     $tz = eventify_app_timezone();
     $now = $now instanceof DateTimeInterface

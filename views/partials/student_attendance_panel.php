@@ -44,7 +44,7 @@ foreach ($attendance_records as $rec) {
             <div class="student-dash-panel__hero-text">
                 <h2 class="student-dash-panel__title">Check-in history</h2>
                 <p class="student-dash-panel__subtitle mb-0">
-                    Events and activities you checked into via QR.
+                    Events and activities you checked into via QR. You can add an optional photo to any record.
                 </p>
             </div>
         </header>
@@ -72,6 +72,9 @@ foreach ($attendance_records as $rec) {
                 <button type="button" class="student-dash-panel__empty-cta" data-bs-toggle="modal" data-bs-target="#scanQRModal">
                     <i class="fas fa-qrcode me-1"></i> Scan QR now
                 </button>
+                <a class="student-attendance-panel__history-link mt-3" href="<?= BASE_URL ?>/activity_card.php">
+                    <i class="fas fa-file-signature me-1"></i> Open my activity card
+                </a>
             </div>
         <?php else: ?>
             <?php if ($eventCount > 0): ?>
@@ -102,6 +105,13 @@ foreach ($attendance_records as $rec) {
                                         Checked in <?= htmlspecialchars(date('M j, Y g:i A', strtotime((string) $rec['time_in']))) ?>
                                     </div>
                                 <?php endif; ?>
+                                <?php
+                                    $kind = 'event';
+                                    $recordId = (int) ($rec['id'] ?? 0);
+                                    $photoPath = (string) ($rec['proof_photo'] ?? '');
+                                    $returnTo = 'dashboard';
+                                    include __DIR__ . '/attendance_proof_controls.php';
+                                ?>
                             </article>
                         <?php endforeach; ?>
                     </div>
@@ -131,6 +141,13 @@ foreach ($attendance_records as $rec) {
                                         <?= htmlspecialchars(date('M j, Y g:i A', strtotime((string) $ar['checked_in_at']))) ?>
                                     </div>
                                 <?php endif; ?>
+                                <?php
+                                    $kind = 'activity';
+                                    $recordId = (int) ($ar['attendance_id'] ?? $ar['id'] ?? 0);
+                                    $photoPath = (string) ($ar['proof_photo'] ?? '');
+                                    $returnTo = 'dashboard';
+                                    include __DIR__ . '/attendance_proof_controls.php';
+                                ?>
                             </article>
                         <?php endforeach; ?>
                     </div>
@@ -140,6 +157,9 @@ foreach ($attendance_records as $rec) {
             <div class="student-attendance-panel__footer">
                 <a class="student-attendance-panel__history-link" href="<?= BASE_URL ?>/attendance_history.php">
                     <i class="fas fa-history me-1"></i> Open full check-in history
+                </a>
+                <a class="student-attendance-panel__history-link" href="<?= BASE_URL ?>/activity_card.php">
+                    <i class="fas fa-file-signature me-1"></i> My activity card
                 </a>
             </div>
         <?php endif; ?>

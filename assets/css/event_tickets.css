@@ -19,8 +19,10 @@
     cursor: not-allowed;
 }
 
-.ticket-qty-select {
-    width: 4.5rem;
+.ticket-qty-input {
+    width: 5.25rem;
+    display: inline-block;
+    text-align: center;
 }
 
 .ticket-pass-page {

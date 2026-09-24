@@ -102,22 +102,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $prefix = strtoupper(substr($role, 0, 3));
                 }
                 $user_id = $prefix . '-' . rand(100, 999);
+                $payload = [
+                    'name' => $name,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'password_hash' => $hashed_password,
+                    'role' => $role,
+                    'department' => $department,
+                    'student_course' => ($role === 'student' ? $studentCourse : ''),
+                    'student_year_level' => ($role === 'student' ? $studentYearLevel : ''),
+                    'user_code' => $user_id,
+                ];
+
+                if (!eventify_register_otp_required()) {
+                    $created = eventify_create_pending_registered_user($conn, $email, $payload);
+                    if (!empty($created['already'])) {
+                        $error = 'Email already registered.';
+                    } elseif (empty($created['ok'])) {
+                        $error = (string) ($created['error'] ?? 'Registration failed. Please try again.');
+                    } else {
+                        eventify_discard_unused_register_otps($conn, $email);
+                        $success = 'Account created. Super admin will activate it before you can sign in.';
+                        header('Location: ' . BASE_URL . '/index.php?' . http_build_query([
+                            'auth_modal' => 'login',
+                            'auth_success' => $success,
+                        ]));
+                        exit();
+                    }
+                } else {
                 $otpCreate = eventify_create_email_otp(
                     $conn,
                     'register',
                     $email,
                     null,
-                    [
-                        'name' => $name,
-                        'first_name' => $firstName,
-                        'last_name' => $lastName,
-                        'password_hash' => $hashed_password,
-                        'role' => $role,
-                        'department' => $department,
-                        'student_course' => ($role === 'student' ? $studentCourse : ''),
-                        'student_year_level' => ($role === 'student' ? $studentYearLevel : ''),
-                        'user_code' => $user_id,
-                    ],
+                    $payload,
                     10
                 );
                 if (empty($otpCreate['ok'])) {
@@ -142,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         header('Location: ' . $verifyUrl);
                         exit();
                     }
+                }
                 }
             }
 

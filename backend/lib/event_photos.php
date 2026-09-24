@@ -44,6 +44,16 @@ function eventify_event_photos_has_credit_line_column(mysqli $conn): bool
     }
 }
 
+function eventify_event_photos_has_published_at_column(mysqli $conn): bool
+{
+    try {
+        $c = $conn->query("SHOW COLUMNS FROM event_photos LIKE 'published_at'");
+        return (bool) ($c && $c->num_rows > 0);
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
 function eventify_event_photos_has_reject_reason_column(mysqli $conn): bool
 {
     try {

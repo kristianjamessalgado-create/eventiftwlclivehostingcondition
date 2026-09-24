@@ -140,6 +140,59 @@
     font-size: 0.8125rem;
 }
 
+#createEventModal .esc-time-field {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
+
+#createEventModal .esc-time-field__hit {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#createEventModal .esc-time-field--disabled .esc-time-field__hit,
+#createEventModal .esc-time-field--native .esc-time-field__hit {
+    display: none;
+}
+
+#createEventModal input[type="time"],
+#createEventModal .event-checkin-time-row input[type="time"] {
+    position: relative;
+    z-index: 2;
+    min-height: 48px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    font-size: 16px;
+    line-height: 1.4;
+    cursor: pointer;
+    -webkit-appearance: auto;
+    appearance: auto;
+}
+
+#createEventModal .esc-time-field:not(.esc-time-field--native) input[type="time"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#createEventModal input[type="time"]::-webkit-datetime-edit,
+#createEventModal input[type="time"]::-webkit-date-and-time-value {
+    min-width: 0;
+    min-height: 1.4em;
+    text-align: left;
+}
+
 #createEventModal .ce-form-control:focus {
     border-color: rgba(61, 138, 53, 0.55);
     box-shadow: 0 0 0 3px rgba(61, 138, 53, 0.15);
@@ -157,15 +210,19 @@
 #eventDaySessionsModal .eds-loc-search-wrap {
     position: relative;
     margin-bottom: 0.5rem;
+    overflow: visible;
 }
 
 .eventify-loc-results {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(100% - 0.15rem);
-    z-index: 1400;
-    max-height: min(220px, 42vh);
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    z-index: 20;
+    display: none;
+    width: 100%;
+    max-height: min(240px, 40vh);
+    margin: 0.4rem 0 0;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -174,6 +231,10 @@
     border-radius: 12px;
     background: #fff;
     box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+}
+
+.eventify-loc-results:not([hidden]) {
+    display: block;
 }
 
 .eventify-loc-results .list-group-item,
@@ -406,6 +467,35 @@
     color: #fff;
 }
 
+#createEventModal .ce-btn-primary:disabled {
+    opacity: 0.92;
+    cursor: wait;
+}
+
+#createEventModal .ce-publish-busy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+#createEventModal .ce-publish-busy[hidden],
+#createEventModal .ce-publish-idle[hidden] {
+    display: none !important;
+}
+
+#createEventModal .ce-publish-spinner {
+    width: 0.95rem;
+    height: 0.95rem;
+    border-width: 0.15em;
+    vertical-align: -0.125em;
+    margin-right: 0.3rem;
+}
+
+#createEventModal .ce-form--publishing .ce-modal__body {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
 #createEventModal .ce-btn-outline {
     background: #fff;
     border: 1px solid var(--ce-border);
@@ -481,9 +571,14 @@
 }
 
 @media (max-width: 767.98px) {
+    #createEventModal {
+        padding: 0 !important;
+        overflow-x: hidden;
+    }
+
     #createEventModal .modal-dialog {
         width: 100%;
-        max-width: none;
+        max-width: 100%;
         max-height: none;
         height: 100%;
         margin: 0;
@@ -492,8 +587,35 @@
     #createEventModal .ce-modal {
         max-height: none;
         height: 100%;
+        max-width: 100%;
         border-radius: 0;
         border-left: none;
         border-right: none;
+    }
+
+    #createEventModal .ce-modal__body {
+        overflow-x: hidden;
+        padding: 0.85rem 0.85rem 1rem;
+    }
+
+    #createEventModal .ce-form-section {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* iOS Safari auto-zooms the page when a focused control is below 16px. */
+    #createEventModal input:not([type="time"]):not([type="hidden"]),
+    #createEventModal select,
+    #createEventModal textarea,
+    #createEventModal .form-control:not([type="time"]),
+    #createEventModal .form-select,
+    #createEventModal .ce-form-control:not([type="time"]),
+    #createEventModal .form-control-sm:not([type="time"]),
+    #createEventModal .form-select-sm {
+        font-size: 16px !important;
+    }
+
+    #createEventModal .event-schedule-click-calendar {
+        max-width: 100%;
     }
 }

@@ -1,4 +1,4 @@
-<div class="modal fade" id="photoModerationConfirmModal" tabindex="-1" aria-labelledby="photoModerationConfirmModalLabel" aria-hidden="true">
+<div class="modal fade" id="photoModerationConfirmModal" tabindex="-1" aria-labelledby="photoModerationConfirmModalLabel" aria-hidden="true" style="z-index: 1080;">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content efy-modal efy-modal--compact">
       <div class="modal-header efy-modal__header">
@@ -18,7 +18,7 @@
       </div>
       <div class="modal-footer efy-modal__footer">
         <button type="button" class="btn efy-btn-muted btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn efy-btn-primary btn-sm" id="photoModerationConfirmBtn"></button>
+        <button type="button" class="btn efy-btn-primary btn-sm" id="photoModerationConfirmBtn" style="pointer-events:auto;position:relative;z-index:2;"></button>
       </div>
     </div>
   </div>

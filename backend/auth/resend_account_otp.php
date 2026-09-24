@@ -31,6 +31,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !csrf_validate()) {
 $purpose = ($_POST['purpose'] ?? 'register') === 'reactivate' ? 'reactivate' : 'register';
 $email = eventify_normalize_email((string) ($_POST['email'] ?? ''));
 
+if ($purpose === 'register' && !eventify_register_otp_required()) {
+    $done = eventify_finalize_pending_register_without_otp($conn, $email);
+    $params = [
+        'auth_modal' => !empty($done['ok']) ? 'login' : 'register',
+        'auth_success' => !empty($done['ok'])
+            ? 'Account created. Super admin will activate it before you can sign in.'
+            : '',
+        'auth_error' => empty($done['ok'])
+            ? (string) ($done['error'] ?? 'Email verification is paused. Please register again.')
+            : '',
+    ];
+    header('Location: ' . BASE_URL . '/index.php?' . http_build_query(array_filter($params)));
+    exit();
+}
+
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     eventify_resend_otp_redirect($purpose, $email, 'Enter a valid email address.');
 }

@@ -1916,6 +1916,50 @@ p {
 
 .legal-doc-actions .login-modal-action-btn {
     width: 100%;
+    min-height: 44px;
+}
+
+.legal-doc-modal .legal-doc-close {
+    top: 8px;
+    right: 8px;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    color: #fffdf8;
+    background: rgba(21, 51, 19, 0.85);
+    border: 1px solid rgba(230, 197, 74, 0.4);
+    border-radius: 50%;
+    z-index: 5;
+}
+
+body.legal-doc-open #registerModal,
+body.legal-doc-open #loginModal,
+body.legal-doc-open #verifyModal {
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .legal-doc-modal.auth-modal.modal {
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding:
+            max(8px, env(safe-area-inset-top, 0px))
+            10px
+            max(10px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .legal-doc-modal .legal-doc-panel.auth-modal-content {
+        width: min(96vw, 520px);
+        max-height: min(90dvh, calc(100vh - 16px));
+        height: min(90dvh, calc(100vh - 16px));
+        margin: 0 auto;
+        overflow: hidden;
+    }
+
+    .legal-doc-actions {
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    }
 }
 
 /* ===============================
@@ -2715,6 +2759,30 @@ footer {
     .auth-modal .login-modal-action-btn {
         font-size: 0.8125rem;
         padding: 0.58rem 0.75rem;
+    }
+
+    /* Keep Terms/Privacy on-screen so Close and X stay tappable */
+    .legal-doc-modal.auth-modal.modal {
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding:
+            max(8px, env(safe-area-inset-top, 0px))
+            10px
+            max(10px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .legal-doc-modal .legal-doc-panel.auth-modal-content {
+        width: min(96vw, 400px);
+        max-height: min(90dvh, calc(100vh - 16px));
+        height: min(90dvh, calc(100vh - 16px));
+        margin: 0 auto;
+        padding: 48px 12px 10px;
+        overflow: hidden;
+    }
+
+    .legal-doc-actions {
+        padding: 10px 12px max(12px, env(safe-area-inset-bottom, 0px));
     }
 
 

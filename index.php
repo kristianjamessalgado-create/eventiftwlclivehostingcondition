@@ -19,6 +19,29 @@ if ($auth_error !== '' && stripos($auth_error, 'access denied') !== false) {
 $verify_purpose = (($_GET['verify_purpose'] ?? $_GET['purpose'] ?? 'register') === 'reactivate') ? 'reactivate' : 'register';
 $verify_email = strtolower(trim((string)($_GET['verify_email'] ?? $_GET['email'] ?? '')));
 $reactivate_email = strtolower(trim((string)($_GET['reactivate_email'] ?? '')));
+if ($auth_modal === 'verify' && $verify_purpose === 'register') {
+    require_once __DIR__ . '/backend/lib/account_email_otp.php';
+    if (!eventify_register_otp_required()) {
+        require_once __DIR__ . '/config/db.php';
+        $pendingEmail = function_exists('eventify_normalize_email')
+            ? eventify_normalize_email($verify_email)
+            : strtolower(trim($verify_email));
+        $successMsg = 'Email verification is paused. Create your account, then wait for super admin to activate it.';
+        $nextModal = 'register';
+        if ($pendingEmail !== '' && filter_var($pendingEmail, FILTER_VALIDATE_EMAIL)) {
+            $done = eventify_finalize_pending_register_without_otp($conn, $pendingEmail);
+            if (!empty($done['ok'])) {
+                $successMsg = 'Account created. Super admin will activate it before you can sign in.';
+                $nextModal = 'login';
+            }
+        }
+        header('Location: ' . BASE_URL . '/index.php?' . http_build_query([
+            'auth_modal' => $nextModal,
+            'auth_success' => $successMsg,
+        ]));
+        exit();
+    }
+}
 if ($auth_modal === 'verify' && $verify_email !== '') {
     require_once __DIR__ . '/backend/lib/account_email_otp.php';
     $verifyFlash = eventify_consume_verify_otp_flash($verify_purpose, $verify_email);
@@ -289,7 +312,7 @@ $landing_past_n = count($publicPastList);
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EVENTIFY</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=31">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=32">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 <style>
@@ -774,7 +797,7 @@ html.eventify-splash-pending body { overflow: hidden; }
             <span class="auth-card__accent" aria-hidden="true"></span>
             <div class="auth-card__head-text">
                 <h3 class="auth-card__title">Create account</h3>
-                <p class="auth-card__subtitle">Fill in your details to get started with EVENTIFY.</p>
+                <p class="auth-card__subtitle">Fill in your details. We will email a 6-digit code to verify your account.</p>
             </div>
         </div>
         <div class="auth-inline-message" id="registerModalMessage" style="display:none;"></div>
@@ -903,7 +926,7 @@ html.eventify-splash-pending body { overflow: hidden; }
 <!-- Legal documents (stacked above auth modals; no redirect from registration) -->
 <div id="legalPrivacyModal" class="modal auth-modal legal-doc-modal" style="display:none;" aria-hidden="true">
     <div class="modal-content auth-modal-content legal-doc-panel">
-        <span class="close" onclick="closeLegalPrivacyModal()" aria-label="Close">&times;</span>
+        <button type="button" class="close legal-doc-close" onclick="closeLegalPrivacyModal(); event.stopPropagation();" aria-label="Close">&times;</button>
         <div class="legal-doc-panel-head">
             <h3 class="auth-title">EVENTIFY Data Privacy Notice</h3>
             <p class="auth-subtitle legal-doc-sub">Republic Act No. 10173 (Data Privacy Act of 2012)</p>
@@ -912,13 +935,13 @@ html.eventify-splash-pending body { overflow: hidden; }
             <?php include __DIR__ . '/views/partials/legal_privacy_inner.php'; ?>
         </div>
         <div class="legal-doc-actions">
-            <button type="button" class="login-modal-action-btn primary" onclick="closeLegalPrivacyModal()">Close</button>
+            <button type="button" class="login-modal-action-btn primary" onclick="closeLegalPrivacyModal(); event.stopPropagation();">Close</button>
         </div>
     </div>
 </div>
 <div id="legalTermsModal" class="modal auth-modal legal-doc-modal" style="display:none;" aria-hidden="true">
     <div class="modal-content auth-modal-content legal-doc-panel">
-        <span class="close" onclick="closeLegalTermsModal()" aria-label="Close">&times;</span>
+        <button type="button" class="close legal-doc-close" onclick="closeLegalTermsModal(); event.stopPropagation();" aria-label="Close">&times;</button>
         <div class="legal-doc-panel-head">
             <h3 class="auth-title">Terms and Conditions</h3>
             <p class="auth-subtitle legal-doc-sub">EVENTIFY - School Events Monitoring System</p>
@@ -927,7 +950,7 @@ html.eventify-splash-pending body { overflow: hidden; }
             <?php $legal_terms_context = 'modal'; include __DIR__ . '/views/partials/legal_terms_inner.php'; ?>
         </div>
         <div class="legal-doc-actions">
-            <button type="button" class="login-modal-action-btn primary" onclick="closeLegalTermsModal()">Close</button>
+            <button type="button" class="login-modal-action-btn primary" onclick="closeLegalTermsModal(); event.stopPropagation();">Close</button>
         </div>
     </div>
 </div>
@@ -1131,6 +1154,6 @@ html.eventify-splash-pending body { overflow: hidden; }
 <!-- JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/index.js?v=25"></script>
+<script src="<?= BASE_URL ?>/assets/js/index.js?v=26"></script>
 </body>
 </html>

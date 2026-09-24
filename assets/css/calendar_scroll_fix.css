@@ -54,11 +54,10 @@ body:not(.admin-dashboard):not(.organizer-dashboard):not(.multimedia-dashboard) 
         overscroll-behavior-y: auto;
     }
 
-    body.student-dashboard .calendar-container .fc-daygrid-event-harness-abs {
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-        right: auto !important;
+    /* Keep multi-day bars absolutely positioned so they can span 15–18, 16–18, etc. */
+    body.student-dashboard .fc-daygrid-day-frame,
+    body.student-dashboard .fc-daygrid-day-events {
+        overflow: visible !important;
     }
 
     body.student-dashboard .fc-daygrid-day-frame {

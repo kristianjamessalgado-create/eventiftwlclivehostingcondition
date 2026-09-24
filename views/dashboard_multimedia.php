@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 if (!isset($user_name)) $user_name = 'Multimedia';
 if (!isset($events)) $events = [];
 if (!isset($msg)) $msg = '';
@@ -43,7 +43,7 @@ if (is_array($events)) {
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=3">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=2">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=7">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_spinner.css?v=2">
 </head>
@@ -663,15 +663,15 @@ if (is_array($events)) {
         : [],
     JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP
 ) ?>;</script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=10"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/dashboard_multimedia_panels.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/dashboard_multimedia_calendar.js?v=8"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=9"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_spinner.js?v=2"></script>
-<script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=4"></script>
 <script>
 window.mmEventActivities = <?= json_encode($eventActivitiesByEvent ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>;
 window.mmEventSessionPhotoStats = <?= json_encode($eventSessionPhotoStats ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>;

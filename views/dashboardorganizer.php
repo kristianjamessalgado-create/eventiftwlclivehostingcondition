@@ -54,12 +54,12 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=2">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=6">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=7">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=6">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=9">
@@ -713,6 +713,7 @@ window.__adminClassSections = <?= json_encode(array_values(is_array($dashboardCl
           </div>
           <p class="efy-detail-row mb-1"><strong>Location:</strong> <span id="eventLocation"></span></p>
           <p class="efy-detail-row mb-1"><strong>Status:</strong> <span id="eventStatus" class="badge bg-success"></span></p>
+          <div id="eventSegmentAttendanceNote" class="eventify-segment-note" hidden></div>
           <p class="efy-detail-row mb-1"><strong>Entry:</strong> <span id="eventRegistrationModeBadge"></span> <span class="efy-form-help d-inline" id="eventRegistrationHint">— use <strong>Ticket sales</strong> below to switch to paid tickets</span></p>
           <p class="efy-detail-row mb-1" id="eventRejectReasonWrap" style="display:none;"><strong>Rejection reason:</strong> <span id="eventRejectReason" class="text-danger"></span></p>
           <p class="efy-detail-row mb-1"><strong>Audience:</strong> <span id="eventDepartment"></span></p>
@@ -819,21 +820,21 @@ if (typeof window.L === 'undefined') {
 <script>
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=4"></script>
-    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=21"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=5"></script>
+    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=26"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=7"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
 
 <!-- Dashboard Scripts -->
-<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=11"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=21"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=10"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=32"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=35"></script>
 
 <script>
 window.EVENTIFY_GEOCODE_URL = window.EVENTIFY_GEOCODE_URL || <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;

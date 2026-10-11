@@ -60,7 +60,7 @@ initEventifySplash();
 // ===============================
 let currentSection = document.querySelector('section.active');
 
-var LANDING_SECTION_ORDER = ['public-calendar', 'hero', 'how-it-works', 'features', 'roles', 'faq'];
+var LANDING_SECTION_ORDER = ['public-calendar', 'hero', 'how-it-works', 'features', 'roles', 'developers', 'faq'];
 
 function isMobileView() {
     return typeof window !== 'undefined' && window.innerWidth <= 768;

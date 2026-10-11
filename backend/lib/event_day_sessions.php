@@ -3106,13 +3106,22 @@ function eventify_load_activities_hub_picker_events(mysqli $conn, int $userId, s
 
     $sessionCountSql = '(SELECT COUNT(*) FROM event_day_sessions s WHERE s.event_id = e.id)';
     $isOrganizer = $role === 'organizer';
+    $isStaff = in_array($role, ['super_admin', 'admin', 'organizer'], true);
     $tsCol = eventify_events_has_target_sections($conn) ? ', e.target_sections' : '';
     $sql = "SELECT e.id, e.title, e.date, e.location, e.department{$tsCol}, e.status, e.organizer_id,
                    {$sessionCountSql} AS activity_count
             FROM events e
             WHERE 1=1";
 
-    if (!$isOrganizer) {
+    if ($isStaff && $role !== 'organizer') {
+        // Closed history stays visible even when an event never got day activities.
+        // Active events still need at least one activity.
+        $sql .= " AND e.title NOT LIKE 'sample%'";
+        $sql .= " AND (
+            {$sessionCountSql} > 0
+            OR e.status IN ('closed', 'completed', 'pending', 'rejected')
+        )";
+    } elseif (!$isOrganizer) {
         $sql .= " AND {$sessionCountSql} > 0";
         if ($role !== 'multimedia') {
             $sql .= " AND e.title NOT LIKE 'sample%'";
@@ -3121,13 +3130,16 @@ function eventify_load_activities_hub_picker_events(mysqli $conn, int $userId, s
 
     if ($isOrganizer) {
         $sql .= ' AND e.organizer_id = ?';
-    } elseif (!in_array($role, ['super_admin', 'admin'], true)) {
-        $sql .= " AND e.status IN ('active', 'closed', 'completed')";
+    } elseif ($isStaff) {
+        $sql .= " AND e.status IN ('active', 'pending', 'closed', 'completed', 'rejected')";
     } else {
         $sql .= " AND e.status IN ('active', 'closed', 'completed')";
     }
 
-    $sql .= ' ORDER BY e.date DESC, e.id DESC LIMIT 80';
+    $sql .= ' ORDER BY e.date DESC, e.id DESC';
+    if (!$isStaff) {
+        $sql .= ' LIMIT 80';
+    }
 
     $res = null;
     $stmt = null;
@@ -3154,6 +3166,10 @@ function eventify_load_activities_hub_picker_events(mysqli $conn, int $userId, s
     }
     if ($stmt) {
         $stmt->close();
+    }
+
+    if ($isStaff) {
+        return $out;
     }
 
     return array_slice($out, 0, 50);

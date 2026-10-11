@@ -26,6 +26,7 @@
     var defaultSelected = normalizeList(window.__eahHubStatusDefault || ['active']);
     var selected = normalizeList(window.__eahHubStatusInitial || defaultSelected);
     var skipLoadingOnce = true;
+    var savedFilter = false;
 
     try {
         var saved = sessionStorage.getItem(storageKey);
@@ -33,14 +34,14 @@
             var parsed = JSON.parse(saved);
             if (Array.isArray(parsed)) {
                 selected = normalizeList(parsed);
+                savedFilter = true;
             }
         }
     } catch (e) {
         /* ignore */
     }
 
-    // Never leave users on an empty filter (shows “nothing matches”).
-    if (selected.length === 0) {
+    if (!savedFilter && selected.length === 0) {
         selected = defaultSelected.slice();
     }
 
@@ -201,8 +202,7 @@
     var noneBtn = document.querySelector('[data-eah-filter-none]');
     if (noneBtn) {
         noneBtn.addEventListener('click', function () {
-            // Reset to default (Active) instead of showing zero events.
-            selected = defaultSelected.slice();
+            selected = [];
             applyFilter();
         });
     }

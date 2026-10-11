@@ -2,9 +2,24 @@
 session_start();
 include __DIR__ . '/config/db.php';
 include __DIR__ . '/config/config.php';
-require_once __DIR__ . '/config/student_profile_fields.php';
-require_once __DIR__ . '/config/departments.php';
-require_once __DIR__ . '/backend/lib/attendance_proof.php';
+if (function_exists('mysqli_report')) {
+    mysqli_report(MYSQLI_REPORT_OFF);
+}
+if (is_file(__DIR__ . '/config/student_profile_fields.php')) {
+    require_once __DIR__ . '/config/student_profile_fields.php';
+}
+if (is_file(__DIR__ . '/config/departments.php')) {
+    require_once __DIR__ . '/config/departments.php';
+}
+if (is_file(__DIR__ . '/config/student_sections.php')) {
+    require_once __DIR__ . '/config/student_sections.php';
+}
+if (is_file(__DIR__ . '/backend/lib/attendance_proof.php')) {
+    require_once __DIR__ . '/backend/lib/attendance_proof.php';
+}
+if (is_file(__DIR__ . '/backend/lib/attendance_report.php')) {
+    require_once __DIR__ . '/backend/lib/attendance_report.php';
+}
 
 $allowed_roles = ['super_admin', 'admin', 'organizer'];
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', $allowed_roles, true)) {
@@ -18,12 +33,48 @@ if ($event_id < 1) {
     exit();
 }
 
-$stmt = $conn->prepare("SELECT id, title, date, start_time, end_time, location, organizer_id FROM events WHERE id = ?");
-$stmt->bind_param("i", $event_id);
-$stmt->execute();
-$res = $stmt->get_result();
-$event = $res->fetch_assoc();
-$stmt->close();
+try {
+    if (function_exists('eventify_sections_schema_ensure')) {
+        eventify_sections_schema_ensure($conn);
+    }
+} catch (Throwable $e) {
+    // schema optional
+}
+try {
+    if (function_exists('eventify_users_ensure_student_profile_fields')) {
+        eventify_users_ensure_student_profile_fields($conn);
+    }
+} catch (Throwable $e) {
+    // columns optional
+}
+
+$hasAttendanceMode = false;
+try {
+    $modeCol = $conn->query("SHOW COLUMNS FROM events WHERE Field = 'attendance_mode'");
+    $hasAttendanceMode = (bool) ($modeCol && $modeCol->num_rows > 0);
+} catch (Throwable $e) {
+    $hasAttendanceMode = false;
+}
+
+$eventSql = $hasAttendanceMode
+    ? "SELECT id, title, date, start_time, end_time, location, organizer_id, attendance_mode FROM events WHERE id = ?"
+    : "SELECT id, title, date, start_time, end_time, location, organizer_id FROM events WHERE id = ?";
+$event = null;
+try {
+    $stmt = $conn->prepare($eventSql);
+    if (!$stmt && $hasAttendanceMode) {
+        $stmt = $conn->prepare("SELECT id, title, date, start_time, end_time, location, organizer_id FROM events WHERE id = ?");
+    }
+    if ($stmt) {
+        $stmt->bind_param("i", $event_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $event = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+    }
+} catch (Throwable $e) {
+    $event = null;
+}
 
 if (!$event) {
     header('Location: ' . BASE_URL . '?error=Event not found');
@@ -31,68 +82,102 @@ if (!$event) {
 }
 
 $role = $_SESSION['role'] ?? '';
-// Organizers may only view attendance for their own events
 if ($role === 'organizer' && (int) $event['organizer_id'] !== (int) $_SESSION['user_id']) {
     header('Location: ' . BASE_URL . '?error=Access denied');
     exit();
 }
 
-eventify_users_ensure_student_profile_fields($conn);
-eventify_attendance_proof_ensure_columns($conn);
-$eventProofSql = eventify_attendance_proof_column_exists($conn, 'registrations') ? ', r.proof_photo' : '';
-
-// Attendees: students who checked in (status = present)
-$attendees = [];
-$st = $conn->prepare("
-    SELECT r.time_in, r.time_out{$eventProofSql}, u.name, u.user_id AS student_school_id,
-           u.student_course, u.student_year_level, u.student_academic_year, u.department
-    FROM registrations r
-    JOIN users u ON r.user_id = u.id
-    WHERE r.event_id = ? AND r.status = 'present'
-    ORDER BY r.time_in ASC
-");
-$st->bind_param("i", $event_id);
-$st->execute();
-$res = $st->get_result();
-while ($row = $res->fetch_assoc()) {
-    $attendees[] = $row;
-}
-$st->close();
-
-// Optional CSV export
-if (isset($_GET['export']) && $_GET['export'] === 'csv') {
-    header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename="event_attendance_' . (int)$event['id'] . '.csv"');
-    $out = fopen('php://output', 'w');
-    fputcsv($out, ['#', 'Student Name', 'Student ID', 'Course', 'Year level', 'School year (AY)', 'Department / college', 'Time in', 'Time out']);
-    $i = 1;
-    foreach ($attendees as $row) {
-        $rawDept = trim((string) ($row['department'] ?? ''));
-        $deptLabel = $rawDept === ''
-            ? ''
-            : (function_exists('eventify_format_department_label')
-                ? eventify_format_department_label($rawDept)
-                : $rawDept);
-        fputcsv($out, [
-            $i++,
-            $row['name'] ?? '',
-            $row['student_school_id'] ?? '',
-            $row['student_course'] ?? '',
-            $row['student_year_level'] ?? '',
-            $row['student_academic_year'] ?? '',
-            $deptLabel,
-            $row['time_in'] ?? '',
-            $row['time_out'] ?? '',
-        ]);
+$timeInOut = strtolower(trim((string) ($event['attendance_mode'] ?? 'single'))) === 'time_in_out';
+$attFilters = function_exists('eventify_attendance_report_parse_filters')
+    ? eventify_attendance_report_parse_filters($_GET)
+    : ['dept' => '', 'course' => '', 'year' => '', 'section' => '', 'view' => 'present', 'view_param' => 'auto', 'has_filter' => false];
+$attFilterOptions = ['departments' => [], 'courses' => [], 'years' => [], 'sections' => [], 'course_departments' => []];
+$attRows = [];
+try {
+    if (function_exists('eventify_attendance_report_filter_options')) {
+        $attFilterOptions = eventify_attendance_report_filter_options($conn, $attFilters);
     }
-    fclose($out);
+    if (function_exists('eventify_attendance_report_load_event_rows')) {
+        $attRows = eventify_attendance_report_load_event_rows($conn, $event_id, $attFilters, $timeInOut);
+    }
+} catch (Throwable $e) {
+    $attRows = [];
+}
+if ($attRows === []) {
+    try {
+        $profileCols = function_exists('eventify_attendance_report_user_select_sql')
+            ? eventify_attendance_report_user_select_sql($conn)
+            : 'u.name, u.user_id AS student_school_id, u.student_course, u.student_year_level, u.student_academic_year, u.department, u.student_section';
+        $fbWhere = "FROM registrations r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.event_id = ? AND (r.status = 'present' OR r.time_in IS NOT NULL)
+            ORDER BY r.time_in ASC";
+        $fb = $conn->prepare("SELECT {$profileCols}, r.time_in, r.time_out, r.proof_photo {$fbWhere}");
+        if (!$fb) {
+            $fb = $conn->prepare("SELECT {$profileCols}, r.time_in, r.time_out {$fbWhere}");
+        }
+        if (!$fb) {
+            $fb = $conn->prepare("SELECT u.name, u.user_id AS student_school_id, u.student_course, u.student_year_level, u.student_academic_year, u.department, r.time_in, r.time_out {$fbWhere}");
+        }
+        if ($fb) {
+            $fb->bind_param('i', $event_id);
+            $fb->execute();
+            $fbRes = $fb->get_result();
+            if ($fbRes && function_exists('eventify_attendance_report_normalize_row')) {
+                while ($fbRow = $fbRes->fetch_assoc()) {
+                    $attRows[] = eventify_attendance_report_normalize_row($fbRow, $timeInOut);
+                }
+            } elseif ($fbRes) {
+                while ($fbRow = $fbRes->fetch_assoc()) {
+                    $attRows[] = [
+                        'name' => (string) ($fbRow['name'] ?? ''),
+                        'student_school_id' => (string) ($fbRow['student_school_id'] ?? ''),
+                        'student_course' => (string) ($fbRow['student_course'] ?? ''),
+                        'student_year_level' => (string) ($fbRow['student_year_level'] ?? ''),
+                        'student_academic_year' => (string) ($fbRow['student_academic_year'] ?? ''),
+                        'department' => (string) ($fbRow['department'] ?? ''),
+                        'department_label' => (string) ($fbRow['department'] ?? ''),
+                        'student_section' => (string) ($fbRow['student_section'] ?? ''),
+                        'time_in' => (string) ($fbRow['time_in'] ?? ''),
+                        'time_out' => (string) ($fbRow['time_out'] ?? ''),
+                        'proof_photo' => (string) ($fbRow['proof_photo'] ?? ''),
+                        'status' => !empty($fbRow['time_in']) ? 'present' : 'absent',
+                    ];
+                }
+            }
+            $fb->close();
+        }
+    } catch (Throwable $e) {
+        // keep empty rather than white-screen
+    }
+}
+$attSummary = function_exists('eventify_attendance_report_summarize')
+    ? eventify_attendance_report_summarize($attRows)
+    : ['total' => count($attRows), 'present' => count($attRows), 'absent' => 0, 'incomplete' => 0, 'unassigned' => 0];
+$filterLabels = function_exists('eventify_attendance_report_filter_labels')
+    ? eventify_attendance_report_filter_labels($attFilters)
+    : [];
+$unassignedPresent = function_exists('eventify_attendance_report_count_unassigned_present')
+    ? eventify_attendance_report_count_unassigned_present($attRows)
+    : 0;
+
+$exportQs = function_exists('eventify_attendance_report_query_string')
+    ? eventify_attendance_report_query_string($attFilters, ['id' => $event_id, 'export' => 'csv'])
+    : 'id=' . $event_id . '&export=csv';
+$clearUrl = BASE_URL . '/event_attendance.php?id=' . $event_id;
+
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    $sectionBit = ($attFilters['section'] !== '' && $attFilters['section'] !== '__unassigned__')
+        ? $attFilters['section']
+        : 'all';
+    $filename = 'event_attendance_' . (int) $event['id'] . '_' . eventify_attendance_report_safe_filename((string) $event['title'], $sectionBit) . '.csv';
+    eventify_attendance_report_output_csv($filename, $attRows, true);
     $conn->close();
     exit();
 }
 
 $conn->close();
 
-// Back link by role
 $back_url = BASE_URL . '/backend/auth/dashboardorganizer.php';
 if ($role === 'admin') {
     $back_url = BASE_URL . '/backend/admin/dashboard.php';
@@ -101,7 +186,15 @@ if ($role === 'super_admin') {
     $back_url = BASE_URL . '/backend/super_admin/dashboardsuperadmin.php';
 }
 
-$pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
+$generatedBy = trim((string) ($_SESSION['name'] ?? ''));
+$generatedAt = date('M j, Y g:i A');
+$pageTitle = htmlspecialchars((string) $event['title']) . ' – Attendance';
+$attFilterAction = BASE_URL . '/event_attendance.php';
+$attFilterId = $event_id;
+$attClearUrl = $clearUrl;
+$attShowTimeOut = true;
+$attShowPhotos = true;
+$attRosterView = ($attFilters['view'] === 'roster');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -112,138 +205,114 @@ $pageTitle = htmlspecialchars($event['title']) . ' – Attendance';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=3">
-    <style>
-        :root {
-            --school-green-900: #064e3b;
-            --school-green-800: #065f46;
-            --school-green-700: #047857;
-            --school-green-100: #dcfce7;
-            --school-gold-500: #eab308;
-            --school-gold-600: #ca8a04;
-            --school-bg: #f0f9f4;
-            --school-border: #cfe7d8;
-        }
-        body {
-            padding: 1.5rem;
-            background:
-                radial-gradient(900px 360px at 0% -10%, rgba(6, 95, 70, 0.18), transparent 60%),
-                radial-gradient(700px 320px at 100% -5%, rgba(234, 179, 8, 0.14), transparent 60%),
-                var(--school-bg);
-        }
-        .att-card {
-            max-width: 1100px;
-            margin: 0 auto;
-            border-radius: 14px;
-            box-shadow: 0 10px 28px rgba(6, 78, 59, 0.14);
-            overflow: hidden;
-            border: 1px solid var(--school-border);
-        }
-        .att-header {
-            background: linear-gradient(120deg, var(--school-green-900) 0%, var(--school-green-700) 72%, var(--school-gold-600) 100%);
-            color: #fff;
-            padding: 1.25rem;
-        }
-        .att-body { padding: 1.5rem; background: #fff; }
-        .event-meta { color: rgba(255,255,255,0.92); font-size: 0.9rem; margin-top: 0.25rem; }
-        .table-attendees { margin-bottom: 0; border: 1px solid #e2e8f0; }
-        .table-attendees th {
-            background: #ecfdf5;
-            color: #0f172a;
-            font-weight: 700;
-            border-bottom: 1px solid #bbf7d0;
-        }
-        .table-attendees tbody tr:nth-of-type(odd) { background: #fcfffd; }
-        .table-attendees tbody tr:hover { background: #f0fdf4; }
-        .att-count { color: #065f46 !important; font-weight: 600; }
-        .btn-export {
-            border-color: #16a34a;
-            color: #166534;
-        }
-        .btn-export:hover {
-            background: #16a34a;
-            border-color: #16a34a;
-            color: #fff;
-        }
-        .btn-back {
-            border-color: #ca8a04;
-            color: #854d0e;
-        }
-        .btn-back:hover {
-            background: #fef3c7;
-            border-color: #ca8a04;
-            color: #713f12;
-        }
-    </style>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_report.css?v=1">
 </head>
-<body>
+<body class="att-report-page">
     <div class="att-card card border-0">
         <div class="att-header">
-            <h1 class="h5 mb-0"><i class="fas fa-clipboard-check me-2"></i>Attendance</h1>
-            <p class="event-meta mb-0"><?= htmlspecialchars($event['title']) ?></p>
+            <div class="att-print-only att-print-banner">
+                <div>
+                    <strong>EVENTIFY</strong>
+                    <div>Official attendance report</div>
+                </div>
+                <div class="text-end">
+                    <div>Generated <?= htmlspecialchars($generatedAt) ?></div>
+                    <?php if ($generatedBy !== ''): ?>
+                        <div>By <?= htmlspecialchars($generatedBy) ?></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="att-header__kicker no-print"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Attendance</div>
+            <h1><?= htmlspecialchars((string) $event['title']) ?></h1>
             <?php if (!empty($event['date'])): ?>
-                <p class="event-meta mb-0"><?= date('l, M j, Y', strtotime($event['date'])) ?><?= !empty($event['location']) ? ' · ' . htmlspecialchars($event['location']) : '' ?></p>
+                <p class="event-meta mb-0"><?= date('l, M j, Y', strtotime((string) $event['date'])) ?><?= !empty($event['location']) ? ' · ' . htmlspecialchars((string) $event['location']) : '' ?></p>
+            <?php endif; ?>
+            <?php if ($filterLabels !== []): ?>
+                <p class="event-meta mb-0">Class: <?= htmlspecialchars(implode(' · ', $filterLabels)) ?></p>
             <?php endif; ?>
         </div>
         <div class="att-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted att-count"><?= count($attendees) ?> <?= count($attendees) === 1 ? 'attendee' : 'attendees' ?></span>
-                <div class="d-flex gap-2">
-                    <?php if (!empty($attendees)): ?>
-                        <a href="<?= htmlspecialchars(BASE_URL . '/event_attendance.php?id=' . (int)$event['id'] . '&export=csv') ?>" class="btn btn-sm btn-outline-primary btn-export">
+            <?php
+            if (is_file(__DIR__ . '/views/partials/attendance_filter_bar.php')) {
+                include __DIR__ . '/views/partials/attendance_filter_bar.php';
+            }
+            ?>
+
+            <?php if ($filterLabels !== []): ?>
+                <div class="att-filter-chips no-print">
+                    <?php foreach ($filterLabels as $chip): ?>
+                        <span class="att-chip"><i class="fas fa-check" aria-hidden="true"></i><?= htmlspecialchars($chip) ?></span>
+                    <?php endforeach; ?>
+                    <span class="att-chip"><?= $attRosterView ? 'Full class roster' : 'Checked in only' ?></span>
+                </div>
+            <?php endif; ?>
+
+            <div class="att-stats">
+                <div class="att-stat"><strong><?= (int) $attSummary['present'] ?></strong><span>Present</span></div>
+                <?php if ($attRosterView || $attSummary['absent'] > 0): ?>
+                    <div class="att-stat att-stat--absent"><strong><?= (int) $attSummary['absent'] ?></strong><span>Absent</span></div>
+                <?php endif; ?>
+                <?php if ($timeInOut || $attSummary['incomplete'] > 0): ?>
+                    <div class="att-stat att-stat--incomplete"><strong><?= (int) $attSummary['incomplete'] ?></strong><span>Incomplete</span></div>
+                <?php endif; ?>
+                <div class="att-stat"><strong><?= (int) $attSummary['total'] ?></strong><span>Total listed</span></div>
+            </div>
+
+            <?php if ($unassignedPresent > 0 && ($attFilters['section'] ?? '') !== '__unassigned__'): ?>
+                <div class="att-note no-print">
+                    <strong><?= (int) $unassignedPresent ?></strong>
+                    checked-in student<?= $unassignedPresent === 1 ? '' : 's' ?>
+                    <?= $unassignedPresent === 1 ? 'has' : 'have' ?> no class section.
+                    Assign their section in Users so they appear in a section report.
+                    <a href="<?= htmlspecialchars($attFilterAction . '?' . (function_exists('eventify_attendance_report_query_string') ? eventify_attendance_report_query_string(array_merge($attFilters, ['section' => '__unassigned__']), ['id' => $event_id]) : ('id=' . $event_id . '&section=__unassigned__'))) ?>">View unassigned</a>
+                </div>
+            <?php endif; ?>
+
+            <div class="att-toolbar no-print">
+                <span class="att-count">
+                    <?php if ($attRosterView): ?>
+                        <?= (int) $attSummary['present'] ?> of <?= (int) $attSummary['total'] ?> present
+                    <?php else: ?>
+                        <?= (int) $attSummary['total'] ?> <?= (int) $attSummary['total'] === 1 ? 'attendee' : 'attendees' ?>
+                    <?php endif; ?>
+                </span>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php if ($attRows !== []): ?>
+                        <button type="button" class="btn btn-sm btn-print" id="attPrintBtn">
+                            <i class="fas fa-file-pdf me-1"></i>Export PDF / Print
+                        </button>
+                        <a href="<?= htmlspecialchars(BASE_URL . '/event_attendance.php?' . $exportQs) ?>" class="btn btn-sm btn-outline-primary btn-export">
                             <i class="fas fa-file-export me-1"></i>Export CSV
                         </a>
                     <?php endif; ?>
                     <a href="<?= htmlspecialchars($back_url) ?>" class="btn btn-outline-secondary btn-sm btn-back"><i class="fas fa-arrow-left me-1"></i>Back to dashboard</a>
                 </div>
             </div>
-            <?php if (empty($attendees)): ?>
-                <p class="text-muted mb-0">No one has checked in yet. Students can scan the event QR to confirm attendance.</p>
-            <?php else: ?>
-                <div class="table-responsive">
-                    <table class="table table-attendees table-striped">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Name</th>
-                                <th>Student ID</th>
-                                <th>Course</th>
-                                <th>Year level</th>
-                                <th>School year (AY)</th>
-                                <th>Department</th>
-                                <th>Time in</th>
-                                <th>Time out</th>
-                                <th>Photo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($attendees as $i => $a): ?>
-                                <?php
-                                $course = trim((string) ($a['student_course'] ?? ''));
-                                $yrl = trim((string) ($a['student_year_level'] ?? ''));
-                                $ay = trim((string) ($a['student_academic_year'] ?? ''));
-                                $rawDept = trim((string) ($a['department'] ?? ''));
-                                $deptDisp = $rawDept === '' ? '—' : eventify_format_department_label($rawDept);
-                                ?>
-                                <tr>
-                                    <td><?= $i + 1 ?></td>
-                                    <td><?= htmlspecialchars($a['name'] ?? '—') ?></td>
-                                    <td><?= htmlspecialchars($a['student_school_id'] ?? '—') ?></td>
-                                    <td><?= $course !== '' ? htmlspecialchars($course) : '—' ?></td>
-                                    <td><?= $yrl !== '' ? htmlspecialchars($yrl) : '—' ?></td>
-                                    <td><?= $ay !== '' ? htmlspecialchars($ay) : '—' ?></td>
-                                    <td><?= htmlspecialchars($deptDisp) ?></td>
-                                    <td><?= $a['time_in'] ? date('M j, Y g:i A', strtotime($a['time_in'])) : '—' ?></td>
-                                    <td><?= !empty($a['time_out']) ? date('M j, Y g:i A', strtotime($a['time_out'])) : '—' ?></td>
-                                    <td><?= eventify_attendance_proof_thumb_html($a['proof_photo'] ?? '', (string) ($a['name'] ?? 'Student') . ' attendance photo') ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+
+            <?php
+            if (is_file(__DIR__ . '/views/partials/attendance_report_table.php')) {
+                include __DIR__ . '/views/partials/attendance_report_table.php';
+            } elseif ($attRows !== []) {
+                echo '<div class="table-responsive"><table class="table table-attendees"><thead><tr><th>#</th><th>Name</th><th>Student ID</th><th>Time in</th><th>Time out</th></tr></thead><tbody>';
+                foreach ($attRows as $i => $a) {
+                    echo '<tr><td>' . ($i + 1) . '</td><td>' . htmlspecialchars((string) ($a['name'] ?? '')) . '</td><td>' . htmlspecialchars((string) ($a['student_school_id'] ?? '')) . '</td><td>' . htmlspecialchars((string) ($a['time_in'] ?? '')) . '</td><td>' . htmlspecialchars((string) ($a['time_out'] ?? '')) . '</td></tr>';
+                }
+                echo '</tbody></table></div>';
+            }
+            ?>
+
+            <div class="att-signoff">
+                <div>
+                    <div class="att-signoff__line">Teacher / Adviser</div>
                 </div>
-            <?php endif; ?>
+                <div>
+                    <div class="att-signoff__line">Noted by Admin</div>
+                </div>
+            </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=2"></script>
+    <script src="<?= BASE_URL ?>/assets/js/attendance_report.js?v=1"></script>
 </body>
 </html>

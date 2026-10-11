@@ -312,20 +312,34 @@ $landing_past_n = count($publicPastList);
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EVENTIFY</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=32">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=36">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 <style>
 html.eventify-splash-pending,
-html.eventify-splash-pending body { overflow: hidden; }
+html.eventify-splash-pending body {
+    overflow: hidden !important;
+    height: 100% !important;
+    padding-bottom: 0 !important;
+    scrollbar-gutter: auto !important;
+}
 
 #eventifySplash {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
     z-index: 2147483000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
+    place-content: center;
+    box-sizing: border-box;
     opacity: 1;
     visibility: visible;
     background:
@@ -339,6 +353,65 @@ html.eventify-splash-pending body { overflow: hidden; }
     visibility: hidden;
     pointer-events: none;
 }
+
+#eventifySplash .eventify-splash__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: min(22rem, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 1.5rem;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#eventifySplash .eventify-splash__brand {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    margin: 0 auto 1.35rem;
+    padding: 0;
+    font-size: clamp(1.5rem, 4vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-align: center;
+    text-indent: 0.16em;
+    color: #ecfdf5;
+    background: none !important;
+    -webkit-text-fill-color: inherit !important;
+    -webkit-background-clip: border-box !important;
+    background-clip: border-box !important;
+    animation: none !important;
+    transform: none !important;
+}
+
+#eventifySplash .eventify-splash__brand-a {
+    color: #34d399;
+    -webkit-text-fill-color: #34d399;
+}
+
+#eventifySplash .eventify-splash__brand-b {
+    color: #fde047;
+    -webkit-text-fill-color: #fde047;
+}
+
+#eventifySplash p,
+#eventifySplash .eventify-splash__status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0;
+    text-align: center !important;
+    animation: none !important;
+    transform: none !important;
+}
 </style>
 <?php if (!$skip_landing_splash): ?>
 <script>document.documentElement.classList.add('eventify-splash-pending', 'eventify-landing-enter');</script>
@@ -351,12 +424,12 @@ html.eventify-splash-pending body { overflow: hidden; }
 <?php if (!$skip_landing_splash): ?>
 <!-- Loading splash -->
 <div id="eventifySplash" class="eventify-splash" role="status" aria-live="polite" aria-label="Loading EVENTIFY" data-splash-managed="inline">
-    <div class="eventify-splash__glow" aria-hidden="true"></div>
     <div class="eventify-splash__inner">
+        <div class="eventify-splash__glow" aria-hidden="true"></div>
         <div class="eventify-splash__ring" aria-hidden="true">
             <i class="fas fa-calendar-check"></i>
         </div>
-        <h1 class="eventify-splash__brand"><span class="eventify-splash__brand-a">EVENT</span><span class="eventify-splash__brand-b">IFY</span></h1>
+        <div class="eventify-splash__brand"><span class="eventify-splash__brand-a">EVENT</span><span class="eventify-splash__brand-b">IFY</span></div>
         <div class="eventify-splash__bar" aria-hidden="true">
             <span class="eventify-splash__bar-fill" id="eventifySplashFill"></span>
         </div>
@@ -468,6 +541,7 @@ html.eventify-splash-pending body { overflow: hidden; }
             <a href="javascript:void(0)" data-nav-section="how-it-works" onclick="goToSection('how-it-works')">How it works</a>
             <a href="javascript:void(0)" data-nav-section="features" onclick="goToSection('features')">Features</a>
             <a href="javascript:void(0)" data-nav-section="roles" onclick="goToSection('roles')">Roles</a>
+            <a href="javascript:void(0)" data-nav-section="developers" onclick="goToSection('developers')">Developers</a>
             <a href="javascript:void(0)" data-nav-section="faq" onclick="goToSection('faq')">FAQ</a>
             <span class="header-nav-actions">
                 <a href="javascript:void(0)" class="btn btn-outline btn-nav-login login-trigger" data-login-url="<?= htmlspecialchars($login_src) ?>">Log in</a>
@@ -482,6 +556,7 @@ html.eventify-splash-pending body { overflow: hidden; }
             <a href="javascript:void(0)" data-nav-section="how-it-works" onclick="goToSection('how-it-works'); closeMobileNav();">How it works</a>
             <a href="javascript:void(0)" data-nav-section="features" onclick="goToSection('features'); closeMobileNav();">Features</a>
             <a href="javascript:void(0)" data-nav-section="roles" onclick="goToSection('roles'); closeMobileNav();">Roles</a>
+            <a href="javascript:void(0)" data-nav-section="developers" onclick="goToSection('developers'); closeMobileNav();">Developers</a>
             <a href="javascript:void(0)" data-nav-section="faq" onclick="goToSection('faq'); closeMobileNav();">FAQ</a>
             <a href="javascript:void(0)" onclick="closeMobileNav()" class="btn btn-outline login-trigger" data-login-url="<?= htmlspecialchars($login_src) ?>">Log in</a>
             <a href="javascript:void(0)" onclick="closeMobileNav(); openGetStartedGuide();" class="btn btn-shimmer get-started-trigger">Take a quick tour</a>
@@ -1109,6 +1184,64 @@ html.eventify-splash-pending body { overflow: hidden; }
     </div>
 </section>
 
+<section id="developers" class="reveal-scope">
+    <div class="developers-head reveal-item" style="--reveal-d: 0ms">
+        <p class="landing-hero-eyebrow">The team</p>
+        <h1>Meet the developers</h1>
+        <p class="developers-lead">
+            Three BSIT students from Western Leyte College who designed and built EVENTIFY &mdash; a school events monitoring system for administrators, organizers, multimedia teams, and students.
+        </p>
+        <p class="developers-meta">
+            <span>Western Leyte College</span>
+            <span class="developers-meta__dot" aria-hidden="true"></span>
+            <span>BSIT Capstone</span>
+            <span class="developers-meta__dot" aria-hidden="true"></span>
+            <span>A.Y. 2026&ndash;2027</span>
+        </p>
+    </div>
+    <div class="developers-grid reveal-item" style="--reveal-d: 140ms">
+        <article class="developer-card">
+            <span class="developer-card__accent" aria-hidden="true"></span>
+            <span class="developer-card__index" aria-hidden="true">01</span>
+            <div class="developer-card__photo-wrap">
+                <div class="developer-card__photo developer-card__photo--deane">
+                    <img src="<?= BASE_URL ?>/assets/img/developers/deane.jpeg" alt="Dean Christian Camat" width="200" height="200" loading="lazy" decoding="async">
+                </div>
+            </div>
+            <div class="developer-card__info">
+                <h3 class="developer-card__name">Dean Christian Camat</h3>
+                <p class="developer-card__role">Project Manager &amp; System Architect</p>
+            </div>
+        </article>
+        <article class="developer-card">
+            <span class="developer-card__accent" aria-hidden="true"></span>
+            <span class="developer-card__index" aria-hidden="true">02</span>
+            <div class="developer-card__photo-wrap">
+                <div class="developer-card__photo developer-card__photo--kristian">
+                    <img src="<?= BASE_URL ?>/assets/img/developers/kristian.jpg" alt="Kristian James Salgado" width="200" height="200" loading="lazy" decoding="async">
+                </div>
+            </div>
+            <div class="developer-card__info">
+                <h3 class="developer-card__name">Kristian James Salgado</h3>
+                <p class="developer-card__role">Backend &amp; Database Developer</p>
+            </div>
+        </article>
+        <article class="developer-card">
+            <span class="developer-card__accent" aria-hidden="true"></span>
+            <span class="developer-card__index" aria-hidden="true">03</span>
+            <div class="developer-card__photo-wrap">
+                <div class="developer-card__photo developer-card__photo--jabes">
+                    <img src="<?= BASE_URL ?>/assets/img/developers/jabes.jpg" alt="Jabes Brom Bernal" width="200" height="200" loading="lazy" decoding="async">
+                </div>
+            </div>
+            <div class="developer-card__info">
+                <h3 class="developer-card__name">Jabes Brom Bernal</h3>
+                <p class="developer-card__role">Frontend &amp; UI/UX Designer</p>
+            </div>
+        </article>
+    </div>
+</section>
+
 <section id="faq" class="reveal-scope">
     <h1 class="reveal-item" style="--reveal-d: 0ms">Frequently asked questions</h1>
     <div class="faq-accordion reveal-item" style="--reveal-d: 80ms">
@@ -1143,6 +1276,7 @@ html.eventify-splash-pending body { overflow: hidden; }
         <div class="footer-links">
             <a href="javascript:void(0)" onclick="goToSection('features')">Features</a>
             <a href="javascript:void(0)" onclick="goToSection('roles')">Roles</a>
+            <a href="javascript:void(0)" onclick="goToSection('developers')">Developers</a>
             <a class="legal-doc-link legal-footer-link" href="<?= BASE_URL ?>/privacy-notice.php" target="_blank" rel="noopener noreferrer">Privacy Notice</a>
             <a class="legal-doc-link legal-footer-link" href="<?= BASE_URL ?>/terms-and-conditions.php" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>
             <a href="mailto:youremail@example.com">Contact</a>
@@ -1154,6 +1288,6 @@ html.eventify-splash-pending body { overflow: hidden; }
 <!-- JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/index.js?v=26"></script>
+<script src="<?= BASE_URL ?>/assets/js/index.js?v=27"></script>
 </body>
 </html>

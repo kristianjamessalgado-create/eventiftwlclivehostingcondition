@@ -371,7 +371,7 @@ function ah_event_status_display(string $status): array
                 <div class="eah-hub-filter__quick">
                     <button type="button" class="eah-hub-filter__quick-btn" data-eah-filter-all>Select all</button>
                     <span class="eah-hub-filter__quick-sep" aria-hidden="true">·</span>
-                    <button type="button" class="eah-hub-filter__quick-btn" data-eah-filter-none>Active only</button>
+                    <button type="button" class="eah-hub-filter__quick-btn" data-eah-filter-none>Clear all</button>
                 </div>
             </div>
         </div>
@@ -502,6 +502,8 @@ function ah_event_status_display(string $status): array
                         <div class="eah-picker-card__aside">
                             <?php if ($actCount > 0): ?>
                                 <span class="eah-picker-card__badge"><?= $actCount ?> activit<?= $actCount === 1 ? 'y' : 'ies' ?></span>
+                            <?php elseif (in_array($filterBucket, ['closed', 'rejected'], true)): ?>
+                                <span class="eah-picker-card__badge eah-picker-card__badge--muted">No activities</span>
                             <?php else: ?>
                                 <span class="eah-picker-card__badge eah-picker-card__badge--muted">Schedule coming</span>
                             <?php endif; ?>
@@ -576,7 +578,7 @@ window.__eahHubStatusInitial = <?= json_encode(array_values($hubStatusSelected),
 window.__eahHubStatusOptions = <?= json_encode($hubStatusOptions, JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_spinner.js?v=2"></script>
-<script src="<?= BASE_URL ?>/assets/js/activities_hub_filter.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/activities_hub_filter.js?v=6"></script>
 <?php endif; ?>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
 <?php if ($isStudent): ?>

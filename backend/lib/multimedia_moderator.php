@@ -799,6 +799,157 @@ function eventify_moderator_delete_photo(mysqli $conn, int $photoId, int $modera
     return ['ok' => true, 'error' => ''];
 }
 
+/**
+ * Delete gallery photos a multimedia user is allowed to remove.
+ * Own photos are removed directly. A moderator may also remove other
+ * members' photos when a reason is given; those uploaders are notified.
+ *
+ * @param list<int> $photoIds Used when $deleteAll is false.
+ * @return array{ok:bool, error:string, message:string, deleted_ids:list<int>}
+ */
+function eventify_multimedia_delete_gallery_photos(
+    mysqli $conn,
+    int $eventId,
+    int $userId,
+    array $photoIds,
+    bool $deleteAll,
+    string $reason,
+    string $baseDir
+): array {
+    $empty = ['ok' => false, 'error' => 'Could not delete photos.', 'message' => '', 'deleted_ids' => []];
+    if ($eventId < 1 || $userId < 1) {
+        $empty['error'] = 'Invalid delete request.';
+        return $empty;
+    }
+
+    $reason = trim($reason);
+    $isModerator = eventify_user_is_multimedia_moderator($conn, $userId);
+    $photoIds = array_values(array_unique(array_filter(array_map('intval', $photoIds), static function (int $id): bool {
+        return $id > 0;
+    })));
+
+    if (!$deleteAll && $photoIds === []) {
+        $empty['error'] = 'Invalid photo.';
+        return $empty;
+    }
+    if (!$deleteAll && count($photoIds) > 300) {
+        $empty['error'] = 'Too many photos selected.';
+        return $empty;
+    }
+
+    if ($deleteAll) {
+        $stmt = $conn->prepare('SELECT id, file_path, uploaded_by FROM event_photos WHERE event_id = ? ORDER BY id ASC');
+        if (!$stmt) {
+            $empty['error'] = 'Database error: could not delete photos.';
+            return $empty;
+        }
+        $stmt->bind_param('i', $eventId);
+    } else {
+        $placeholders = implode(',', array_fill(0, count($photoIds), '?'));
+        $sql = "SELECT id, file_path, uploaded_by FROM event_photos WHERE event_id = ? AND id IN ($placeholders)";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $empty['error'] = 'Database error: could not delete photos.';
+            return $empty;
+        }
+        $types = 'i' . str_repeat('i', count($photoIds));
+        $params = array_merge([$eventId], $photoIds);
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    if (!is_array($rows) || $rows === []) {
+        $empty['error'] = $deleteAll ? 'No photos to delete.' : 'Photo not found.';
+        return $empty;
+    }
+
+    $targets = [];
+    foreach ($rows as $row) {
+        $isOwn = ((int) ($row['uploaded_by'] ?? 0) === $userId);
+        if ($isOwn || $isModerator) {
+            $targets[] = $row;
+            continue;
+        }
+        if (!$deleteAll) {
+            $empty['error'] = 'You can only delete your own photos.';
+            return $empty;
+        }
+    }
+    if ($targets === []) {
+        $empty['error'] = 'No photos to delete.';
+        return $empty;
+    }
+
+    $needsReason = false;
+    foreach ($targets as $row) {
+        if ((int) ($row['uploaded_by'] ?? 0) !== $userId) {
+            $needsReason = true;
+            break;
+        }
+    }
+    if ($needsReason && $reason === '') {
+        $empty['error'] = 'Please provide a reason for deleting this photo.';
+        return $empty;
+    }
+
+    $deletedIds = [];
+    $notified = 0;
+    foreach ($targets as $row) {
+        $photoId = (int) ($row['id'] ?? 0);
+        if ($photoId < 1) {
+            continue;
+        }
+        $isOwn = ((int) ($row['uploaded_by'] ?? 0) === $userId);
+        if ($isOwn) {
+            $relPath = (string) ($row['file_path'] ?? '');
+            if ($relPath !== '') {
+                $fullPath = rtrim($baseDir, '/\\') . '/' . ltrim($relPath, '/\\');
+                if (is_file($fullPath)) {
+                    @unlink($fullPath);
+                }
+            }
+            $del = $conn->prepare('DELETE FROM event_photos WHERE id = ? AND event_id = ?');
+            if (!$del) {
+                continue;
+            }
+            $del->bind_param('ii', $photoId, $eventId);
+            $del->execute();
+            $removed = $del->affected_rows > 0;
+            $del->close();
+            if ($removed) {
+                $deletedIds[] = $photoId;
+            }
+            continue;
+        }
+
+        $result = eventify_moderator_delete_photo($conn, $photoId, $userId, $reason, $baseDir);
+        if (!empty($result['ok'])) {
+            $deletedIds[] = $photoId;
+            $notified++;
+        }
+    }
+
+    if ($deletedIds === []) {
+        $empty['error'] = 'Photo could not be deleted.';
+        return $empty;
+    }
+
+    $count = count($deletedIds);
+    if ($count === 1) {
+        $message = 'Photo deleted.';
+    } else {
+        $message = $count . ' photos deleted.';
+    }
+    if ($notified === 1) {
+        $message .= ' The uploader has been notified.';
+    } elseif ($notified > 1) {
+        $message .= ' The uploaders have been notified.';
+    }
+
+    return ['ok' => true, 'error' => '', 'message' => $message, 'deleted_ids' => $deletedIds];
+}
+
 /** @return list<array{uploader_id: int, event_id: int, event_title: string, session_title: string}> */
 function eventify_load_draft_photos_for_moderation_batch(mysqli $conn, int $eventId, int $sessionId): array
 {

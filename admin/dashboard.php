@@ -50,6 +50,7 @@ $upcomingAdminCount  = isset($upcomingAdminCount) ? (int) $upcomingAdminCount : 
 $admin_notifications = $admin_notifications ?? [];
 $admin_unread_count = isset($admin_unread_count) ? (int) $admin_unread_count : 0;
 $feedbackStats = $feedbackStats ?? ['total_feedback' => 0, 'avg_rating' => 0, 'rating_labels' => ['1â˜…','2â˜…','3â˜…','4â˜…','5â˜…'], 'rating_counts' => [0,0,0,0,0]];
+$analyticsParticipation = $analyticsParticipation ?? ['registrations' => 0, 'checkins' => 0, 'show_up_rate' => null];
 $admin_feedback_list = $admin_feedback_list ?? [];
 $admin_evaluation_averages = $admin_evaluation_averages ?? [];
 $success       = $_GET['success'] ?? '';
@@ -147,7 +148,7 @@ $peerLabel = 'Organizers';
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=12">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=37">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=39">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=3">
@@ -1218,7 +1219,7 @@ if (typeof window.L === 'undefined') {
 window.BASE_URL = window.BASE_URL || <?= json_encode(BASE_URL) ?>;
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=6"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=26"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
@@ -1231,6 +1232,6 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=28"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=30"></script>
 </body>
 </html>

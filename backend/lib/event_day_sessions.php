@@ -3058,23 +3058,22 @@ function eventify_user_can_view_event_activities(mysqli $conn, array $event, int
     }
     if ($role === 'multimedia') {
         $st = strtolower((string) ($event['status'] ?? ''));
-        if (!in_array($st, ['active', 'closed', 'completed'], true)) {
-            return false;
-        }
-        if ($studentDepartment === null && $userId > 0) {
-            $u = $conn->prepare('SELECT department FROM users WHERE id = ? LIMIT 1');
-            if ($u) {
-                $u->bind_param('i', $userId);
-                $u->execute();
-                $ur = $u->get_result()->fetch_assoc();
-                $u->close();
-                $studentDepartment = $ur['department'] ?? null;
-            }
-        }
-        if ($studentDepartment === null || trim((string) $studentDepartment) === '') {
+        if (in_array($st, ['active', 'closed', 'completed'], true)) {
             return true;
         }
-        return eventify_student_sees_event_department((string) ($event['department'] ?? 'ALL'), $studentDepartment);
+        $eventId = (int) ($event['id'] ?? 0);
+        if ($eventId < 1) {
+            return false;
+        }
+        $photoChk = $conn->prepare('SELECT 1 FROM event_photos WHERE event_id = ? LIMIT 1');
+        if (!$photoChk) {
+            return false;
+        }
+        $photoChk->bind_param('i', $eventId);
+        $photoChk->execute();
+        $hasPhotos = (bool) $photoChk->get_result()->fetch_row();
+        $photoChk->close();
+        return $hasPhotos;
     }
     return false;
 }

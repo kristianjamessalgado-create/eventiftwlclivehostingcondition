@@ -774,12 +774,12 @@ function eah_render_activity_photos_section(
                             </div>
                         <?php endif; ?>
                         <?php if ($canDelete): ?>
-                            <form method="post" action="<?= eah_h(BASE_URL . '/backend/auth/delete_event_photo.php') ?>" class="eah-photo-grid__delete" onsubmit="return confirm('Delete this photo?');">
+                            <form method="post" action="<?= eah_h(BASE_URL . '/backend/auth/delete_event_photo.php') ?>" class="eah-photo-grid__delete">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="photo_id" value="<?= (int) ($ph['id'] ?? 0) ?>">
                                 <input type="hidden" name="event_id" value="<?= $eventId ?>">
                                 <input type="hidden" name="session_id" value="<?= $sessionId ?>">
-                                <button type="submit" class="eah-photo-grid__delete-btn" aria-label="Delete photo"><i class="fas fa-times"></i></button>
+                                <button type="button" class="eah-photo-grid__delete-btn js-eah-delete-photo" aria-label="Delete photo"><i class="fas fa-times"></i></button>
                             </form>
                         <?php endif; ?>
                     </figure>
@@ -901,8 +901,8 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=53">
-    <?php if ($isStudent || $isOrganizer): ?>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=4">
+    <?php if ($isStudent || $isOrganizer || $isMultimedia): ?>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=9">
     <?php endif; ?>
     <?php if ($isOrganizer): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_day_sessions.css?v=8">
@@ -2082,8 +2082,9 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                 <div class="modal-body efy-modal__body">
                     <div class="efy-form-section mb-3">
                         <label class="efy-form-label" for="eahPhotosInput">Select images</label>
-                        <input type="file" name="photos[]" id="eahPhotosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" multiple required>
-                        <span class="efy-form-help">JPG, PNG, GIF, or WEBP — you can select multiple files.</span>
+                        <input type="file" name="photos[]" id="eahPhotosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif" multiple required data-photo-queue="eahPhotoQueue">
+                        <ul class="mm-upload-queue" id="eahPhotoQueue" hidden></ul>
+                        <span class="efy-form-help">JPG, PNG, GIF, WEBP, or iPhone HEIC. HEIC photos are converted to JPG before upload. Select several at once (Ctrl+click or Shift+click).</span>
                     </div>
                     <div class="efy-form-section mb-3">
                         <label class="efy-form-label" for="eahPhotoCaption">Caption <span class="text-muted fw-normal">(optional)</span></label>
@@ -2270,11 +2271,64 @@ $parentEventSections = function_exists('eventify_parse_target_sections_list')
     <img class="eah-lightbox__img" src="" alt="Activity photo">
 </div>
 
+<?php if ($isMultimedia): ?>
+<div class="modal fade" id="eahDeletePhotoModal" tabindex="-1" aria-labelledby="eahDeletePhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content efy-modal efy-modal--compact">
+            <div class="modal-header efy-modal__header">
+                <div>
+                    <span class="efy-modal__eyebrow">Multimedia</span>
+                    <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="eahDeletePhotoModalLabel">
+                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                        Delete photo
+                    </h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body efy-modal__body efy-modal__body--compact">
+                <p class="efy-confirm-message mb-0">Are you sure you want to delete this photo? This cannot be undone.</p>
+            </div>
+            <div class="modal-footer efy-modal__footer">
+                <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn efy-btn-danger" id="eahDeletePhotoConfirm"><i class="fas fa-trash-alt me-1"></i> Yes, delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<?php if ($isMultimedia): ?>
+<script>
+(function () {
+    var pendingForm = null;
+    var modalEl = document.getElementById('eahDeletePhotoModal');
+    var confirmBtn = document.getElementById('eahDeletePhotoConfirm');
+    if (!modalEl || !confirmBtn || typeof bootstrap === 'undefined') return;
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.js-eah-delete-photo');
+        if (!btn) return;
+        e.preventDefault();
+        pendingForm = btn.closest('form');
+        if (pendingForm) modal.show();
+    });
+    confirmBtn.addEventListener('click', function () {
+        if (!pendingForm) return;
+        var form = pendingForm;
+        pendingForm = null;
+        modal.hide();
+        form.submit();
+    });
+})();
+</script>
+<?php endif; ?>
 <script>
 window.BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/eah_photo_lightbox.js?v=1"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/multimedia_photo_upload_queue.js?v=3"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
@@ -2311,7 +2365,7 @@ if (typeof window.L === 'undefined') {
     document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
 }
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=6"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
 <script src="<?= BASE_URL ?>/assets/js/eah_import_activities_photo.js?v=2"></script>
 <script>

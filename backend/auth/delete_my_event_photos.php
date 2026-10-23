@@ -12,17 +12,17 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'multimedia') {
 $user_id = (int) $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['event_id'])) {
-    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?msg=" . urlencode("Invalid delete request."));
+    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?panel=events&msg=" . urlencode("Invalid delete request."));
     exit();
 }
 if (!csrf_validate()) {
-    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?msg=" . urlencode("Invalid request. Please try again."));
+    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?panel=events&msg=" . urlencode("Invalid request. Please try again."));
     exit();
 }
 
 $event_id = (int) $_POST['event_id'];
 if ($event_id <= 0) {
-    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?msg=" . urlencode("Invalid event."));
+    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?panel=events&msg=" . urlencode("Invalid event."));
     exit();
 }
 
@@ -42,7 +42,7 @@ $stmt->close();
 
 if (empty($photo_ids)) {
     $conn->close();
-    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?msg=" . urlencode("No photos to delete for this event."));
+    header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?panel=events&msg=" . urlencode("No photos to delete for this event."));
     exit();
 }
 
@@ -66,6 +66,6 @@ $deleted = $del->affected_rows;
 $del->close();
 $conn->close();
 
-header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?msg=" . urlencode($deleted . " photo(s) deleted."));
+header("Location: " . BASE_URL . "/backend/auth/dashboard_multimedia.php?panel=events&msg=" . urlencode($deleted . " photo(s) deleted."));
 exit();
 

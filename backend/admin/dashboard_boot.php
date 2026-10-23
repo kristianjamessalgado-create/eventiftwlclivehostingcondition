@@ -220,6 +220,39 @@ if ($result) {
 }
 eventify_events_attach_schedule_dates($conn, $events);
 
+$createdByMeIds = [];
+try {
+    $stmtMine = $conn->prepare(
+        "SELECT DISTINCT target_id
+         FROM activity_logs
+         WHERE actor_id = ?
+           AND action = 'event_created_by_admin'
+           AND target_type = 'event'
+           AND target_id IS NOT NULL"
+    );
+    if ($stmtMine) {
+        $stmtMine->bind_param('i', $session_user_id);
+        if ($stmtMine->execute()) {
+            $resMine = $stmtMine->get_result();
+            if ($resMine) {
+                while ($mineRow = $resMine->fetch_assoc()) {
+                    $mineId = (int) ($mineRow['target_id'] ?? 0);
+                    if ($mineId > 0) {
+                        $createdByMeIds[$mineId] = true;
+                    }
+                }
+            }
+        }
+        $stmtMine->close();
+    }
+} catch (Throwable $e) {
+    $createdByMeIds = [];
+}
+foreach ($events as &$eventRow) {
+    $eventRow['created_by_me'] = isset($createdByMeIds[(int) ($eventRow['id'] ?? 0)]);
+}
+unset($eventRow);
+
 // Fetch count of pending events and pending list for modal
 $pendingCount = 0;
 $pendingEvents = [];
@@ -288,8 +321,10 @@ $chartDeptCounts = [];
 $resDept = $conn->query("SELECT COALESCE(NULLIF(TRIM(department), ''), 'ALL') AS dept, COUNT(*) AS cnt FROM events GROUP BY dept ORDER BY cnt DESC, dept ASC");
 if ($resDept) {
     while ($row = $resDept->fetch_assoc()) {
-        $d = $row['dept'] ?? 'ALL';
-        $chartDeptLabels[] = $d === 'ALL' ? 'All departments' : $d;
+        $d = (string) ($row['dept'] ?? 'ALL');
+        $chartDeptLabels[] = function_exists('eventify_format_department_label')
+            ? eventify_format_department_label($d)
+            : ($d === 'ALL' ? 'All Departments' : $d);
         $chartDeptCounts[] = (int) $row['cnt'];
     }
 }
@@ -576,6 +611,16 @@ try {
     $rsvpCountByEvent = [];
     $checkinCountByEvent = [];
 }
+
+$analyticsRegTotal = array_sum($rsvpCountByEvent);
+$analyticsCheckinTotal = array_sum($checkinCountByEvent);
+$analyticsParticipation = [
+    'registrations' => $analyticsRegTotal,
+    'checkins' => $analyticsCheckinTotal,
+    'show_up_rate' => $analyticsRegTotal > 0
+        ? round(($analyticsCheckinTotal / $analyticsRegTotal) * 100, 1)
+        : null,
+];
 
 $conn->close();
 

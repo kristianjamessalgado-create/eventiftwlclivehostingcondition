@@ -62,11 +62,13 @@ if ($chkCol && $chkCol->num_rows > 0) {
     $photoStatusEnabled = true;
 }
 
-// Fetch all events (newest date first)
+// Every school event the landing page can show: approved events from any
+// department, plus any event that still has photos (so leftover trending
+// pictures can be found and removed).
 $events = [];
 $uid = (int) $session_user_id;
-$deptWhere = empty($user_department) ? '1=1' : eventify_department_match_sql('e.department');
-$stEv = null;
+$visibleEventSql = "LOWER(e.status) IN ('active', 'closed', 'completed')
+          OR EXISTS (SELECT 1 FROM event_photos px WHERE px.event_id = e.id)";
 
 if ($photoStatusEnabled) {
     $sqlEv = "
@@ -77,8 +79,7 @@ if ($photoStatusEnabled) {
                (SELECT COUNT(*) FROM event_photos p WHERE p.event_id = e.id AND p.uploaded_by = {$uid} AND p.status = 'draft') AS my_draft_count,
                (SELECT COUNT(*) FROM event_photos p WHERE p.event_id = e.id AND p.status = 'draft') AS pending_draft_count
         FROM events e
-        WHERE LOWER(e.status) IN ('active', 'closed', 'completed')
-          AND ({$deptWhere})
+        WHERE {$visibleEventSql}
         ORDER BY e.date DESC, e.id DESC
     ";
 } else {
@@ -90,31 +91,16 @@ if ($photoStatusEnabled) {
                0 AS my_draft_count,
                0 AS pending_draft_count
         FROM events e
-        WHERE LOWER(e.status) IN ('active', 'closed', 'completed')
-          AND ({$deptWhere})
+        WHERE {$visibleEventSql}
         ORDER BY e.date DESC, e.id DESC
     ";
 }
 
-if (empty($user_department)) {
-    $res = $conn->query($sqlEv);
-} else {
-    $stEv = $conn->prepare($sqlEv);
-    if ($stEv) {
-        $stEv->bind_param('ss', $user_department, $user_department);
-        $stEv->execute();
-        $res = $stEv->get_result();
-    } else {
-        $res = false;
-    }
-}
+$res = $conn->query($sqlEv);
 if ($res) {
     while ($row = $res->fetch_assoc()) {
         $events[] = $row;
     }
-}
-if ($stEv) {
-    $stEv->close();
 }
 
 // Attach multi-day schedule info so calendar bars span the full event duration
@@ -122,32 +108,17 @@ if (function_exists('eventify_events_attach_schedule_dates')) {
     eventify_events_attach_schedule_dates($conn, $events);
 }
 
-// Fetch upcoming events (department-aware) for modal
+// Upcoming events for the whole school, not only this account's department.
 $upcomingEvents = [];
 $today = date('Y-m-d');
-$deptUpSql = eventify_department_match_sql('department');
-if (!empty($user_department)) {
-    $stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? AND {$deptUpSql} ORDER BY date ASC, id ASC LIMIT 12");
-    if ($stmtUp) {
-        $stmtUp->bind_param('sss', $today, $user_department, $user_department);
-        if ($stmtUp->execute()) {
-            $resUp = $stmtUp->get_result();
-            if ($resUp) {
-                $upcomingEvents = $resUp->fetch_all(MYSQLI_ASSOC);
-            }
-        }
-        $stmtUp->close();
+$stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? ORDER BY date ASC, id ASC LIMIT 12");
+if ($stmtUp) {
+    $stmtUp->bind_param("s", $today);
+    if ($stmtUp->execute()) {
+        $resUp = $stmtUp->get_result();
+        if ($resUp) $upcomingEvents = $resUp->fetch_all(MYSQLI_ASSOC);
     }
-} else {
-    $stmtUp = $conn->prepare("SELECT id, title, description, date, location, department FROM events WHERE status = 'active' AND date >= ? ORDER BY date ASC, id ASC LIMIT 12");
-    if ($stmtUp) {
-        $stmtUp->bind_param("s", $today);
-        if ($stmtUp->execute()) {
-            $resUp = $stmtUp->get_result();
-            if ($resUp) $upcomingEvents = $resUp->fetch_all(MYSQLI_ASSOC);
-        }
-        $stmtUp->close();
-    }
+    $stmtUp->close();
 }
 
 // Fetch photos per event so we can show thumbnails / gallery

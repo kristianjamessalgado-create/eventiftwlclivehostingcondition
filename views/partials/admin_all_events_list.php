@@ -31,6 +31,10 @@ if ($allAdminEventsList !== []) {
             <option value="closed">Closed</option>
             <option value="completed">Completed</option>
         </select>
+        <label class="adm-all-events-filters__mine" for="adminAllEventsMineFilter">
+            <input type="checkbox" id="adminAllEventsMineFilter" class="form-check-input">
+            <span>Created by me</span>
+        </label>
     </div>
     <div class="adm-all-events-list" id="adminAllEventsList">
         <?php foreach ($allAdminEventsList as $i => $ev): ?>
@@ -71,6 +75,7 @@ if ($allAdminEventsList !== []) {
                 data-event-id="<?= $eid ?>"
                 data-event-date="<?= htmlspecialchars($ev['date'] ?? '') ?>"
                 data-status="<?= htmlspecialchars($st) ?>"
+                data-created-by-me="<?= !empty($ev['created_by_me']) ? '1' : '0' ?>"
                 data-search="<?= htmlspecialchars($searchBlob) ?>"
             >
                 <div class="adm-all-events-card__top">
@@ -80,6 +85,9 @@ if ($allAdminEventsList !== []) {
                     </h3>
                     <div class="adm-all-events-card__badges">
                         <span class="badge <?= $badgeClass ?>"><?= htmlspecialchars($badgeLabel) ?></span>
+                        <?php if (!empty($ev['created_by_me'])): ?>
+                            <span class="badge adm-all-events-card__mine">Created by you</span>
+                        <?php endif; ?>
                         <?php
                             if (!function_exists('eventify_registration_mode_ui')) {
                                 require_once __DIR__ . '/../../backend/lib/event_ticketing.php';

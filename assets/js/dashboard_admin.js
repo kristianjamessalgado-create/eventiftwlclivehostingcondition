@@ -748,7 +748,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         var cdept = restoreAdminChartCanvas('adminChartDeptWrap', 'adminChartDept', 'Bar chart of events by department');
+        var deptWrap = document.getElementById('adminChartDeptWrap');
         if (cdept && deptData.counts && deptData.counts.length) {
+            if (deptWrap) {
+                deptWrap.style.height = Math.max(280, deptLabels.length * 42 + 28) + 'px';
+            }
             adminChartInstances.push(new Chart(cdept, {
                 type: 'bar',
                 data: {
@@ -758,16 +762,19 @@ document.addEventListener('DOMContentLoaded', function () {
                         data: deptCounts,
                         backgroundColor: 'rgba(14, 165, 233, 0.55)',
                         borderColor: 'rgba(14, 165, 233, 1)',
-                        borderWidth: 1
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        maxBarThickness: 22
                     }]
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { beginAtZero: true, ticks: { precision: 0 } },
-                        x: { ticks: { maxRotation: 45, minRotation: 0 } }
+                        x: { beginAtZero: true, ticks: { precision: 0 } },
+                        y: { ticks: { autoSkip: false, font: { size: 12 } } }
                     }
                 }
             }));
@@ -789,10 +796,13 @@ document.addEventListener('DOMContentLoaded', function () {
             var statusColors = statusLabels.map(function (label) {
                 return statusColorMap[label] || statusColorMap.Unknown;
             });
+            var statusLegend = statusLabels.map(function (label, i) {
+                return label + ' · ' + (stData.counts[i] || 0);
+            });
             adminChartInstances.push(new Chart(cst, {
                 type: 'doughnut',
                 data: {
-                    labels: statusLabels,
+                    labels: statusLegend,
                     datasets: [{
                         data: stData.counts || [],
                         backgroundColor: statusColors,
@@ -802,7 +812,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: { legend: { position: 'bottom' } },
+                    cutout: '62%'
                 }
             }));
         } else if (cst) {
@@ -979,6 +990,7 @@ document.addEventListener('DOMContentLoaded', function () {
     (function initAdminAllEventsFilters() {
         var search = document.getElementById('adminAllEventsSearch');
         var statusFilter = document.getElementById('adminAllEventsStatusFilter');
+        var mineFilter = document.getElementById('adminAllEventsMineFilter');
         var items = document.querySelectorAll('.admin-all-events-item');
         var emptyMsg = document.getElementById('adminAllEventsEmpty');
         if (!items.length) return;
@@ -986,22 +998,28 @@ document.addEventListener('DOMContentLoaded', function () {
         function applyAllEventsFilters() {
             var q = search ? (search.value || '').toLowerCase().trim() : '';
             var status = statusFilter ? statusFilter.value : '';
+            var mineOnly = !!(mineFilter && mineFilter.checked);
             var visibleCount = 0;
             items.forEach(function (row) {
                 var matchesSearch = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
                 var rowStatus = row.getAttribute('data-status') || '';
                 var matchesStatus = !status || rowStatus === status;
-                var visible = matchesSearch && matchesStatus;
+                var matchesMine = !mineOnly || row.getAttribute('data-created-by-me') === '1';
+                var visible = matchesSearch && matchesStatus && matchesMine;
                 row.classList.toggle('d-none', !visible);
                 if (visible) visibleCount++;
             });
             if (emptyMsg) {
+                emptyMsg.textContent = mineOnly && !q && !status
+                    ? 'You have not published any events yet.'
+                    : 'No events match your filters.';
                 emptyMsg.classList.toggle('d-none', visibleCount > 0);
             }
         }
 
         if (search) search.addEventListener('input', applyAllEventsFilters);
         if (statusFilter) statusFilter.addEventListener('change', applyAllEventsFilters);
+        if (mineFilter) mineFilter.addEventListener('change', applyAllEventsFilters);
     })();
 
     document.querySelectorAll('.admin-upcoming-event-link').forEach(function (btn) {

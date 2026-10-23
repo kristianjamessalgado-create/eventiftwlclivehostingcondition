@@ -37,9 +37,29 @@ document.addEventListener('DOMContentLoaded', function () {
         return { weekday: 'long' };
     }
 
+    var lastCalendarHeight = 0;
+
+    function calendarHeightFor() {
+        var container = calendarEl.parentElement;
+        var top = container ? container.getBoundingClientRect().top : 220;
+        if (top < 0) {
+            top = 220;
+        }
+        var hint = document.querySelector('#mmDashboardHome .mm-cal-hint');
+        var hintSpace = hint ? hint.offsetHeight + 24 : 36;
+        var available = Math.floor(window.innerHeight - top - hintSpace);
+        var minimum = isMobileLayout() ? 520 : 640;
+        return Math.max(minimum, available);
+    }
+
     function refreshCalendarLayout() {
         try {
+            var nextHeight = calendarHeightFor();
             calendar.setOption('dayHeaderFormat', dayHeaderFormat());
+            if (Math.abs(nextHeight - lastCalendarHeight) > 2) {
+                lastCalendarHeight = nextHeight;
+                calendar.setOption('height', nextHeight);
+            }
             calendar.updateSize();
         } catch (e) { /* ignore */ }
     }
@@ -180,9 +200,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             calendar.changeView(view);
-            calendar.setOption('height', view === 'today' || isMonthView(view)
-                ? (isMobileLayout() ? 520 : 650)
-                : (isMobileLayout() ? 520 : 700));
+            lastCalendarHeight = 0;
+            refreshCalendarLayout();
             viewBtns.forEach(function (b) {
                 b.classList.toggle('active', b === btn);
             });

@@ -35,7 +35,7 @@ require_once __DIR__ . '/../../backend/lib/event_ticketing.php';
             <div class="mm-dash-panel__hero-text">
                 <h2 class="mm-dash-panel__title">All events</h2>
                 <p class="mm-dash-panel__subtitle mb-0">
-                    Approved events only — upload and manage photo galleries for active and past events.
+                    Every school event, from any department — including past events and any event that still has photos.
                 </p>
             </div>
         </header>

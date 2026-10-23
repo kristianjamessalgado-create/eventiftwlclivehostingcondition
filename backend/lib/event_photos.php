@@ -405,7 +405,7 @@ function eventify_multimedia_photo_redirect(int $eventId, int $sessionId, string
             . urlencode($msg)
         );
     } else {
-        header('Location: ' . BASE_URL . '/backend/auth/dashboard_multimedia.php?msg=' . urlencode($msg));
+        header('Location: ' . BASE_URL . '/backend/auth/dashboard_multimedia.php?panel=events&msg=' . urlencode($msg));
     }
     exit();
 }

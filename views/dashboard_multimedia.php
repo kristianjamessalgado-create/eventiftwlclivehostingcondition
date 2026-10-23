@@ -39,10 +39,10 @@ if (is_array($events)) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_scroll_fix.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_calendar_shell.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=35">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=39">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=3">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=2">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_spinner.css?v=2">
@@ -444,9 +444,10 @@ if (is_array($events)) {
                         <span class="efy-form-help">Choose the main event for general coverage, or pick a specific activity (e.g. Badminton).</span>
                     </div>
                     <div class="efy-form-section mb-3">
-                        <label class="efy-form-label" for="photosInput">Select images (JPG, PNG, GIF, WEBP — max <?= (int)($max_upload_mb ?? 10) ?>MB each)</label>
-                        <input type="file" name="photos[]" id="photosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" multiple required>
-                        <span class="efy-form-help">You can select multiple files.</span>
+                        <label class="efy-form-label" for="photosInput">Select images (JPG, PNG, GIF, WEBP, or iPhone HEIC — max <?= (int)($max_upload_mb ?? 10) ?>MB each)</label>
+                        <input type="file" name="photos[]" id="photosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif" multiple required data-photo-queue="uploadPhotoQueue">
+                        <ul class="mm-upload-queue" id="uploadPhotoQueue" hidden></ul>
+                        <span class="efy-form-help">Select several photos at once. Hold Ctrl and click each photo, or Shift-click a range. iPhone HEIC photos are converted to JPG before upload. Choose files again to add more.</span>
                     </div>
                     <div class="efy-form-section mb-3">
                         <label class="efy-form-label" for="uploadPhotoCaption">Caption <span class="text-muted fw-normal">(optional)</span></label>
@@ -493,6 +494,7 @@ if (is_array($events)) {
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body efy-modal__body">
+                <p id="galleryNotice" class="gallery-notice" hidden></p>
                 <div id="galleryToolbar" class="gallery-toolbar" style="display:none;">
                     <label class="gallery-selectall">
                         <input type="checkbox" id="gallerySelectAll"> Select all
@@ -501,8 +503,14 @@ if (is_array($events)) {
                         <button type="button" id="galleryDownloadSelected" class="btn btn-sm btn-outline-primary" disabled>
                             <i class="fas fa-download me-1"></i> Download selected (<span id="gallerySelectedCount">0</span>)
                         </button>
+                        <button type="button" id="galleryDeleteSelected" class="btn btn-sm btn-outline-danger" disabled>
+                            <i class="fas fa-trash-alt me-1"></i> Delete selected (<span id="galleryDeleteSelectedCount">0</span>)
+                        </button>
                         <button type="button" id="galleryDownloadAll" class="btn btn-sm btn-primary">
                             <i class="fas fa-file-zipper me-1"></i> Download all
+                        </button>
+                        <button type="button" id="galleryDeleteAll" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash-alt me-1"></i> Delete all
                         </button>
                     </div>
                 </div>
@@ -525,13 +533,13 @@ if (is_array($events)) {
                     <span class="efy-modal__eyebrow">Multimedia</span>
                     <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="deletePhotoModalLabel">
                         <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                        Delete photo
+                        <span id="deletePhotoModalTitleText">Delete photo</span>
                     </h5>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body efy-modal__body efy-modal__body--compact">
-                <p class="efy-confirm-message mb-0">Are you sure you want to delete this photo? This cannot be undone.</p>
+                <p id="deletePhotoMessage" class="efy-confirm-message mb-0">Are you sure you want to delete this photo? This cannot be undone.</p>
                 <div id="deletePhotoReasonWrap" class="efy-form-section mt-3 mb-0" style="display:none;">
                     <label for="deletePhotoReason" class="efy-form-label">
                         Reason for deletion <span class="text-danger">*</span>
@@ -544,6 +552,7 @@ if (is_array($events)) {
                         Please enter a reason before deleting.
                     </div>
                 </div>
+                <div id="deletePhotoFormError" class="text-danger small mt-2" style="display:none;"></div>
             </div>
             <div class="modal-footer efy-modal__footer">
                 <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Cancel</button>
@@ -665,7 +674,7 @@ if (is_array($events)) {
 ) ?>;</script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/dashboard_multimedia_panels.js?v=7"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_multimedia_calendar.js?v=8"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_multimedia_calendar.js?v=11"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
@@ -945,7 +954,11 @@ function openUploadModal(btn) {
     var photosEl = document.getElementById('photosInput');
     var selectEl = document.getElementById('uploadSessionSelect');
     if (idEl) idEl.value = String(eid);
-    if (photosEl) photosEl.value = '';
+    if (photosEl && typeof photosEl.mmResetPhotoQueue === 'function') {
+        photosEl.mmResetPhotoQueue();
+    } else if (photosEl) {
+        photosEl.value = '';
+    }
     mmPopulateUploadTargetSelect(eid, presetSession);
     mmUpdateUploadModalTitle(title, presetSession);
     modalEl.dataset.uploadEventTitle = title;
@@ -1061,6 +1074,7 @@ document.addEventListener('keydown', function(e) {
 window.photosByEvent = <?= json_encode($photosByEvent ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.currentMultimediaUserId = <?= (int)($uid ?? 0) ?>;
 window.isMultimediaModerator = <?= $is_multimedia_moderator ? 'true' : 'false' ?>;
+window.photoStatusEnabled = <?= $photoStatusEnabled ? 'true' : 'false' ?>;
 window.currentRole = 'multimedia';
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1317,12 +1331,17 @@ document.addEventListener('DOMContentLoaded', function() {
         var gridEl = document.getElementById('galleryGrid');
         var countEl = document.getElementById('gallerySelectedCount');
         var dlSelectedBtn = document.getElementById('galleryDownloadSelected');
+        var deleteSelectedBtn = document.getElementById('galleryDeleteSelected');
+        var deleteSelectedCountEl = document.getElementById('galleryDeleteSelectedCount');
         var selectAllEl = document.getElementById('gallerySelectAll');
         if (!gridEl) return;
         var boxes = gridEl.querySelectorAll('.gallery-select-checkbox');
         var checked = gridEl.querySelectorAll('.gallery-select-checkbox:checked');
+        var deletableSelected = gallerySelectedDeletable();
         if (countEl) countEl.textContent = checked.length;
         if (dlSelectedBtn) dlSelectedBtn.disabled = checked.length === 0;
+        if (deleteSelectedCountEl) deleteSelectedCountEl.textContent = deletableSelected.length;
+        if (deleteSelectedBtn) deleteSelectedBtn.disabled = deletableSelected.length === 0;
         if (selectAllEl) {
             selectAllEl.checked = boxes.length > 0 && checked.length === boxes.length;
             selectAllEl.indeterminate = checked.length > 0 && checked.length < boxes.length;
@@ -1356,6 +1375,11 @@ document.addEventListener('DOMContentLoaded', function() {
             emptyEl.style.display = 'none';
             if (toolbarEl) toolbarEl.style.display = 'none';
             if (selectAllEl) { selectAllEl.checked = false; selectAllEl.indeterminate = false; }
+            var noticeEl = document.getElementById('galleryNotice');
+            if (noticeEl) {
+                noticeEl.hidden = true;
+                noticeEl.textContent = '';
+            }
             currentGalleryEventId = null;
 
             if (btn && btn.dataset.eventId) {
@@ -1377,6 +1401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 photos.forEach(function(photo, index) {
                     var wrapper = document.createElement('div');
                     wrapper.className = 'gallery-item';
+                    wrapper.setAttribute('data-photo-id', String(photo.id));
 
                     var img = document.createElement('img');
                     img.src = '<?= BASE_URL ?>/' + photo.file_path;
@@ -1470,14 +1495,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
                         if (needsReason) {
                             btn.classList.add('btn-delete-photo--moderator');
-                            btn.title = 'Delete (moderator) â€” reason required';
+                            btn.title = 'Delete (moderator) — reason required';
                         }
                         btn.onclick = function (ev) {
                             ev.stopPropagation();
-                            window.pendingDeletePhotoForm = form;
-                            window.pendingDeleteReasonInput = inputReason;
+                            window.pendingDeletePhotoIds = [parseInt(photo.id, 10) || 0];
+                            window.pendingDeleteEventId = eventId;
+                            window.pendingDeleteAll = false;
                             window.pendingDeleteNeedsReason = needsReason;
-                            openDeletePhotoModal(needsReason);
+                            openDeletePhotoModal(needsReason, false);
                         };
 
                         var csrfEl = document.getElementById('csrf_token_value');
@@ -1498,6 +1524,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 galleryUpdateSelection();
+                gallerySyncDeleteAllButton();
             }
         });
 
@@ -1532,15 +1559,252 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (ids.length) galleryDownload(ids);
             });
         }
+
+        var deleteSelectedBtn = document.getElementById('galleryDeleteSelected');
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', function() {
+                if (!currentGalleryEventId) return;
+                var selected = gallerySelectedDeletable();
+                if (!selected.length) return;
+                var checkedCount = 0;
+                var gridEl = document.getElementById('galleryGrid');
+                if (gridEl) checkedCount = gridEl.querySelectorAll('.gallery-select-checkbox:checked').length;
+                window.pendingDeletePhotoIds = selected.map(function(photo) { return parseInt(photo.id, 10) || 0; });
+                window.pendingDeleteEventId = currentGalleryEventId;
+                window.pendingDeleteAll = false;
+                window.pendingDeleteNeedsReason = galleryDeleteNeedsReason(selected);
+                openDeletePhotoModal(window.pendingDeleteNeedsReason, 'selected', checkedCount, selected.length);
+            });
+        }
+
+        var deleteAllBtn = document.getElementById('galleryDeleteAll');
+        if (deleteAllBtn) {
+            deleteAllBtn.addEventListener('click', function() {
+                if (!currentGalleryEventId) return;
+                var photos = galleryPhotosFor(currentGalleryEventId);
+                var deletable = galleryDeletablePhotos(photos);
+                if (!deletable.length) return;
+                window.pendingDeletePhotoIds = deletable.map(function(photo) { return parseInt(photo.id, 10) || 0; });
+                window.pendingDeleteEventId = currentGalleryEventId;
+                window.pendingDeleteAll = true;
+                window.pendingDeleteNeedsReason = galleryDeleteNeedsReason(deletable);
+                openDeletePhotoModal(window.pendingDeleteNeedsReason, true, photos.length, deletable.length);
+            });
+        }
     }
 
-    window.openDeletePhotoModal = function(needsReason) {
+    function galleryPhotosFor(eventId) {
+        if (!window.photosByEvent || eventId == null) return [];
+        return window.photosByEvent[eventId] || window.photosByEvent[String(eventId)] || [];
+    }
+
+    function gallerySelectedDeletable() {
+        var gridEl = document.getElementById('galleryGrid');
+        if (!gridEl || !currentGalleryEventId) return [];
+        var checked = {};
+        gridEl.querySelectorAll('.gallery-select-checkbox:checked').forEach(function(cb) {
+            checked[String(cb.value)] = true;
+        });
+        return galleryDeletablePhotos(galleryPhotosFor(currentGalleryEventId)).filter(function(photo) {
+            return !!checked[String(photo.id)];
+        });
+    }
+
+    function galleryDeletablePhotos(photos) {
+        var uid = parseInt(window.currentMultimediaUserId || '0', 10) || 0;
+        var isModerator = window.isMultimediaModerator === true;
+        return (photos || []).filter(function(photo) {
+            var ownerId = parseInt(photo.uploaded_by || '0', 10) || 0;
+            return isModerator || (uid > 0 && ownerId === uid);
+        });
+    }
+
+    function galleryDeleteNeedsReason(photos) {
+        if (window.isMultimediaModerator !== true) return false;
+        var uid = parseInt(window.currentMultimediaUserId || '0', 10) || 0;
+        return (photos || []).some(function(photo) {
+            return (parseInt(photo.uploaded_by || '0', 10) || 0) !== uid;
+        });
+    }
+
+    function gallerySyncDeleteAllButton() {
+        var btn = document.getElementById('galleryDeleteAll');
+        if (!btn) return;
+        var deletable = galleryDeletablePhotos(galleryPhotosFor(currentGalleryEventId));
+        var canDeleteAny = deletable.length > 0;
+        btn.hidden = !canDeleteAny;
+        btn.disabled = !canDeleteAny;
+        var selectedBtn = document.getElementById('galleryDeleteSelected');
+        if (selectedBtn) selectedBtn.hidden = !canDeleteAny;
+    }
+
+    function gallerySetBadgeLabel(el, text) {
+        if (!el) return;
+        var icon = el.querySelector('i');
+        if (icon) {
+            el.textContent = '';
+            el.appendChild(icon);
+            el.appendChild(document.createTextNode(' ' + text));
+            return;
+        }
+        el.textContent = text;
+    }
+
+    function gallerySyncEventCard(eventId, photos) {
+        var card = document.getElementById('mm-event-' + eventId);
+        if (!card) return;
+        var uid = parseInt(window.currentMultimediaUserId || '0', 10) || 0;
+        var statusOn = window.photoStatusEnabled === true;
+        var published = 0;
+        var pending = 0;
+        var mine = 0;
+        var myPending = 0;
+        (photos || []).forEach(function(photo) {
+            var status = String(photo.status || '');
+            var own = (parseInt(photo.uploaded_by || '0', 10) || 0) === uid;
+            if (!statusOn || status === 'published') published++;
+            if (statusOn && status === 'draft') pending++;
+            if (own) {
+                mine++;
+                if (statusOn && status === 'draft') myPending++;
+            }
+        });
+        card.setAttribute('data-my-photos', String(mine));
+        card.setAttribute('data-my-pending', String(myPending));
+        card.setAttribute('data-team-pending', String(pending));
+        card.setAttribute('data-published', String(published));
+
+        gallerySetBadgeLabel(card.querySelector('.photo-badge--published'), published + ' published');
+        var pendingBadge = card.querySelector('.photo-badge--pending');
+        if (pendingBadge) {
+            var pendingShown = window.isMultimediaModerator === true ? pending : myPending;
+            pendingBadge.style.display = pendingShown > 0 ? '' : 'none';
+            if (pendingShown > 0) gallerySetBadgeLabel(pendingBadge, pendingShown + ' pending');
+        }
+        var mineBadge = card.querySelector('.photo-badge--mine');
+        if (mineBadge) {
+            mineBadge.style.display = mine > 0 ? '' : 'none';
+            if (mine > 0) gallerySetBadgeLabel(mineBadge, mine + ' mine');
+        }
+
+        var viewBtn = card.querySelector('.btn-gallery');
+        if (viewBtn) {
+            var noPhotos = photos.length === 0;
+            viewBtn.disabled = noPhotos;
+            viewBtn.classList.toggle('disabled', noPhotos);
+            if (noPhotos) viewBtn.setAttribute('aria-disabled', 'true');
+            else viewBtn.removeAttribute('aria-disabled');
+        }
+        var cardDeleteBtn = card.querySelector('.btn-delete-photos');
+        if (cardDeleteBtn) {
+            var noMine = mine === 0;
+            cardDeleteBtn.disabled = noMine;
+            cardDeleteBtn.classList.toggle('disabled', noMine);
+            cardDeleteBtn.setAttribute('data-my-count', String(mine));
+            if (noMine) cardDeleteBtn.setAttribute('aria-disabled', 'true');
+            else cardDeleteBtn.removeAttribute('aria-disabled');
+        }
+        var approveBtn = card.querySelector('.mm-publish-btn');
+        if (approveBtn && pending === 0) approveBtn.style.display = 'none';
+
+        ['btn-preview', 'btn-gallery-qr'].forEach(function(className) {
+            var link = card.querySelector('.' + className);
+            if (!link || published > 0) return;
+            link.classList.add('disabled');
+            link.setAttribute('aria-disabled', 'true');
+            if (link.tagName === 'A') {
+                link.removeAttribute('href');
+                link.style.pointerEvents = 'none';
+            }
+        });
+
+        var media = card.querySelector('.event-media');
+        if (!media) return;
+        if (photos.length && photos[0] && photos[0].file_path) {
+            var img = media.querySelector('.event-preview');
+            if (!img) {
+                media.innerHTML = '';
+                img = document.createElement('img');
+                img.className = 'event-preview';
+                img.alt = 'Preview photo';
+                media.appendChild(img);
+            }
+            img.src = '<?= BASE_URL ?>/' + photos[0].file_path;
+            return;
+        }
+        media.innerHTML = '<div class="event-preview-placeholder" aria-hidden="true"><i class="fas fa-image"></i></div>';
+    }
+
+    function galleryApplyDeletion(eventId, deletedIds, message) {
+        var idSet = {};
+        (deletedIds || []).forEach(function(id) { idSet[String(id)] = true; });
+        var photos = galleryPhotosFor(eventId).filter(function(photo) {
+            return !idSet[String(photo.id)];
+        });
+        if (window.photosByEvent) {
+            window.photosByEvent[eventId] = photos;
+            window.photosByEvent[String(eventId)] = photos;
+        }
+        var gridEl = document.getElementById('galleryGrid');
+        if (gridEl) {
+            gridEl.querySelectorAll('.gallery-item').forEach(function(item) {
+                if (idSet[String(item.getAttribute('data-photo-id'))]) item.remove();
+            });
+        }
+        var emptyEl = document.getElementById('galleryEmpty');
+        var toolbarEl = document.getElementById('galleryToolbar');
+        if (!photos.length) {
+            if (emptyEl) {
+                emptyEl.style.display = 'block';
+                emptyEl.textContent = 'No photos uploaded yet for this event.';
+            }
+            if (toolbarEl) toolbarEl.style.display = 'none';
+        }
+        galleryUpdateSelection();
+        gallerySyncDeleteAllButton();
+        gallerySyncEventCard(eventId, photos);
+        if (typeof closePhotoViewer === 'function') closePhotoViewer();
+        var noticeEl = document.getElementById('galleryNotice');
+        if (noticeEl) {
+            noticeEl.hidden = false;
+            noticeEl.textContent = message || 'Photo deleted.';
+        }
+    }
+
+    window.openDeletePhotoModal = function(needsReason, deleteAll, totalCount, deletableCount) {
         var reasonWrap = document.getElementById('deletePhotoReasonWrap');
         var reasonInput = document.getElementById('deletePhotoReason');
         var reasonError = document.getElementById('deletePhotoReasonError');
+        var formError = document.getElementById('deletePhotoFormError');
+        var titleEl = document.getElementById('deletePhotoModalTitleText');
+        var messageEl = document.getElementById('deletePhotoMessage');
         if (reasonError) reasonError.style.display = 'none';
+        if (formError) {
+            formError.style.display = 'none';
+            formError.textContent = '';
+        }
         if (reasonInput) reasonInput.value = '';
+        var deleteSelected = deleteAll === 'selected';
+        if (deleteAll !== true) deleteAll = false;
         if (reasonWrap) reasonWrap.style.display = needsReason ? 'block' : 'none';
+        if (titleEl) titleEl.textContent = (deleteAll || (deleteSelected && deletableCount !== 1)) ? 'Delete photos' : 'Delete photo';
+        if (messageEl) {
+            if (deleteSelected && totalCount > deletableCount) {
+                var selectedNoun = deletableCount === 1 ? 'photo' : 'photos';
+                messageEl.textContent = 'Are you sure you want to delete ' + deletableCount + ' selected ' + selectedNoun + '? Photos you cannot remove will stay. This cannot be undone.';
+            } else if (deleteSelected && deletableCount === 1) {
+                messageEl.textContent = 'Are you sure you want to delete this photo? This cannot be undone.';
+            } else if (deleteSelected) {
+                messageEl.textContent = 'Are you sure you want to delete the selected photos? This cannot be undone.';
+            } else if (deleteAll && totalCount > deletableCount) {
+                var noun = deletableCount === 1 ? 'photo' : 'photos';
+                messageEl.textContent = 'Are you sure you want to delete your ' + deletableCount + ' ' + noun + '? Photos uploaded by other members will stay. This cannot be undone.';
+            } else if (deleteAll) {
+                messageEl.textContent = 'Are you sure you want to delete the photos? This cannot be undone.';
+            } else {
+                messageEl.textContent = 'Are you sure you want to delete this photo? This cannot be undone.';
+            }
+        }
         var modalEl = document.getElementById('deletePhotoModal');
         if (!modalEl) return;
         var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
@@ -1553,29 +1817,84 @@ document.addEventListener('DOMContentLoaded', function() {
     var deleteConfirmBtn = document.getElementById('deletePhotoConfirmBtn');
     if (deleteConfirmBtn) {
         deleteConfirmBtn.addEventListener('click', function() {
-            if (!window.pendingDeletePhotoForm) return;
-            var reasonWrap = document.getElementById('deletePhotoReasonWrap');
+            var ids = window.pendingDeletePhotoIds || [];
+            var eventId = window.pendingDeleteEventId || currentGalleryEventId;
+            if (!eventId || (!window.pendingDeleteAll && !ids.length)) return;
             var reasonInput = document.getElementById('deletePhotoReason');
             var reasonError = document.getElementById('deletePhotoReasonError');
+            var formError = document.getElementById('deletePhotoFormError');
+            var reasonVal = '';
 
             if (window.pendingDeleteNeedsReason) {
-                var reasonVal = (reasonInput && reasonInput.value ? reasonInput.value : '').trim();
+                reasonVal = (reasonInput && reasonInput.value ? reasonInput.value : '').trim();
                 if (reasonVal === '') {
                     if (reasonError) reasonError.style.display = 'block';
                     if (reasonInput) reasonInput.focus();
                     return;
                 }
-                if (window.pendingDeleteReasonInput) {
-                    window.pendingDeleteReasonInput.value = reasonVal;
-                }
+            }
+            if (formError) formError.style.display = 'none';
+
+            var csrfEl = document.getElementById('csrf_token_value');
+            var body = new FormData();
+            body.append('csrf_token', csrfEl ? csrfEl.value : '');
+            body.append('event_id', String(eventId));
+            body.append('reason', reasonVal);
+            if (window.pendingDeleteAll) {
+                body.append('delete_all', '1');
+            } else {
+                ids.forEach(function(id) { body.append('photo_ids[]', String(id)); });
             }
 
-            var modal = bootstrap.Modal.getInstance(document.getElementById('deletePhotoModal'));
-            if (modal) modal.hide();
-            window.pendingDeletePhotoForm.submit();
-            window.pendingDeletePhotoForm = null;
-            window.pendingDeleteReasonInput = null;
-            window.pendingDeleteNeedsReason = false;
+            deleteConfirmBtn.disabled = true;
+            fetch('<?= BASE_URL ?>/backend/auth/delete_gallery_photos.php', {
+                method: 'POST',
+                body: body,
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            }).then(function(response) {
+                return response.json().then(function(data) {
+                    return { okHttp: response.ok, data: data };
+                });
+            }).then(function(result) {
+                var data = result.data || {};
+                if (!result.okHttp || !data.ok) {
+                    if (formError) {
+                        formError.textContent = data.error || 'Could not delete photo.';
+                        formError.style.display = 'block';
+                    }
+                    return;
+                }
+                galleryApplyDeletion(eventId, data.deleted_ids || [], data.message || '');
+                var modal = bootstrap.Modal.getInstance(document.getElementById('deletePhotoModal'));
+                if (modal) modal.hide();
+                window.pendingDeletePhotoIds = null;
+                window.pendingDeleteEventId = null;
+                window.pendingDeleteAll = false;
+                window.pendingDeleteNeedsReason = false;
+            }).catch(function() {
+                if (formError) {
+                    formError.textContent = 'Could not delete photo. Please try again.';
+                    formError.style.display = 'block';
+                }
+            }).finally(function() {
+                deleteConfirmBtn.disabled = false;
+            });
+        });
+    }
+
+    var deletePhotoModalEl = document.getElementById('deletePhotoModal');
+    if (deletePhotoModalEl) {
+        deletePhotoModalEl.addEventListener('hidden.bs.modal', function() {
+            var gallery = document.getElementById('galleryModal');
+            if (!gallery || !gallery.classList.contains('show')) return;
+            document.body.classList.add('modal-open');
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length === 0) {
+                document.body.insertAdjacentHTML('beforeend', '<div class="modal-backdrop fade show"></div>');
+            } else if (backdrops.length > 1) {
+                for (var i = 1; i < backdrops.length; i++) backdrops[i].remove();
+            }
         });
     }
 
@@ -1644,5 +1963,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/multimedia_photo_upload_queue.js?v=3"></script>
 </body>
 </html>

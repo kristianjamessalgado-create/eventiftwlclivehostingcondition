@@ -1251,7 +1251,7 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
         document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
     }
     </script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=5"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=6"></script>
     <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=26"></script>
 
     <script>

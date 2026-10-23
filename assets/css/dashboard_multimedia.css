@@ -1128,6 +1128,15 @@ body.multimedia-dashboard .event-card--has-activities:hover .event-title {
     gap: 0.5rem;
     flex-wrap: wrap;
 }
+.gallery-notice {
+    margin: 0 0 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    background: #ecfdf3;
+    color: #166534;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
 
 /* Per-photo selection checkbox */
 .gallery-select {
@@ -2435,24 +2444,26 @@ body.multimedia-dashboard .main-content.eventify-kb-scroll-zone:focus-visible {
 ================================ */
 body.multimedia-dashboard {
     --mm-navbar-h: 64px;
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 body.multimedia-dashboard .dashboard-layout {
     display: flex !important;
     flex-direction: row;
     align-items: stretch;
-    height: calc(100vh - var(--mm-navbar-h, 64px));
-    height: calc(100dvh - var(--mm-navbar-h, 64px));
+    height: auto;
     min-height: calc(100dvh - var(--mm-navbar-h, 64px));
-    max-height: calc(100dvh - var(--mm-navbar-h, 64px));
-    overflow: hidden !important;
+    max-height: none;
+    overflow: visible !important;
     padding: 0 !important;
     gap: 0 !important;
     margin: 0 !important;
+    margin-top: var(--mm-navbar-h, 64px) !important;
     box-sizing: border-box;
 }
 
@@ -2461,9 +2472,11 @@ body.multimedia-dashboard #mmSidebar {
     width: 320px !important;
     min-width: 320px;
     max-width: 320px;
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: 100% !important;
+    position: sticky;
+    top: var(--mm-navbar-h, 64px);
+    align-self: flex-start;
+    height: calc(100dvh - var(--mm-navbar-h, 64px)) !important;
+    max-height: calc(100dvh - var(--mm-navbar-h, 64px)) !important;
     overflow-y: auto !important;
     overflow-x: hidden;
     overscroll-behavior: contain;
@@ -2638,12 +2651,10 @@ body.multimedia-dashboard .sidebar .action-btn.logout-btn:hover {
 body.multimedia-dashboard .main-content {
     flex: 1 1 auto !important;
     min-width: 0;
-    min-height: 0 !important;
-    height: 100% !important;
-    max-height: 100% !important;
-    overflow-y: auto !important;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
+    height: auto !important;
+    min-height: calc(100dvh - var(--mm-navbar-h, 64px));
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 /* ===============================
@@ -3421,6 +3432,19 @@ body.multimedia-dashboard .main-content {
     border-left: 2px solid var(--mm-poster-border) !important;
     box-shadow: -6px 0 32px rgba(0, 0, 0, 0.2) !important;
     border-radius: 0 !important;
+    display: block !important;
+    padding: 12px 16px 16px !important;
+    box-sizing: border-box;
+    height: auto !important;
+    max-height: none !important;
+    min-height: calc(100dvh - var(--mm-navbar-h, 64px));
+    overflow: visible !important;
+}
+
+body.multimedia-dashboard #mmDashboardHome:not(.d-none) {
+    display: block !important;
+    height: auto;
+    min-height: 0;
 }
 
 body.multimedia-dashboard .calendar-controls {
@@ -3429,8 +3453,9 @@ body.multimedia-dashboard .calendar-controls {
     justify-content: space-between;
     gap: 0.75rem;
     flex-wrap: wrap;
+    flex-shrink: 0;
     padding: 1rem 1.1rem;
-    margin: 16px 16px 0;
+    margin: 0;
     background: var(--mm-poster-gold) !important;
     border: 2px solid rgba(1, 50, 32, 0.2) !important;
     border-radius: 14px !important;
@@ -3501,30 +3526,51 @@ body.multimedia-dashboard .mm-calendar-legend {
     color: var(--mm-poster-forest) !important;
     font-weight: 600;
     border-radius: 14px;
-    margin: 12px 16px 0;
+    margin: 10px 0 0;
+    flex-shrink: 0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
+body.multimedia-dashboard .main-content .mm-cal-container.eventify-dashboard-cal-container,
 body.multimedia-dashboard .calendar-container.mm-cal-container {
-    margin: 0 16px;
-    padding-top: 12px;
+    margin: 10px 0 0;
+    padding: 0;
     background: transparent;
     border: none;
     box-shadow: none;
-    min-height: 480px;
+    overflow: visible;
+    display: block;
+    height: auto;
+    min-height: 520px;
+    flex: none;
 }
 
+body.multimedia-dashboard .main-content .mm-cal-container #mmCalendar,
 body.multimedia-dashboard #mmCalendar {
     border: 2px solid rgba(1, 50, 32, 0.25);
     border-radius: 14px;
-    padding: 10px;
+    padding: 0;
     background: #ffffff !important;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
-    min-height: 480px;
+    flex: none;
+    min-height: 520px;
+    height: auto;
+    overflow: visible;
+}
+
+body.multimedia-dashboard .main-content .mm-cal-container #mmCalendar .fc {
+    height: auto !important;
+    min-height: 520px !important;
+}
+
+body.multimedia-dashboard .fc-daygrid-day-frame {
+    min-height: 0 !important;
+    height: 100%;
 }
 
 body.multimedia-dashboard .mm-cal-hint {
-    margin: 0.75rem 16px 1rem;
+    margin: 8px 0 0;
+    flex-shrink: 0;
     color: #4b5563;
     font-size: 0.82rem;
 }
@@ -3639,18 +3685,28 @@ body.multimedia-dashboard .btn-upload {
 
 @media (max-width: 768px) {
     body.multimedia-dashboard .calendar-controls {
-        margin: 12px 12px 0;
+        margin: 0;
         padding: 0.85rem;
     }
 
     body.multimedia-dashboard .student-calendar-legend,
     body.multimedia-dashboard .mm-calendar-legend {
-        margin-inline: 12px;
+        margin-inline: 0;
+    }
+
+    body.multimedia-dashboard .main-content {
+        padding: 10px 12px !important;
+    }
+
+    body.multimedia-dashboard #mmDashboardHome {
+        height: auto;
+        min-height: 0;
     }
 
     body.multimedia-dashboard .calendar-container.mm-cal-container {
-        margin-inline: 12px;
+        margin-inline: 0;
         min-height: 420px;
+        flex: 0 0 auto;
     }
 
     body.multimedia-dashboard #mmCalendar {

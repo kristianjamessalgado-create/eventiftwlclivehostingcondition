@@ -109,6 +109,7 @@ $uploads_base = $base_dir . '/uploads/events/' . $deptFolder;
 $relative_base = 'uploads/events/' . $deptFolder . '/';
 
 $files = [];
+$fileErrors = [];
 $error = '';
 if (!empty($_FILES['photos']['name'])) {
     $names = $_FILES['photos']['name'];
@@ -122,22 +123,24 @@ if (!empty($_FILES['photos']['name'])) {
         $sizes = [$sizes];
     }
     foreach ($names as $i => $name) {
-        if (empty($name)) {
+        $name = (string) $name;
+        if ($name === '') {
             continue;
         }
-        if ($errors[$i] !== UPLOAD_ERR_OK) {
-            if ($errors[$i] === UPLOAD_ERR_INI_SIZE || $errors[$i] === UPLOAD_ERR_FORM_SIZE) {
-                $error = 'File too large. Max ' . $maxUploadMb . 'MB per image.';
-            } elseif ($errors[$i] === UPLOAD_ERR_NO_FILE) {
+        if (($errors[$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            if (($errors[$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
                 continue;
-            } else {
-                $error = 'Upload failed for ' . htmlspecialchars($name) . '. Try again or pick a smaller file.';
             }
-            break;
+            if (in_array($errors[$i], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                $fileErrors[] = $name . ' is over ' . $maxUploadMb . 'MB.';
+            } else {
+                $fileErrors[] = $name . ' could not be uploaded.';
+            }
+            continue;
         }
-        if ($sizes[$i] > $maxFileSize) {
-            $error = 'File too large: ' . htmlspecialchars($name) . ' (max ' . $maxUploadMb . 'MB).';
-            break;
+        if (($sizes[$i] ?? 0) > $maxFileSize) {
+            $fileErrors[] = $name . ' is over ' . $maxUploadMb . 'MB.';
+            continue;
         }
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $mime = $finfo ? finfo_file($finfo, $tmp[$i]) : '';
@@ -145,13 +148,13 @@ if (!empty($_FILES['photos']['name'])) {
             finfo_close($finfo);
         }
         if (!in_array($mime, ALLOWED_TYPES, true)) {
-            $error = 'Invalid file type: ' . htmlspecialchars($name) . ' (use JPG, PNG, GIF, or WebP).';
-            break;
+            $fileErrors[] = $name . ' must be JPG, PNG, GIF, or WebP.';
+            continue;
         }
         $files[] = ['name' => $name, 'tmp_name' => $tmp[$i]];
     }
 } elseif (empty($_POST) && empty($_FILES) && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-    $error = 'Upload too large for the server. Try fewer or smaller images.';
+    $error = 'That batch is too large for the server. Upload fewer photos at once, or use smaller files.';
 }
 
 if ($error !== '') {
@@ -160,7 +163,7 @@ if ($error !== '') {
 }
 if ($files === []) {
     $conn->close();
-    $redirect('Please select at least one image.');
+    $redirect($fileErrors !== [] ? implode(' ', $fileErrors) : 'Please select at least one image.');
 }
 if (!is_dir($uploads_base) && !@mkdir($uploads_base, 0755, true)) {
     $conn->close();
@@ -222,7 +225,7 @@ $lastDbError = '';
 foreach ($files as $f) {
     $ext = pathinfo($f['name'], PATHINFO_EXTENSION) ?: 'jpg';
     $safe_name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $f['name']);
-    $filename = date('Ymd_His') . '_' . uniqid() . '_' . $safe_name;
+    $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '_' . $safe_name;
     if (!pathinfo($filename, PATHINFO_EXTENSION)) {
         $filename .= '.' . (strtolower($ext) ?: 'jpg');
     }
@@ -302,7 +305,12 @@ if ($uploaded > 0) {
             ? $uploaded . ' photo(s) submitted. Your moderator will review them before they appear in the Activities hub.'
             : $uploaded . ' photo(s) submitted. Your moderator will review them before they are published.';
     }
+    if ($fileErrors !== []) {
+        $msg .= ' Skipped: ' . implode(' ', $fileErrors);
+    }
 } else {
-    $msg = $lastDbError !== '' ? $lastDbError : 'Upload failed. Please try again.';
+    $msg = $fileErrors !== []
+        ? implode(' ', $fileErrors)
+        : ($lastDbError !== '' ? $lastDbError : 'Upload failed. Please try again.');
 }
 $redirect($msg);

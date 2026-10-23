@@ -820,7 +820,7 @@ if (typeof window.L === 'undefined') {
 <script>
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=6"></script>
     <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=26"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>

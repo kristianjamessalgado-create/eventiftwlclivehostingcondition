@@ -55,14 +55,14 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=13">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=14">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=9">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=10">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=5">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
 
@@ -91,7 +91,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
         >
             <i class="fas fa-plus"></i>
         </button>
-        <button class="nav-btn" type="button" title="Calendar">
+        <button class="nav-btn" type="button" title="Go to today" id="orgTopTodayBtn" data-organizer-panel="home">
             <i class="fas fa-calendar"></i>
         </button>
         <a class="nav-btn position-relative" title="Messages (Admin)" href="<?= htmlspecialchars($messengerHref) ?>" target="_blank" rel="noopener noreferrer">
@@ -325,6 +325,100 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
 
         <div id="organizerDashboardHome" class="<?= $organizer_dashboard_panel_open ? 'd-none' : '' ?>">
 
+        <?php
+            $orgStats = $organizerStats ?? [];
+            $orgNext = $orgStats['next_event'] ?? null;
+            $orgAwaitingOtp = (int) ($orgStats['awaiting_otp'] ?? 0);
+            $orgInReview = (int) ($orgStats['in_review'] ?? 0);
+            $orgRejected = (int) ($orgStats['rejected'] ?? 0);
+        ?>
+        <section class="org-overview" aria-label="Your events at a glance">
+            <div class="org-overview__head">
+                <div>
+                    <p class="org-overview__kicker">Welcome back</p>
+                    <h1 class="org-overview__title"><?= htmlspecialchars($user_name) ?></h1>
+                </div>
+                <button type="button" class="org-overview__create" data-bs-toggle="modal" data-bs-target="#createEventModal">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span>Create event</span>
+                </button>
+            </div>
+
+            <?php if ($orgAwaitingOtp > 0): ?>
+                <button type="button" class="org-overview__alert" data-organizer-panel="events">
+                    <i class="fas fa-key" aria-hidden="true"></i>
+                    <span><strong><?= $orgAwaitingOtp ?> event<?= $orgAwaitingOtp === 1 ? ' was' : 's were' ?> approved.</strong> Enter the OTP under My Events to publish <?= $orgAwaitingOtp === 1 ? 'it' : 'them' ?>.</span>
+                    <i class="fas fa-chevron-right ms-auto" aria-hidden="true"></i>
+                </button>
+            <?php endif; ?>
+
+            <div class="org-overview__stats">
+                <button type="button" class="org-stat" data-organizer-panel="events">
+                    <span class="org-stat__icon org-stat__icon--live"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
+                    <span class="org-stat__text">
+                        <span class="org-stat__label">Live &amp; upcoming</span>
+                        <span class="org-stat__value"><?= (int) ($orgStats['live_upcoming'] ?? 0) ?></span>
+                    </span>
+                </button>
+                <button type="button" class="org-stat" data-organizer-panel="events">
+                    <span class="org-stat__icon org-stat__icon--review"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
+                    <span class="org-stat__text">
+                        <span class="org-stat__label">In admin review</span>
+                        <span class="org-stat__value"><?= $orgInReview ?></span>
+                    </span>
+                </button>
+                <button type="button" class="org-stat<?= $orgAwaitingOtp > 0 ? ' org-stat--attention' : '' ?>" data-organizer-panel="events">
+                    <span class="org-stat__icon org-stat__icon--otp"><i class="fas fa-key" aria-hidden="true"></i></span>
+                    <span class="org-stat__text">
+                        <span class="org-stat__label">Needs your OTP</span>
+                        <span class="org-stat__value"><?= $orgAwaitingOtp ?></span>
+                    </span>
+                </button>
+                <button type="button" class="org-stat" data-organizer-panel="feedback">
+                    <span class="org-stat__icon org-stat__icon--rating"><i class="fas fa-star" aria-hidden="true"></i></span>
+                    <span class="org-stat__text">
+                        <span class="org-stat__label">Avg. rating</span>
+                        <span class="org-stat__value"><?= (int) ($fb['total_feedback'] ?? 0) > 0 ? number_format((float) ($fb['avg_rating'] ?? 0), 1) : '—' ?></span>
+                    </span>
+                </button>
+            </div>
+
+            <div class="org-overview__footer">
+                <?php if (is_array($orgNext)): ?>
+                    <?php
+                        $nextTs = strtotime((string) ($orgNext['date'] ?? ''));
+                        $nextStart = trim((string) ($orgNext['start_time'] ?? ''));
+                    ?>
+                    <a class="org-next" href="<?= BASE_URL ?>/event_activities.php?id=<?= (int) ($orgNext['id'] ?? 0) ?>">
+                        <span class="org-next__date">
+                            <span class="org-next__month"><?= $nextTs ? date('M', $nextTs) : '' ?></span>
+                            <span class="org-next__day"><?= $nextTs ? date('j', $nextTs) : '' ?></span>
+                        </span>
+                        <span class="org-next__body">
+                            <span class="org-next__label">Next event</span>
+                            <span class="org-next__title"><?= htmlspecialchars((string) ($orgNext['title'] ?? 'Event')) ?></span>
+                            <span class="org-next__meta">
+                                <?php if ($nextStart !== ''): ?><i class="far fa-clock" aria-hidden="true"></i> <?= htmlspecialchars(date('g:i A', strtotime($nextStart))) ?><?php endif; ?>
+                                <?php if (!empty($orgNext['location'])): ?> · <i class="fas fa-location-dot" aria-hidden="true"></i> <?= htmlspecialchars((string) $orgNext['location']) ?><?php endif; ?>
+                            </span>
+                        </span>
+                        <i class="fas fa-chevron-right org-next__go" aria-hidden="true"></i>
+                    </a>
+                <?php else: ?>
+                    <p class="org-next org-next--empty mb-0">
+                        <i class="fas fa-calendar-plus" aria-hidden="true"></i>
+                        No live events coming up. Click a date on the calendar to create one.
+                    </p>
+                <?php endif; ?>
+                <?php if ($orgRejected > 0): ?>
+                    <button type="button" class="org-overview__rejected" data-organizer-panel="events">
+                        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                        <?= $orgRejected ?> rejected — see the reason in My Events
+                    </button>
+                <?php endif; ?>
+            </div>
+        </section>
+
         <!-- Calendar Controls (center calendar on dashboard again) -->
         <div class="calendar-controls eventify-dashboard-cal-controls">
             <div class="controls-left">
@@ -361,7 +455,6 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
             <div id="calendar"></div>
         </div>
 
-        <!-- (Stats and lists removed; calendar is main focus) -->
         </div><!-- #organizerDashboardHome -->
 
         <?php include __DIR__ . '/partials/organizer_my_events_panel.php'; ?>
@@ -824,7 +917,7 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
     <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=27"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=12"></script>
 
 <!-- Dashboard Scripts -->
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
@@ -835,7 +928,7 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=37"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=38"></script>
 
 <script>
 window.EVENTIFY_GEOCODE_URL = window.EVENTIFY_GEOCODE_URL || <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;

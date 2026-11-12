@@ -157,7 +157,7 @@ $peerLabel = 'Organizers';
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=5">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=13">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=14">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 <body class="admin-dashboard" data-eventify-keyboard-scroll data-eventify-sidebar="adminSidebar" data-eventify-calendar="calendar" data-eventify-main=".admin-dashboard .main-content" data-eventify-pull-refresh="1">
@@ -1232,11 +1232,11 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=27"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
-<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
+<script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=37"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=38"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>

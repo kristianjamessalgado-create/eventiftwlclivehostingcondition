@@ -68,6 +68,14 @@ $formAction = BASE_URL . '/backend/auth/createevent.php';
               <?php endforeach; ?>
             </select>
           </section>
+          <?php else: ?>
+          <div class="ce-admin-publish-note ce-admin-publish-note--pending" role="note">
+            <i class="fas fa-hourglass-half" aria-hidden="true"></i>
+            <div>
+              <strong>Needs admin approval</strong>
+              <span>Your event is sent to the admins for review. Once approved, you'll get an OTP — enter it under My Events to publish the event on the calendar.</span>
+            </div>
+          </div>
           <?php endif; ?>
 
           <section class="ce-form-section">

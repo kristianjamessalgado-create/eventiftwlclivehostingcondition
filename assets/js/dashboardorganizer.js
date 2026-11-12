@@ -1557,13 +1557,12 @@ function initFullCalendar() {
             clearTimeout(fcDateClickTimers[dateStr]);
             fcDateClickTimers[dateStr] = setTimeout(function () {
                 delete fcDateClickTimers[dateStr];
-                if (EVENTIFY_ROLE === 'admin') {
-                    if (typeof window.eventifyOpenCreateEventForDate === 'function') {
-                        window.eventifyOpenCreateEventForDate(dateStr);
-                    }
+                if (EVENTIFY_ROLE !== 'admin' && EVENTIFY_ROLE !== 'organizer') {
                     return;
                 }
-                if (EVENTIFY_ROLE !== 'organizer') {
+                // Admins and organizers share the create-event modal (organizers submit for approval).
+                if (typeof window.eventifyOpenCreateEventForDate === 'function') {
+                    window.eventifyOpenCreateEventForDate(dateStr);
                     return;
                 }
                 window.location.href = BASE_URL + "/backend/auth/createevent.php?date=" + dateStr;
@@ -1606,6 +1605,18 @@ function initFullCalendar() {
 
     calendar.render();
     window.eventifyCalendar = calendar;
+
+    // Navbar calendar icon: back to the calendar home and jump to today.
+    var orgTodayBtn = document.getElementById('orgTopTodayBtn');
+    if (orgTodayBtn) {
+        orgTodayBtn.addEventListener('click', function () {
+            setTimeout(function () {
+                if (window.eventifyCalendar && typeof window.eventifyCalendar.today === 'function') {
+                    window.eventifyCalendar.today();
+                }
+            }, 60);
+        });
+    }
     eventifyOrganizerSyncCalendarLayout(initView);
 
     if (EVENTIFY_ROLE === 'admin') {

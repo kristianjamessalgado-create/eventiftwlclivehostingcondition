@@ -305,7 +305,22 @@
             }
 
             if (form.getAttribute('data-create-mode') !== 'admin') {
-                proceed();
+                var askSubmit = (typeof window.eventifyConfirm === 'function')
+                    ? window.eventifyConfirm('Submit this event for admin approval? It will appear on the calendar once an admin approves it and you verify the OTP under My Events.', {
+                        title: 'Submit for approval',
+                        type: 'info',
+                        confirmLabel: 'Yes, submit',
+                        cancelLabel: 'Not yet',
+                        icon: 'fa-paper-plane'
+                    })
+                    : Promise.resolve(true);
+                askSubmit.then(function (ok) {
+                    if (!ok) {
+                        setCreateEventBusy(form, false);
+                        return;
+                    }
+                    proceed();
+                });
                 return;
             }
 
@@ -377,10 +392,21 @@
         if (params.get('open_create') !== '1') {
             return;
         }
+        var date = String(params.get('date') || '');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            window.__cePrefillDate = date;
+        }
         var createModal = document.getElementById('createEventModal');
         if (createModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             bootstrap.Modal.getOrCreateInstance(createModal).show();
         }
+        // Drop open_create/date from the URL so a refresh doesn't reopen the form.
+        try {
+            params.delete('open_create');
+            params.delete('date');
+            var qs = params.toString();
+            window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+        } catch (e) { /* older browsers: keep the URL */ }
     }
 
     document.addEventListener('DOMContentLoaded', function () {

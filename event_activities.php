@@ -906,7 +906,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <?php endif; ?>
     <?php if ($isOrganizer): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_day_sessions.css?v=8">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/create_event_modal.css?v=13">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/create_event_modal.css?v=14">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <?php endif; ?>
 

@@ -137,11 +137,39 @@ foreach ($events as $e) {
     }
 }
 
+// Action-oriented counts for the dashboard strip.
+$inReviewCount = 0;      // pending, admin has not approved yet
+$awaitingOtpCount = 0;   // approved by admin, organizer must enter the OTP
+$liveUpcomingCount = 0;  // active events today or later
+$nextEvent = null;       // nearest active event today or later
+foreach ($events as $e) {
+    $status = strtolower((string) ($e['status'] ?? ''));
+    $date = (string) ($e['date'] ?? '');
+    $endDate = (string) ($e['end_date'] ?? '');
+    $lastDay = $endDate !== '' && $endDate > $date ? $endDate : $date;
+    if ($status === 'pending') {
+        if (!empty($e['has_active_otp'])) {
+            $awaitingOtpCount++;
+        } else {
+            $inReviewCount++;
+        }
+    } elseif ($status === 'active' && $lastDay !== '' && $lastDay >= $today) {
+        $liveUpcomingCount++;
+        if ($nextEvent === null || $date < (string) ($nextEvent['date'] ?? '')) {
+            $nextEvent = $e;
+        }
+    }
+}
+
 $organizerStats = [
     'upcoming' => $upcomingCount,
     'pending'  => $pendingCount,
     'thisWeek' => $thisWeekCount,
     'rejected' => $rejectedCount,
+    'in_review' => $inReviewCount,
+    'awaiting_otp' => $awaitingOtpCount,
+    'live_upcoming' => $liveUpcomingCount,
+    'next_event' => $nextEvent,
 ];
 
 // Feedback analytics (requires event_feedback table)

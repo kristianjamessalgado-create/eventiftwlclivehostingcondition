@@ -25,12 +25,27 @@ $session_user_id = (int) $_SESSION['user_id'];
 $error = '';
 $success = '';
 
-// Admin create UI lives on the dashboard modal — don't serve the standalone form.
-if ($isAdminCreator && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    $dash = $sessionRole === 'super_admin'
-        ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php'
-        : BASE_URL . '/backend/admin/dashboard.php';
-    header('Location: ' . $dash . '?open_create=1');
+/** Dashboard that hosts the create-event modal for the signed-in role. */
+function eventify_create_event_dashboard_url(string $role): string
+{
+    if ($role === 'super_admin') {
+        return BASE_URL . '/backend/super_admin/dashboardsuperadmin.php';
+    }
+    if ($role === 'admin') {
+        return BASE_URL . '/backend/admin/dashboard.php';
+    }
+    return BASE_URL . '/backend/auth/dashboardorganizer.php';
+}
+
+// The create UI lives in the dashboard modal for every role (organizers submit for
+// admin approval, admins publish) — don't serve the old standalone form.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $q = ['open_create' => '1'];
+    $prefillDate = trim((string) ($_GET['date'] ?? ''));
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefillDate)) {
+        $q['date'] = $prefillDate;
+    }
+    header('Location: ' . eventify_create_event_dashboard_url($sessionRole) . '?' . http_build_query($q));
     exit();
 }
 
@@ -579,11 +594,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-if ($isAdminCreator && $error !== '') {
-    $dash = $sessionRole === 'super_admin'
-        ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php'
-        : BASE_URL . '/backend/admin/dashboard.php';
-    header('Location: ' . $dash . '?open_create=1&error=' . urlencode($error));
+if ($error !== '') {
+    header('Location: ' . eventify_create_event_dashboard_url($sessionRole) . '?open_create=1&error=' . urlencode($error));
     exit();
 }
 

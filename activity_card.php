@@ -44,6 +44,14 @@ try {
 } catch (Throwable $e) {
     $allRows = [];
 }
+// Digital stamps applied by teachers, and the QR that opens this card for them.
+$cardShareToken = '';
+try {
+    $allRows = eventify_activity_card_attach_stamps($allRows, eventify_activity_card_load_stamps($conn, $userId));
+    $cardShareToken = eventify_activity_card_share_token($conn, $userId);
+} catch (Throwable $e) {
+    $cardShareToken = '';
+}
 $filterOptions = eventify_activity_card_filter_options($allRows);
 $displayRows = $allRows;
 for ($i = 0; $i < 4; $i++) {
@@ -77,6 +85,14 @@ try {
     $showMainHubNav = false;
 }
 $conn->close();
+
+$acStudentName = $studentName;
+$acDeptLabel = $deptLabel;
+$acDisplayRows = $displayRows;
+$acTeacherMode = false;
+$acQrImageUrl = $cardShareToken !== ''
+    ? 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=' . rawurlencode(eventify_activity_card_view_url($cardShareToken))
+    : '';
 
 $dashboardUrl = BASE_URL . '/backend/auth/dashboard_student.php';
 $pageUrl = BASE_URL . '/activity_card.php';
@@ -153,7 +169,7 @@ foreach ($allRows as $countRow) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=54">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/activity_card.css?v=5">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/activity_card.css?v=6">
 </head>
 <body class="event-activities-hub event-activities-hub--index event-activities-hub--student ac-page">
 <div class="eah-wrap">
@@ -225,7 +241,7 @@ foreach ($allRows as $countRow) {
                         <p class="eah-student-hub-hero__eyebrow">Teacher confirmation</p>
                         <h1 class="eah-student-hub-hero__title">My activity card</h1>
                         <p class="eah-student-hub-hero__subtitle">
-                            Print this card and have your teacher sign each row to confirm attendance.
+                            Print this card and have your teacher sign each row, or let them scan the QR code to stamp it digitally.
                         </p>
                     </div>
                 </div>
@@ -312,77 +328,7 @@ foreach ($allRows as $countRow) {
                 <p class="ac-filters__empty ac-screen-only" id="acFilterEmpty" hidden>No rows match these filters. Clear them or pick another date, event, or activity.</p>
 
                 <div class="ac-sheet-wrap">
-                    <article class="ac-sheet" aria-label="Western Leyte College activity card">
-                        <header class="ac-school">
-                            <h2 class="ac-school__name">Western Leyte College</h2>
-                            <p class="ac-school__sub">Student activity card</p>
-                        </header>
-
-                        <div class="ac-fields">
-                            <div class="ac-field">
-                                <span class="ac-field__label">Name:</span>
-                                <span class="ac-field__value"><?= ac_h($studentName !== '' ? $studentName : '') ?></span>
-                            </div>
-                            <div class="ac-field">
-                                <span class="ac-field__label">Department:</span>
-                                <span class="ac-field__value"><?= ac_h($deptLabel) ?></span>
-                            </div>
-                        </div>
-
-                        <div class="ac-format" id="acFormatLog">
-                            <div class="ac-table-wrap">
-                                <table class="ac-table">
-                                    <thead>
-                                        <tr>
-                                            <th class="ac-col-date" scope="col">Date</th>
-                                            <th class="ac-col-in" scope="col">Time in</th>
-                                            <th class="ac-col-out" scope="col">Time out</th>
-                                            <th class="ac-col-event" scope="col">Event</th>
-                                            <th class="ac-col-sign" scope="col">Signature</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="acCardBody">
-                                        <?php foreach ($displayRows as $row): ?>
-                                            <?php
-                                                $rowKind = (string) ($row['kind'] ?? '');
-                                                $isBlank = $rowKind === 'blank';
-                                                $timeIn = trim((string) ($row['time_in'] ?? ''));
-                                                $timeOut = trim((string) ($row['time_out'] ?? ''));
-                                                $inMins = ac_clock_minutes($timeIn);
-                                                $outMins = ac_clock_minutes($timeOut);
-                                                $period = ac_period_from_minutes($inMins);
-                                                $dateYmd = (string) ($row['date'] ?? '');
-                                            ?>
-                                            <tr class="<?= $isBlank ? 'ac-row--blank' : 'ac-row--data' ?>"
-                                                data-kind="<?= ac_h($isBlank ? 'blank' : $rowKind) ?>"
-                                                data-date="<?= ac_h($dateYmd) ?>"
-                                                data-date-label="<?= ac_h(ac_date_label($dateYmd)) ?>"
-                                                data-event="<?= (int) ($row['event_id'] ?? 0) ?>"
-                                                data-event-title="<?= ac_h((string) ($row['event'] ?? '')) ?>"
-                                                data-activity="<?= (int) ($row['session_id'] ?? 0) ?>"
-                                                data-checked-in="<?= $timeIn !== '' ? '1' : '0' ?>"
-                                                data-period="<?= ac_h($period) ?>"
-                                                data-time-in-text="<?= ac_h($timeIn) ?>"
-                                                data-time-out-text="<?= ac_h($timeOut) ?>"
-                                                data-time-in-mins="<?= $inMins ?>"
-                                                data-time-out-mins="<?= $outMins ?>">
-                                                <td class="ac-td-center"><?= ac_h(ac_date_label($dateYmd)) ?></td>
-                                                <td class="ac-td-center"><?= ac_h($timeIn) ?></td>
-                                                <td class="ac-td-center"><?= ac_h($timeOut) ?></td>
-                                                <td><?= ac_h((string) ($row['event'] ?? '')) ?></td>
-                                                <td><span class="ac-sign-line"></span></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="ac-format ac-format--daily" id="acFormatDaily" hidden>
-                            <div id="acDailySheets"></div>
-                        </div>
-                        <p class="ac-note">Teacher signature confirms attendance. Unsigned rows may be marked absent.</p>
-                    </article>
+                    <?php include __DIR__ . '/views/partials/activity_card_sheet.php'; ?>
                 </div>
             </div>
         </div>
@@ -391,7 +337,7 @@ foreach ($allRows as $countRow) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/activity_card.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/activity_card.js?v=4"></script>
 <?php include __DIR__ . '/views/partials/student_scan_qr_footer.php'; ?>
 </body>
 </html>

@@ -128,12 +128,86 @@
         return td;
     }
 
-    function addSignCell(tr) {
+    function formatStampDate(value) {
+        if (!value) {
+            return '';
+        }
+        var d = new Date(String(value).replace(' ', 'T'));
+        if (isNaN(d.getTime())) {
+            return '';
+        }
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    /** Stamp info for a period: every checked-in row in it must be stamped. */
+    function periodStamp(rows, period) {
+        var checked = rows.filter(function (row) {
+            return (row.getAttribute('data-period') || '') === period
+                && (row.getAttribute('data-checked-in') || '') === '1';
+        });
+        if (!checked.length) {
+            return null;
+        }
+        var latest = null;
+        for (var i = 0; i < checked.length; i++) {
+            if ((checked[i].getAttribute('data-stamped') || '') !== '1') {
+                return null;
+            }
+            var at = checked[i].getAttribute('data-stamp-at') || '';
+            if (!latest || at > latest.at) {
+                latest = { by: checked[i].getAttribute('data-stamp-by') || '', at: at };
+            }
+        }
+        return latest;
+    }
+
+    function buildStamp(stamp) {
+        var wrap = document.createElement('span');
+        wrap.className = 'ac-stamp';
+        var dateText = formatStampDate(stamp.at);
+        wrap.title = 'Digitally stamped' + (stamp.by ? ' by ' + stamp.by : '') + (dateText ? ' on ' + dateText : '');
+        var top = document.createElement('span');
+        top.className = 'ac-stamp__top';
+        top.innerHTML = '<i class="fas fa-circle-check" aria-hidden="true"></i> Verified';
+        var name = document.createElement('span');
+        name.className = 'ac-stamp__name';
+        name.textContent = stamp.by || 'Teacher';
+        wrap.appendChild(top);
+        wrap.appendChild(name);
+        if (dateText) {
+            var date = document.createElement('span');
+            date.className = 'ac-stamp__date';
+            date.textContent = dateText;
+            wrap.appendChild(date);
+        }
+        return wrap;
+    }
+
+    function addSignCell(tr, stamp) {
         var td = document.createElement('td');
-        var line = document.createElement('span');
-        line.className = 'ac-sign-line';
-        td.appendChild(line);
+        td.className = 'ac-td-sign';
+        if (stamp) {
+            td.appendChild(buildStamp(stamp));
+        } else {
+            var line = document.createElement('span');
+            line.className = 'ac-sign-line';
+            td.appendChild(line);
+        }
         tr.appendChild(td);
+    }
+
+    function uniqueActivities(rows) {
+        var seen = {};
+        var titles = [];
+        rows.forEach(function (row) {
+            var title = (row.getAttribute('data-activity-title') || '').trim();
+            if (title === '' || seen[title]) {
+                return;
+            }
+            seen[title] = true;
+            titles.push(title);
+        });
+        return titles;
     }
 
     function buildDaySheet(ymd, label, rows) {
@@ -159,8 +233,17 @@
         if (titles.length) {
             var events = document.createElement('p');
             events.className = 'ac-day__events';
-            events.textContent = titles.join(' · ');
+            events.innerHTML = '<strong>Event:</strong> ';
+            events.appendChild(document.createTextNode(titles.join(' · ')));
             sheet.appendChild(events);
+        }
+        var activities = uniqueActivities(rows);
+        if (activities.length) {
+            var acts = document.createElement('p');
+            acts.className = 'ac-day__events ac-day__activities';
+            acts.innerHTML = '<strong>Activities:</strong> ';
+            acts.appendChild(document.createTextNode(activities.join(' · ')));
+            sheet.appendChild(acts);
         }
 
         var wrap = document.createElement('div');
@@ -176,10 +259,10 @@
         var tr = document.createElement('tr');
         addCell(tr, morning.inText);
         addCell(tr, morning.outText);
-        addSignCell(tr);
+        addSignCell(tr, periodStamp(rows, 'morning'));
         addCell(tr, afternoon.inText);
         addCell(tr, afternoon.outText);
-        addSignCell(tr);
+        addSignCell(tr, periodStamp(rows, 'afternoon'));
         tbody.appendChild(tr);
         table.appendChild(tbody);
         wrap.appendChild(table);

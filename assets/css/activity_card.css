@@ -472,3 +472,334 @@
         min-width: 0;
     }
 }
+
+/* ===============================
+   HEADER: logo (left) · school name · teacher QR (right)
+================================ */
+.ac-school {
+    display: grid;
+    grid-template-columns: 76px 1fr 76px;
+    align-items: center;
+    gap: 0.75rem;
+}
+.ac-school__logo {
+    width: 76px;
+    height: 76px;
+    object-fit: contain;
+}
+.ac-school__text {
+    text-align: center;
+    min-width: 0;
+}
+.ac-school__qr {
+    margin: 0;
+    text-align: center;
+}
+.ac-school__qr img {
+    width: 76px;
+    height: 76px;
+    display: block;
+    image-rendering: pixelated;
+}
+.ac-school__qr figcaption {
+    margin-top: 0.15rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ac-muted);
+}
+.ac-school__spacer {
+    width: 76px;
+}
+
+/* ===============================
+   FORMAT 1 COLUMNS (with Activity)
+================================ */
+.ac-col-date { width: 14%; }
+.ac-col-in,
+.ac-col-out { width: 11%; }
+.ac-col-event { width: 24%; }
+.ac-col-activity { width: 20%; }
+.ac-col-sign { width: 20%; }
+.ac-muted {
+    color: var(--ac-muted);
+    font-style: italic;
+}
+.ac-day__events strong {
+    color: var(--ac-ink);
+}
+
+/* ===============================
+   DIGITAL STAMP
+================================ */
+.ac-td-sign {
+    text-align: center;
+}
+.ac-stamp {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.18rem 0.5rem;
+    border: 2px double #1d6b2c;
+    border-radius: 8px;
+    color: #1d6b2c;
+    background: rgba(29, 107, 44, 0.05);
+    transform: rotate(-4deg);
+    line-height: 1.1;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.ac-stamp__top {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.ac-stamp__name {
+    font-family: "Brush Script MT", "Segoe Script", cursive;
+    font-size: 0.92rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ac-stamp__date {
+    font-size: 0.58rem;
+    font-weight: 600;
+}
+.ac-row--stamped td {
+    background: #f7fbf8;
+}
+
+/* Teacher stamp controls (teacher view only, never printed) */
+.ac-stamp-form {
+    margin: 0.3rem 0 0;
+}
+.ac-stamp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.7rem;
+    border: 1.5px solid #1d6b2c;
+    border-radius: 999px;
+    background: #1d6b2c;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.ac-stamp-btn--remove {
+    background: transparent;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+.ac-stamp-note {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.7rem;
+    color: var(--ac-muted);
+}
+
+/* ===============================
+   TEACHER PAGE
+================================ */
+body.ac-teacher-page {
+    margin: 0;
+    min-height: 100vh;
+    background: #eef3ef;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.ac-teacher-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: #0a3c26;
+    color: #fff;
+}
+.ac-teacher-bar a {
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 700;
+}
+.ac-teacher-bar__brand i {
+    color: #e6c54a;
+}
+.ac-teacher-main {
+    max-width: 230mm;
+    margin: 0 auto;
+    padding: 1rem;
+}
+.ac-teacher-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(10, 60, 38, 0.08);
+}
+.ac-teacher-summary__kicker {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #3d8a35;
+}
+.ac-teacher-summary__name {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0a3c26;
+}
+.ac-teacher-summary__meta {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #5b6b62;
+}
+.ac-teacher-empty {
+    max-width: 30rem;
+    margin: 2rem auto;
+    padding: 2rem 1.25rem;
+    text-align: center;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(10, 60, 38, 0.08);
+}
+.ac-teacher-empty i {
+    font-size: 2rem;
+    color: #3d8a35;
+}
+.ac-teacher-empty h1 {
+    margin: 0.6rem 0 0.35rem;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0a3c26;
+}
+.ac-teacher-empty p {
+    margin: 0;
+    color: #5b6b62;
+}
+
+/* ===============================
+   PHONES (screen only): stack Format 1 rows as cards
+================================ */
+@media screen and (max-width: 640px) {
+    .ac-school {
+        grid-template-columns: 52px 1fr 52px;
+        gap: 0.5rem;
+    }
+    .ac-school__logo,
+    .ac-school__qr img {
+        width: 52px;
+        height: 52px;
+    }
+    .ac-school__spacer {
+        width: 52px;
+    }
+    .ac-school__qr figcaption {
+        font-size: 0.5rem;
+    }
+
+    #acFormatLog .ac-table {
+        min-width: 0;
+        border: 0;
+    }
+    #acFormatLog .ac-table thead {
+        display: none;
+    }
+    #acFormatLog .ac-table,
+    #acFormatLog .ac-table tbody,
+    #acFormatLog .ac-table tr,
+    #acFormatLog .ac-table td {
+        display: block;
+        width: 100%;
+    }
+    #acFormatLog .ac-table tr.ac-row--data {
+        margin-bottom: 0.65rem;
+        border: 1.25px solid var(--ac-line);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    #acFormatLog .ac-table tr.ac-row--blank {
+        display: none;
+    }
+    #acFormatLog .ac-table tr.ac-row--hidden {
+        display: none;
+    }
+    #acFormatLog .ac-table td {
+        display: grid;
+        grid-template-columns: 5.6rem 1fr;
+        align-items: center;
+        gap: 0.5rem;
+        height: auto;
+        min-height: 2rem;
+        border: 0;
+        border-bottom: 1px solid #e3e9e5;
+        text-align: left;
+    }
+    #acFormatLog .ac-table td:last-child {
+        border-bottom: 0;
+    }
+    #acFormatLog .ac-table td::before {
+        content: attr(data-label);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ac-muted);
+    }
+    #acFormatLog .ac-td-sign {
+        justify-items: start;
+    }
+    #acFormatLog .ac-td-sign .ac-sign-line {
+        width: 100%;
+        margin: 0;
+    }
+    #acFormatLog .ac-td-sign .ac-stamp-form,
+    #acFormatLog .ac-td-sign .ac-stamp-note {
+        grid-column: 2;
+    }
+
+    .ac-teacher-main {
+        padding: 0.75rem;
+    }
+    .ac-teacher-summary form,
+    .ac-teacher-summary .ac-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media print {
+    .ac-stamp-form,
+    .ac-stamp-note,
+    .ac-teacher-bar,
+    .ac-teacher-summary {
+        display: none !important;
+    }
+    .ac-school__logo,
+    .ac-school__qr img {
+        width: 22mm;
+        height: 22mm;
+    }
+    .ac-school {
+        grid-template-columns: 22mm 1fr 22mm;
+    }
+    .ac-school__spacer {
+        width: 22mm;
+    }
+}

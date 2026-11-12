@@ -39,10 +39,10 @@ if (is_array($events)) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_scroll_fix.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_calendar_shell.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=39">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=40">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=5">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=9">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=10">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_spinner.css?v=2">
@@ -253,6 +253,64 @@ if (is_array($events)) {
 
         <div id="mmDashboardHome" class="<?= $mm_dashboard_panel_open ? 'd-none' : '' ?>">
 
+        <?php $mmStats = $mm_photo_stats ?? ['total' => 0, 'published' => 0, 'pending' => 0, 'rejected' => 0, 'events' => 0]; ?>
+        <section class="mm-home-overview" aria-label="My photo overview">
+            <div class="mm-home-overview__head">
+                <div>
+                    <p class="mm-home-overview__kicker">Welcome back</p>
+                    <h1 class="mm-home-overview__title"><?= htmlspecialchars($user_name) ?></h1>
+                </div>
+                <div class="mm-home-overview__actions">
+                    <?php if ($is_multimedia_moderator && $pending_photo_count > 0): ?>
+                        <button type="button" class="mm-home-btn mm-home-btn--alert" data-mm-panel="photo_approvals">
+                            <i class="fas fa-user-shield" aria-hidden="true"></i>
+                            <span>Review <?= $pending_photo_count > 99 ? '99+' : (int) $pending_photo_count ?> photo<?= $pending_photo_count === 1 ? '' : 's' ?></span>
+                        </button>
+                    <?php endif; ?>
+                    <button type="button" class="mm-home-btn" data-mm-panel="events">
+                        <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i>
+                        <span>Upload photos</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mm-home-stats">
+                <div class="stat-card">
+                    <span class="stat-icon"><i class="fas fa-images" aria-hidden="true"></i></span>
+                    <div>
+                        <div class="stat-label">My uploads</div>
+                        <div class="stat-value"><?= (int) $mmStats['total'] ?></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon"><i class="fas fa-circle-check" aria-hidden="true"></i></span>
+                    <div>
+                        <div class="stat-label">Published</div>
+                        <div class="stat-value"><?= (int) $mmStats['published'] ?></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon stat-icon--warn"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
+                    <div>
+                        <div class="stat-label">Awaiting review</div>
+                        <div class="stat-value"><?= (int) $mmStats['pending'] ?></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon stat-icon--muted"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
+                    <div>
+                        <div class="stat-label">Events covered</div>
+                        <div class="stat-value"><?= (int) $mmStats['events'] ?></div>
+                    </div>
+                </div>
+            </div>
+            <?php if ((int) $mmStats['rejected'] > 0): ?>
+                <p class="mm-home-overview__note">
+                    <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                    <?= (int) $mmStats['rejected'] ?> of your photo<?= (int) $mmStats['rejected'] === 1 ? ' was' : 's were' ?> not approved. Open the event in All events to see which ones.
+                </p>
+            <?php endif; ?>
+        </section>
+
         <div class="calendar-controls" id="mmCalendarSection" aria-label="Events calendar">
             <div class="controls-left">
                 <button type="button" class="control-nav" id="mmCalPrev" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
@@ -289,62 +347,85 @@ if (is_array($events)) {
 </div>
 
 <!-- Profile Modal (Multimedia) -->
-<div id="mmProfileModal" class="profile-modal">
-    <div class="profile-modal-content">
-        <span class="profile-close" onclick="closeMmProfileModal()">&times;</span>
-        <h2>My Information</h2>
-        <form id="mmProfileForm" action="<?= BASE_URL ?>/backend/auth/update_multimedia_profile.php" method="POST" enctype="multipart/form-data" onsubmit="event.preventDefault(); confirmMmProfileChanges(this);">
-            <?= csrf_field() ?>
-            <div class="form-group">
-                <label for="mmProfilePicture">Profile Picture</label>
-                <div class="profile-picture-preview-container">
-                    <?php if (!empty($user['profile_picture'])): ?>
-                        <img src="<?= BASE_URL ?>/<?= htmlspecialchars($user['profile_picture']) ?>" alt="Current profile picture" id="mmProfilePicturePreview" class="profile-picture-preview profile-picture-clickable" onclick="openMmProfilePicFullscreen(this.src)" title="Click to view full screen">
-                    <?php else: ?>
-                        <div class="profile-picture-placeholder" id="mmProfilePicturePreview">
-                            <i class="fas fa-user"></i>
-                        </div>
-                    <?php endif; ?>
+<div class="modal fade" id="mmProfileModal" tabindex="-1" aria-labelledby="mmProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable mm-profile-dialog">
+        <div class="modal-content efy-modal">
+            <div class="modal-header efy-modal__header">
+                <div>
+                    <span class="efy-modal__eyebrow">Multimedia</span>
+                    <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="mmProfileModalLabel">
+                        <i class="fas fa-user-circle" aria-hidden="true"></i>
+                        My information
+                    </h5>
                 </div>
-                <input
-                    type="file"
-                    id="mmProfilePicture"
-                    name="profile_picture"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    class="form-control-file"
-                    onchange="previewMmProfilePicture(this)"
-                >
-                <small class="text-muted">JPG, PNG, GIF, or WEBP (max 5MB)</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <form id="mmProfileForm" action="<?= BASE_URL ?>/backend/auth/update_multimedia_profile.php" method="POST" enctype="multipart/form-data" onsubmit="event.preventDefault(); confirmMmProfileChanges(this);">
+                <?= csrf_field() ?>
+                <div class="modal-body efy-modal__body mm-profile-body">
+                    <section class="efy-form-section mm-profile-photo">
+                        <div class="profile-picture-preview-container">
+                            <?php if (!empty($user['profile_picture'])): ?>
+                                <img src="<?= BASE_URL ?>/<?= htmlspecialchars($user['profile_picture']) ?>" alt="Current profile picture" id="mmProfilePicturePreview" class="profile-picture-preview profile-picture-clickable" onclick="openMmProfilePicFullscreen(this.src)" title="Click to view full screen">
+                            <?php else: ?>
+                                <div class="profile-picture-placeholder" id="mmProfilePicturePreview">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <label class="form-label efy-form-label" for="mmProfilePicture">Profile picture</label>
+                        <input
+                            type="file"
+                            id="mmProfilePicture"
+                            name="profile_picture"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            class="form-control efy-form-control"
+                            onchange="previewMmProfilePicture(this)"
+                        >
+                        <small class="efy-form-help">JPG, PNG, GIF, or WEBP (max 5MB)</small>
+                    </section>
 
-            <div class="form-group">
-                <label for="mmFullName">Full Name</label>
-                <input
-                    type="text"
-                    id="mmFullName"
-                    name="name"
-                    value="<?= htmlspecialchars($user['name'] ?? $user_name) ?>"
-                    required
-                >
-            </div>
+                    <section class="efy-form-section">
+                        <p class="efy-form-section__label">Account</p>
+                        <div class="mb-3">
+                            <label class="form-label efy-form-label" for="mmFullName">Full name</label>
+                            <input type="text" class="form-control efy-form-control" id="mmFullName" name="name" value="<?= htmlspecialchars($user['name'] ?? $user_name) ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label efy-form-label">Role</label>
+                            <input type="text" class="form-control efy-form-control efy-form-control--readonly" value="<?= $is_multimedia_moderator ? 'Multimedia · Photo moderator' : 'Multimedia' ?>" readonly>
+                        </div>
+                        <?php if (!empty($user['email'])): ?>
+                        <div class="mb-0">
+                            <label class="form-label efy-form-label" for="mmAccountEmail">Account email</label>
+                            <input type="email" class="form-control efy-form-control efy-form-control--readonly" id="mmAccountEmail" value="<?= htmlspecialchars($user['email']) ?>" readonly>
+                            <small class="efy-form-help">This is your login email.</small>
+                        </div>
+                        <?php endif; ?>
+                    </section>
 
-            <div class="form-group">
-                <label>Multimedia Club</label>
-                <select name="department" id="mmDepartment">
-                    <option value="" <?= empty($department) ? 'selected' : '' ?>>Select Department</option>
-                    <option value="High school department" <?= ($department === 'High school department') ? 'selected' : '' ?>>High School Department</option>
-                    <option value="College of Communication, Information and Technology" <?= ($department === 'College of Communication, Information and Technology') ? 'selected' : '' ?>>College of Communication, Information and Technology</option>
-                    <option value="College of Accountancy and Business" <?= ($department === 'College of Accountancy and Business') ? 'selected' : '' ?>>College of Accountancy and Business</option>
-                    <option value="School of Law and Political Science" <?= ($department === 'School of Law and Political Science') ? 'selected' : '' ?>>School of Law and Political Science</option>
-                    <option value="College of Education" <?= ($department === 'College of Education') ? 'selected' : '' ?>>College of Education</option>
-                    <option value="College of Nursing and Allied health sciences" <?= ($department === 'College of Nursing and Allied health sciences') ? 'selected' : '' ?>>College of Nursing and Allied health sciences</option>
-                    <option value="College of Hospitality Management" <?= ($department === 'College of Hospitality Management') ? 'selected' : '' ?>>College of Hospitality Management</option>
-                </select>
-                <small class="text-muted d-block mt-1">Choose your department so your multimedia club is set correctly.</small>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">Save Info</button>
-        </form>
+                    <section class="efy-form-section mb-0">
+                        <p class="efy-form-section__label">Multimedia club</p>
+                        <label class="form-label efy-form-label" for="mmDepartment">Department</label>
+                        <select class="form-select efy-form-control" name="department" id="mmDepartment">
+                            <option value="" <?= empty($department) ? 'selected' : '' ?>>Select Department</option>
+                            <option value="High school department" <?= ($department === 'High school department') ? 'selected' : '' ?>>High School Department</option>
+                            <option value="College of Communication, Information and Technology" <?= ($department === 'College of Communication, Information and Technology') ? 'selected' : '' ?>>College of Communication, Information and Technology</option>
+                            <option value="College of Accountancy and Business" <?= ($department === 'College of Accountancy and Business') ? 'selected' : '' ?>>College of Accountancy and Business</option>
+                            <option value="School of Law and Political Science" <?= ($department === 'School of Law and Political Science') ? 'selected' : '' ?>>School of Law and Political Science</option>
+                            <option value="College of Education" <?= ($department === 'College of Education') ? 'selected' : '' ?>>College of Education</option>
+                            <option value="College of Nursing and Allied health sciences" <?= ($department === 'College of Nursing and Allied health sciences') ? 'selected' : '' ?>>College of Nursing and Allied health sciences</option>
+                            <option value="College of Hospitality Management" <?= ($department === 'College of Hospitality Management') ? 'selected' : '' ?>>College of Hospitality Management</option>
+                        </select>
+                        <small class="efy-form-help d-block mt-1">Choose your department so your multimedia club is set correctly.</small>
+                    </section>
+                </div>
+                <div class="modal-footer efy-modal__footer">
+                    <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn efy-btn-primary"><i class="fas fa-save me-1" aria-hidden="true"></i>Save changes</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -990,11 +1071,14 @@ function openUploadModal(btn) {
 // Profile modal (multimedia)
 function openMmProfileModal() {
     var el = document.getElementById('mmProfileModal');
-    if (el) el.classList.add('show');
+    if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+    bootstrap.Modal.getOrCreateInstance(el).show();
 }
 function closeMmProfileModal() {
     var el = document.getElementById('mmProfileModal');
-    if (el) el.classList.remove('show');
+    if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+    var inst = bootstrap.Modal.getInstance(el);
+    if (inst) inst.hide();
 }
 function previewMmProfilePicture(input) {
     var preview = document.getElementById('mmProfilePicturePreview');
@@ -1030,12 +1114,16 @@ function confirmMmProfileChanges(form) {
     pendingMmProfileForm = form;
     var modalEl = document.getElementById('confirmMmProfileModal');
     if (!modalEl) { form.submit(); return; }
-    var modal = new bootstrap.Modal(modalEl);
-    modalEl.addEventListener('shown.bs.modal', function raiseConfirmZIndex() {
-        modalEl.removeEventListener('shown.bs.modal', raiseConfirmZIndex);
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    // Stack above the open profile modal: raise only the newest backdrop.
+    modalEl.addEventListener('shown.bs.modal', function () {
         modalEl.style.zIndex = '1200';
         var backdrops = document.querySelectorAll('.modal-backdrop');
-        for (var i = 0; i < backdrops.length; i++) { backdrops[i].style.zIndex = '1199'; }
+        if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1199';
+    }, { once: true });
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        modalEl.style.removeProperty('z-index');
+        if (document.querySelector('.modal.show')) document.body.classList.add('modal-open');
     }, { once: true });
     modal.show();
     var btn = document.getElementById('confirmMmProfileBtn');

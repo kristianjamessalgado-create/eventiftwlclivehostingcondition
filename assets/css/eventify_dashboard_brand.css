@@ -743,3 +743,11 @@ body.admin-dashboard .adm-brand {
 .text-efy-gold  { color: var(--efy-brand-gold) !important; }
 .text-efy-light { color: var(--efy-brand-text) !important; }
 .border-efy-gold { border-color: var(--efy-brand-gold-border) !important; }
+
+/* While a Bootstrap modal is open, drop the fixed navbar behind the modal backdrop
+   (1050) so it can no longer cover a modal's header and close button. */
+body.organizer-dashboard.modal-open .top-navbar,
+body.student-dashboard.modal-open .top-navbar,
+body.multimedia-dashboard.modal-open .top-navbar {
+    z-index: 1040 !important;
+}

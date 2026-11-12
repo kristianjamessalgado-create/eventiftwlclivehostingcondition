@@ -44,7 +44,7 @@ if ($hasMustChangePasswordColumn) {
 $session_user_id = (int) $_SESSION['user_id'];
 
 // Fetch user info (including department and profile picture)
-$stmt = $conn->prepare("SELECT id, user_id, name, department, profile_picture, is_multimedia_moderator FROM users WHERE id = ?");
+$stmt = $conn->prepare("SELECT id, user_id, name, email, department, profile_picture, is_multimedia_moderator FROM users WHERE id = ?");
 $stmt->bind_param("i", $session_user_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -270,6 +270,34 @@ $mm_dashboard_panel_open = $mm_events_panel_open
     || $mm_upcoming_panel_open
     || $mm_photo_approvals_panel_open
     || $mm_photo_activity_panel_open;
+// Personal photo stats for the dashboard home strip.
+$mm_photo_stats = ['total' => 0, 'published' => 0, 'pending' => 0, 'rejected' => 0, 'events' => 0];
+try {
+    if (eventify_event_photos_has_status($conn)) {
+        $stStats = $conn->prepare("SELECT COUNT(*) AS total,
+                SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published,
+                SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected,
+                COUNT(DISTINCT event_id) AS events
+            FROM event_photos WHERE uploaded_by = ?");
+    } else {
+        $stStats = $conn->prepare("SELECT COUNT(*) AS total, COUNT(*) AS published, 0 AS pending, 0 AS rejected,
+                COUNT(DISTINCT event_id) AS events
+            FROM event_photos WHERE uploaded_by = ?");
+    }
+    if ($stStats) {
+        $stStats->bind_param('i', $uid);
+        $stStats->execute();
+        $rowStats = $stStats->get_result()->fetch_assoc() ?: [];
+        foreach ($mm_photo_stats as $k => $_) {
+            $mm_photo_stats[$k] = (int) ($rowStats[$k] ?? 0);
+        }
+        $stStats->close();
+    }
+} catch (Throwable $e) {
+    /* stats are optional */
+}
+
 $mm_events_count = count($events);
 $mm_upcoming_count = count($upcomingEvents);
 

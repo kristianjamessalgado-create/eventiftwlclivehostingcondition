@@ -3880,3 +3880,237 @@ body.multimedia-dashboard #mmSidebar .action-btn .badge {
     font-weight: 600;
     padding: 0.25em 0.5em;
 }
+
+/* ===============================
+   PROFILE MODAL (Bootstrap efy-modal)
+   The <form> sits between .modal-content and .modal-body, so make it
+   pass the flex layout through; otherwise the body cannot scroll and the
+   header/close button gets pushed off-screen on short viewports.
+================================ */
+.mm-profile-dialog .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+.mm-profile-dialog .mm-profile-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.mm-profile-photo {
+    text-align: center;
+}
+.mm-profile-photo .form-label,
+.mm-profile-photo .efy-form-help {
+    display: block;
+    text-align: left;
+}
+.mm-profile-photo .profile-picture-preview-container {
+    width: 104px;
+    height: 104px;
+    margin: 0 auto 0.85rem;
+}
+.mm-profile-photo .profile-picture-placeholder,
+.mm-profile-photo .profile-picture-preview {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.profile-picture-clickable {
+    cursor: zoom-in;
+}
+#mmProfileModal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* ===============================
+   HOME OVERVIEW (welcome + my photo stats)
+================================ */
+.mm-home-overview {
+    margin-bottom: 1rem;
+}
+.mm-home-overview__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+.mm-home-overview__kicker {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--org-muted, #64748b);
+}
+.mm-home-overview__title {
+    margin: 0;
+    font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+    font-weight: 800;
+    color: var(--mm-poster-forest, var(--org-text, #0f172a));
+    overflow-wrap: anywhere;
+}
+.mm-home-overview__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.mm-home-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 42px;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 2px solid var(--mm-poster-gold, var(--org-emerald, #2ecc71));
+    background: linear-gradient(180deg, var(--mm-poster-forest, #1b4a1b) 0%, var(--mm-poster-forest-deep, #153313) 100%);
+    color: var(--mm-poster-gold, #e6c54a);
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mm-home-btn:hover,
+.mm-home-btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+    outline: none;
+}
+.mm-home-btn--alert {
+    border-color: #f59e0b;
+    background: #fff7ed;
+    color: #b45309;
+}
+.mm-home-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+.mm-home-stats .stat-card {
+    min-width: 0;
+}
+.mm-home-stats .stat-icon {
+    flex: 0 0 44px;
+}
+.mm-home-stats .stat-icon--warn {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    border-color: rgba(245, 158, 11, 0.4) !important;
+}
+.mm-home-stats .stat-icon--muted {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%) !important;
+    border-color: rgba(100, 116, 139, 0.4) !important;
+}
+.mm-home-overview__note {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 0.85rem;
+}
+.mm-home-overview__note i {
+    margin-right: 0.35rem;
+}
+
+/* ===============================
+   MOBILE RESPONSIVE
+================================ */
+@media (max-width: 991px) {
+    .mm-home-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 576px) {
+    .mm-home-overview__head {
+        align-items: stretch;
+    }
+    .mm-home-overview__actions,
+    .mm-home-btn {
+        width: 100%;
+    }
+    .mm-home-btn {
+        justify-content: center;
+    }
+    .mm-home-stats {
+        gap: 0.5rem;
+    }
+    .mm-home-stats .stat-card {
+        padding: 0.65rem;
+        gap: 0.55rem;
+    }
+    .mm-home-stats .stat-icon {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+    .mm-home-stats .stat-value {
+        font-size: 1.05rem;
+    }
+    .mm-home-stats .stat-label {
+        font-size: 0.72rem;
+    }
+
+    /* Profile modal: near full-screen sheet on phones */
+    .mm-profile-dialog {
+        margin: 0.5rem;
+        max-width: none;
+        height: calc(100% - 1rem);
+    }
+    .mm-profile-dialog .modal-content {
+        max-height: 100%;
+    }
+    .mm-profile-dialog .modal-footer {
+        flex-wrap: nowrap;
+    }
+    .mm-profile-dialog .modal-footer .btn {
+        flex: 1 1 0;
+    }
+
+    /* Keep every multimedia modal inside the screen */
+    body.multimedia-dashboard .modal-dialog {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+    }
+}
+@media (max-width: 360px) {
+    .mm-home-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Small phones: keep every navbar button (incl. the profile avatar) on screen. */
+@media (max-width: 480px) {
+    body.multimedia-dashboard .top-navbar .navbar-right {
+        gap: 4px !important;
+        flex-shrink: 0;
+    }
+    body.multimedia-dashboard .top-navbar .navbar-right .dropdown.me-2 {
+        margin-right: 0 !important;
+    }
+    body.multimedia-dashboard .top-navbar .navbar-left {
+        min-width: 0;
+        flex-shrink: 1;
+    }
+    /* "Go to today" duplicates the brand button (which also returns to the calendar). */
+    body.multimedia-dashboard #mmTopCalendarShortcutBtn {
+        display: none !important;
+    }
+    body.multimedia-dashboard .top-navbar .brand-logo span {
+        font-size: 1.05rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+@media (max-width: 340px) {
+    body.multimedia-dashboard .top-navbar .brand-logo span {
+        display: none;
+    }
+}

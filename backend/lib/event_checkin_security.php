@@ -54,17 +54,74 @@ function eventify_checkin_coords_from_row(array $row): array
     return ['lat' => $lat, 'lng' => $lng];
 }
 
+/**
+ * Campus location used when an event/activity has no map pin, so the distance
+ * check never gets skipped. Default: Western Leyte College, Ormoc City (OpenStreetMap).
+ *
+ * @return array{lat: float, lng: float}
+ */
+function eventify_checkin_campus_coords(): array
+{
+    $lat = defined('EVENTIFY_CAMPUS_LAT') ? (float) EVENTIFY_CAMPUS_LAT : 11.0091853;
+    $lng = defined('EVENTIFY_CAMPUS_LNG') ? (float) EVENTIFY_CAMPUS_LNG : 124.6098772;
+    return ['lat' => $lat, 'lng' => $lng];
+}
+
+/**
+ * Venue pin for a main event, or the campus location when the event has none.
+ *
+ * @param array<string, mixed> $event
+ * @return array{lat: float, lng: float}
+ */
+function eventify_event_checkin_venue_coords(array $event): array
+{
+    $coords = eventify_checkin_coords_from_row($event);
+    if ($coords['lat'] !== null && $coords['lng'] !== null) {
+        return ['lat' => (float) $coords['lat'], 'lng' => (float) $coords['lng']];
+    }
+    return eventify_checkin_campus_coords();
+}
+
+/**
+ * Old databases were created without events.latitude/longitude, which made the map pin
+ * get dropped on save. Add the columns when missing (safe to call on every request).
+ */
+function eventify_events_ensure_geo_columns(mysqli $conn): bool
+{
+    static $done = null;
+    if ($done !== null) {
+        return $done;
+    }
+    try {
+        $res = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");
+        $have = [];
+        while ($res && ($row = $res->fetch_assoc())) {
+            $have[] = (string) $row['Field'];
+        }
+        if (!in_array('latitude', $have, true)) {
+            $conn->query('ALTER TABLE events ADD COLUMN latitude DECIMAL(10,7) NULL DEFAULT NULL AFTER location');
+        }
+        if (!in_array('longitude', $have, true)) {
+            $conn->query('ALTER TABLE events ADD COLUMN longitude DECIMAL(10,7) NULL DEFAULT NULL AFTER latitude');
+        }
+        // Old databases made events.location VARCHAR(100), which cut off map addresses.
+        $loc = $conn->query("SHOW COLUMNS FROM events LIKE 'location'");
+        $locRow = $loc ? $loc->fetch_assoc() : null;
+        if ($locRow && preg_match('/^varchar\((\d+)\)/i', (string) ($locRow['Type'] ?? ''), $m) && (int) $m[1] < 255) {
+            $conn->query('ALTER TABLE events MODIFY location VARCHAR(255) DEFAULT NULL');
+        }
+        $done = true;
+    } catch (Throwable $e) {
+        $done = false;
+    }
+    return $done;
+}
+
 /** @param array<string, mixed> $event */
 function eventify_event_checkin_geo_required(array $event): bool
 {
-    if (!eventify_checkin_config_geo_when_pinned()) {
-        return false;
-    }
-    if (array_key_exists('checkin_require_geo', $event) && $event['checkin_require_geo'] !== null && $event['checkin_require_geo'] !== '') {
-        return (int) $event['checkin_require_geo'] === 1;
-    }
-    $coords = eventify_checkin_coords_from_row($event);
-    return $coords['lat'] !== null && $coords['lng'] !== null;
+    // Always on when enabled: events without a pin fall back to the campus location.
+    return eventify_checkin_config_geo_when_pinned();
 }
 
 /** @param array<string, mixed> $event */
@@ -198,13 +255,13 @@ function eventify_checkin_parse_security_post(array $post, bool $geoRequired): a
         return ['ok' => false, 'error' => 'Device verification failed. Please use a modern browser and try again.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => ''];
     }
     if ($geoRequired && ($geo_lat === null || $geo_lng === null)) {
-        return ['ok' => false, 'error' => 'Live location is required to check in. Please allow location access and try again.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
+        return ['ok' => false, 'error' => 'Attendance not recorded: your location is needed to confirm you are at the venue. Allow location access for this site, then scan the QR again.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
     }
     if ($geoRequired && ($geo_ts <= 0 || abs($server_now_ms - $geo_ts) > 120000)) {
-        return ['ok' => false, 'error' => 'Location check expired. Please refresh your location and try again.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
+        return ['ok' => false, 'error' => 'Your location reading is too old. Reload this page so your phone checks your location again, then tap Confirm.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
     }
     if ($geoRequired && $geo_accuracy !== null && $geo_accuracy > 2000) {
-        return ['ok' => false, 'error' => 'Location accuracy is too low. Move to a better signal and try again.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
+        return ['ok' => false, 'error' => 'Your phone could not pinpoint your location. Turn on Wi-Fi and GPS, move near a window or outside, then try again.', 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
     }
 
     return ['ok' => true, 'geo_lat' => $geo_lat, 'geo_lng' => $geo_lng, 'geo_accuracy' => $geo_accuracy, 'device_hash' => $device_hash];
@@ -219,11 +276,17 @@ function eventify_checkin_validate_geofence(?float $geo_lat, ?float $geo_lng, ?f
         return ['ok' => true];
     }
     if ($geo_lat === null || $geo_lng === null) {
-        return ['ok' => false, 'error' => 'Live location is required to check in. Please allow location access and try again.'];
+        return ['ok' => false, 'error' => 'Attendance not recorded: your location is needed to confirm you are at the venue. Allow location access for this site, then scan the QR again.'];
     }
     $distance_m = eventify_haversine_distance_m($geo_lat, $geo_lng, $venue_lat, $venue_lng);
-    if ($distance_m > eventify_checkin_geo_radius_m()) {
-        return ['ok' => false, 'error' => 'You are too far from the venue to check in. Please move closer and try again.'];
+    $radius_m = eventify_checkin_geo_radius_m();
+    if ($distance_m > $radius_m) {
+        $fmt = static function (float $m): string {
+            return $m >= 1000 ? number_format($m / 1000, 1) . ' km' : (string) (int) round($m) . ' m';
+        };
+        return ['ok' => false, 'error' => 'Attendance not recorded: you are about ' . $fmt($distance_m)
+            . ' away from the venue. You can only confirm attendance within ' . $fmt($radius_m)
+            . ' of the event location. Go to the venue and scan the QR again.'];
     }
     return ['ok' => true];
 }
@@ -392,30 +455,18 @@ function eventify_checkin_apply_session_device_lock(
  */
 function eventify_session_checkin_geo_required(array $session): bool
 {
-    $coords = eventify_checkin_coords_from_row($session);
-    if ($coords['lat'] !== null && $coords['lng'] !== null) {
-        return eventify_checkin_config_geo_when_pinned();
-    }
-    if (isset($session['event_latitude'], $session['event_longitude'])) {
-        $parent = eventify_checkin_coords_from_row([
-            'latitude' => $session['event_latitude'],
-            'longitude' => $session['event_longitude'],
-        ]);
-        if ($parent['lat'] !== null && $parent['lng'] !== null) {
-            return eventify_checkin_config_geo_when_pinned();
-        }
-    }
-    return false;
+    // Always on when enabled: activity pin → main event pin → campus location.
+    return eventify_checkin_config_geo_when_pinned();
 }
 
-/** @return array{lat: ?float, lng: ?float} */
+/** @return array{lat: float, lng: float} Activity pin, else main event pin, else campus. */
 function eventify_session_checkin_venue_coords(array $session): array
 {
     $coords = eventify_checkin_coords_from_row($session);
     if ($coords['lat'] !== null && $coords['lng'] !== null) {
-        return $coords;
+        return ['lat' => (float) $coords['lat'], 'lng' => (float) $coords['lng']];
     }
-    return eventify_checkin_coords_from_row([
+    return eventify_event_checkin_venue_coords([
         'latitude' => $session['event_latitude'] ?? null,
         'longitude' => $session['event_longitude'] ?? null,
     ]);
@@ -738,7 +789,7 @@ function eventify_process_main_event_checkin(mysqli $conn, array $event, int $us
         return ['ok' => false, 'error' => $parsed['error'] ?? 'Check-in failed.'];
     }
 
-    $venue = eventify_checkin_coords_from_row($event);
+    $venue = eventify_event_checkin_venue_coords($event);
     $geoVal = eventify_checkin_validate_geofence(
         $parsed['geo_lat'],
         $parsed['geo_lng'],
@@ -944,7 +995,7 @@ function eventify_process_ticket_checkin(mysqli $conn, array $ticket, int $userI
         return ['ok' => false, 'error' => $parsed['error'] ?? 'Check-in failed.'];
     }
 
-    $venue = eventify_checkin_coords_from_row($event);
+    $venue = eventify_event_checkin_venue_coords($event);
     $geoVal = eventify_checkin_validate_geofence(
         $parsed['geo_lat'],
         $parsed['geo_lng'],

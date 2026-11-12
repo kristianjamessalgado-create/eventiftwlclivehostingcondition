@@ -259,6 +259,28 @@ body.sa-dashboard {
     font-size: 0.8rem;
     color: #6b7280;
 }
+/* Clickable stat card (e.g. Needs Attention → Account Security) */
+button.sa-stat-card--action {
+    width: 100%;
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+button.sa-stat-card--action:hover,
+button.sa-stat-card--action:focus-visible {
+    border-color: #38bdf8;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+    outline: none;
+}
+.sa-stat-card--alert {
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+.sa-stat-card--alert .sa-stat-value,
+.sa-stat-card--alert .sa-stat-label i {
+    color: #b91c1c;
+}
 .sa-charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

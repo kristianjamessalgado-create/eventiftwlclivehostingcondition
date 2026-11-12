@@ -1304,7 +1304,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 </script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
 <script>
 (function () {

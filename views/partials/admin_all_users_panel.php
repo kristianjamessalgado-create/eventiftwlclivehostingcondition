@@ -68,7 +68,7 @@ $panelEnterClass = $admin_users_panel_open ? ' adm-dash-panel--enter' : '';
                     <?php foreach ($adminClassSections as $sec): ?>
                         <li class="d-inline-flex align-items-center gap-1 border rounded-pill px-2 py-1" style="font-size:.78rem;" data-section-label="<?= htmlspecialchars((string) ($sec['label'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                             <span><?= htmlspecialchars((string) ($sec['label'] ?? '')) ?></span>
-                            <form method="POST" action="<?= BASE_URL ?>/backend/admin/manage_class_sections.php" class="d-inline mb-0" onsubmit="return confirm('Remove this section from the list? Students keep their assigned label until you change it.');">
+                            <form method="POST" action="<?= BASE_URL ?>/backend/admin/manage_class_sections.php" class="d-inline mb-0" data-efy-confirm="Remove this section from the list? Students keep their assigned label until you change it." data-efy-confirm-title="Remove class section" data-efy-confirm-label="Remove" data-efy-confirm-type="danger">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="section_id" value="<?= (int) ($sec['id'] ?? 0) ?>">
@@ -93,7 +93,7 @@ $panelEnterClass = $admin_users_panel_open ? ' adm-dash-panel--enter' : '';
 
         <?php if (!empty($allUsers)): ?>
             <div class="adm-all-users-filters mb-3">
-                <input type="search" id="admUserSearch" class="form-control form-control-sm" placeholder="Search name or email" autocomplete="off">
+                <input type="search" id="admUserSearch" class="form-control form-control-sm" placeholder="Search name, email, student ID, department" autocomplete="off">
                 <select id="admUserRoleFilter" class="form-select form-select-sm">
                     <option value="">All Roles</option>
                     <option value="admin">Admin</option>
@@ -142,7 +142,10 @@ $panelEnterClass = $admin_users_panel_open ? ' adm-dash-panel--enter' : '';
                                 $accCreatedLabel = $accCreated !== '' && ($ts = strtotime($accCreated)) ? date('M j, Y g:i A', $ts) : '—';
                             ?>
                             <tr class="adm-user-row"
-                                data-search="<?= htmlspecialchars(strtolower(trim(($acc['name'] ?? '') . ' ' . ($acc['email'] ?? '')))) ?>"
+                                data-search="<?= htmlspecialchars(strtolower(trim(implode(' ', [
+                                    $acc['name'] ?? '', $acc['email'] ?? '', $acc['user_id'] ?? '', $accDeptLabel,
+                                    $acc['student_course'] ?? '', $acc['student_section'] ?? '',
+                                ])))) ?>"
                                 data-role="<?= htmlspecialchars($accRole) ?>"
                                 data-status="<?= htmlspecialchars($statusKey) ?>">
                                 <td data-label="Name"><?= htmlspecialchars((string) ($acc['name'] ?? '—')) ?></td>

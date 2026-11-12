@@ -246,6 +246,8 @@ try {
     $organizer_notifications = [];
 }
 
+require_once __DIR__ . '/../lib/event_checkin_security.php';
+eventify_events_ensure_geo_columns($conn);
 $eventsHasGeo = false;
 try {
     $geoColCheck = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");

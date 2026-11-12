@@ -81,5 +81,6 @@ $panelEnterClass = $admin_audit_panel_open ? ' adm-dash-panel--enter' : '';
                 </tbody>
             </table>
         </div>
+        <p id="auditLogNoResults" class="text-muted small mt-2 mb-0" hidden>No log entries match your search.</p>
     </div>
 </section>

@@ -9,6 +9,15 @@
         return document.getElementById(id);
     }
 
+    /** Branded modal (eventify_alert_modal.js) instead of the browser alert() pop-up. */
+    function eventifyLocationNotice(message) {
+        if (typeof window.eventifyAlert === 'function') {
+            window.eventifyAlert(message, { title: 'Event location', type: 'warning' });
+            return;
+        }
+        window.alert(message);
+    }
+
     function clearLeafletContainer(mapEl) {
         if (!mapEl) {
             return;
@@ -338,7 +347,7 @@
         if (useLocBtn) {
             useLocBtn.addEventListener('click', function () {
                 if (!navigator.geolocation) {
-                    alert('Geolocation is not supported in this browser.');
+                    eventifyLocationNotice('Geolocation is not supported in this browser.');
                     return;
                 }
                 useLocBtn.disabled = true;
@@ -351,7 +360,7 @@
                     },
                     function () {
                         useLocBtn.disabled = false;
-                        alert('Could not get your location. Allow permission or pick a point on the map.');
+                        eventifyLocationNotice('Could not get your location. Allow permission or pick a point on the map.');
                     },
                     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                 );

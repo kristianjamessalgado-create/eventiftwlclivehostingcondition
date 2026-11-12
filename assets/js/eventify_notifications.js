@@ -424,7 +424,12 @@
     }
 
     function notifyActionFailed(message) {
-        window.alert(message || 'Could not update notifications. Refresh the page and try again.');
+        var msg = message || 'Could not update notifications. Refresh the page and try again.';
+        if (typeof window.eventifyAlert === 'function') {
+            window.eventifyAlert(msg, { title: 'Notifications', type: 'error' });
+            return;
+        }
+        window.alert(msg);
     }
 
     function initMarkAll() {

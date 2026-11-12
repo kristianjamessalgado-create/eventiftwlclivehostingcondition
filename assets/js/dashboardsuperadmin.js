@@ -170,55 +170,59 @@ function eventifyInitSuperAdminDashboard() {
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         }
-    }
-
-    var rejectModalEl = document.getElementById('rejectEventModal');
-    if (rejectModalEl) {
-        rejectModalEl.addEventListener('show.bs.modal', function (e) {
-            var btn = e.relatedTarget;
-            if (btn && btn.getAttribute('data-event-id')) {
-                document.getElementById('rejectEventId').value = btn.getAttribute('data-event-id') || '';
-                document.getElementById('rejectReturnTo').value = btn.getAttribute('data-return-to') || 'dashboard';
-                document.getElementById('rejectOpenModal').value = btn.getAttribute('data-open-modal') || 'events';
-                var title = btn.getAttribute('data-event-title') || 'this event';
-                document.getElementById('rejectEventTitleText').textContent = 'Reject "' + title + '"? Optionally give a reason so the organizer knows what to fix.';
-                document.getElementById('rejectReasonInput').value = '';
-            }
-        });
-    }
-
-    // Simple client-side filtering for All Users table
-    (function () {
-        var searchInput = document.getElementById('userSearch');
-        var roleFilter = document.getElementById('roleFilter');
-        var statusFilter = document.getElementById('statusFilter');
-        var table = document.getElementById('usersTable');
-        if (!table) return;
-
-        var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
-
-        function applyFilters() {
-            var query = (searchInput && searchInput.value ? searchInput.value.toLowerCase() : '').trim();
-            var role = roleFilter ? roleFilter.value : '';
-            var status = statusFilter ? statusFilter.value : '';
-
-            rows.forEach(function (row) {
-                var nameCell = row.cells[1] ? row.cells[1].innerText.toLowerCase() : '';
-                var emailCell = row.cells[2] ? row.cells[2].innerText.toLowerCase() : '';
-                var rowRole = row.getAttribute('data-role') || '';
-                var rowStatus = row.getAttribute('data-status') || '';
-
-                var matchesSearch = !query || nameCell.indexOf(query) !== -1 || emailCell.indexOf(query) !== -1;
-                var matchesRole = !role || rowRole === role;
-                var matchesStatus = !status || rowStatus === status;
-
-                row.style.display = (matchesSearch && matchesRole && matchesStatus) ? '' : 'none';
+        var lt = window.saLoginTrend || { labels: [], counts: [] };
+        var lCtx = document.getElementById('saLoginsChart');
+        if (lCtx) {
+            new Chart(lCtx, {
+                type: 'line',
+                data: {
+                    labels: lt.labels || [],
+                    datasets: [{
+                        data: lt.counts || [],
+                        borderColor: 'rgba(16,185,129,1)',
+                        backgroundColor: 'rgba(16,185,129,0.18)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
             });
         }
+    }
 
-        if (searchInput) searchInput.addEventListener('input', applyFilters);
-        if (roleFilter) roleFilter.addEventListener('change', applyFilters);
-        if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+    // Users / All Events filters run on the server (they search every page, not only the
+    // 20 rows shown). Dropdowns apply right away; search applies on Enter or the Search button.
+    (function () {
+        document.querySelectorAll('form.js-sa-filter-form').forEach(function (form) {
+            form.querySelectorAll('select').forEach(function (sel) {
+                sel.addEventListener('change', function () {
+                    form.submit();
+                });
+            });
+        });
+        // After a search reloads the page, put the cursor back in the search box.
+        var params = new URLSearchParams(window.location.search || '');
+        var focusId = params.get('u_q') ? 'userSearch' : (params.get('e_q') ? 'eventSearch' : '');
+        if (focusId) {
+            var modalId = focusId === 'userSearch' ? 'usersModal' : 'allEventsModal';
+            var modalEl = document.getElementById(modalId);
+            if (modalEl) {
+                modalEl.addEventListener('shown.bs.modal', function () {
+                    var input = document.getElementById(focusId);
+                    if (input) {
+                        input.focus();
+                        var len = input.value.length;
+                        try { input.setSelectionRange(len, len); } catch (e) { /* search inputs may not support it */ }
+                    }
+                }, { once: true });
+            }
+        }
     })();
 
     // Keep modal open after server-side pagination reload.
@@ -231,8 +235,8 @@ function eventifyInitSuperAdminDashboard() {
             targetId = 'usersModal';
         } else if (openModal === 'events') {
             targetId = 'allEventsModal';
-        } else if (openModal === 'pending') {
-            targetId = 'pendingEventsModal';
+        } else if (openModal === 'security') {
+            targetId = 'securityModal';
         }
         if (!targetId) return;
         var modalEl = document.getElementById(targetId);
@@ -240,35 +244,6 @@ function eventifyInitSuperAdminDashboard() {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     })();
 
-    // All Events table filters
-    (function () {
-        var searchInput = document.getElementById('eventSearch');
-        var statusFilter = document.getElementById('allEventsStatusFilter');
-        var deptFilter = document.getElementById('allEventsDeptFilter');
-        var table = document.getElementById('allEventsTable');
-        if (!table) return;
-        var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
-        function applyEventFilters() {
-            var q = (searchInput && searchInput.value ? searchInput.value.toLowerCase() : '').trim();
-            var status = statusFilter ? statusFilter.value : '';
-            var dept = deptFilter ? deptFilter.value : '';
-            rows.forEach(function (row) {
-                var titleCell = row.cells[1] ? row.cells[1].innerText.toLowerCase() : '';
-                var locCell = row.cells[2] ? row.cells[2].innerText.toLowerCase() : '';
-                var rowStatus = row.getAttribute('data-status') || '';
-                var rowDept = row.getAttribute('data-dept') || '';
-                var matchSearch = !q || titleCell.indexOf(q) !== -1 || locCell.indexOf(q) !== -1;
-                var normalizedStatus = (rowStatus === 'completed') ? 'closed' : rowStatus;
-                var normalizedFilter = (status === 'completed') ? 'closed' : status;
-                var matchStatus = !normalizedFilter || normalizedStatus === normalizedFilter;
-                var matchDept = !dept || rowDept === dept;
-                row.style.display = (matchSearch && matchStatus && matchDept) ? '' : 'none';
-            });
-        }
-        if (searchInput) searchInput.addEventListener('input', applyEventFilters);
-        if (statusFilter) statusFilter.addEventListener('change', applyEventFilters);
-        if (deptFilter) deptFilter.addEventListener('change', applyEventFilters);
-    })();
 
     // Calendar modal: init FullCalendar when modal is fully shown (so dimensions are correct)
     var saCalendarInstance = null;

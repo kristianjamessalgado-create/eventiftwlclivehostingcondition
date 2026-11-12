@@ -232,7 +232,7 @@ $conn->close();
     <a href="<?= BASE_URL ?>/event_tickets.php?id=<?= (int) ($order['event_id'] ?? 0) ?>" class="btn btn-link">← Back to tickets</a>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=2"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script>
 (function () {
     var form = document.getElementById('ticketDemoPayForm');

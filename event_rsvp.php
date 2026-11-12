@@ -48,6 +48,10 @@ $st->bind_param("i", $event_id);
 $st->execute();
 $res = $st->get_result();
 while ($row = $res->fetch_assoc()) {
+    // Walk-in: the row was created at the moment of check-in (open-entry scan), not an RSVP.
+    $regTs = !empty($row['registration_date']) ? strtotime((string) $row['registration_date']) : false;
+    $inTs = !empty($row['time_in']) ? strtotime((string) $row['time_in']) : false;
+    $row['is_walkin'] = $regTs !== false && $inTs !== false && $regTs >= $inTs - 10;
     $rows[] = $row;
 }
 $st->close();
@@ -56,7 +60,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="event_rsvp_' . (int) $event['id'] . '.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['#', 'Name', 'Email', 'Student/Staff ID', 'Registered at', 'RSVP status', 'Check-in time']);
+    fputcsv($out, ['#', 'Name', 'Email', 'Student/Staff ID', 'Type', 'Registered at', 'RSVP status', 'Check-in time']);
     $i = 1;
     foreach ($rows as $row) {
         fputcsv($out, [
@@ -64,7 +68,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $row['name'] ?? '',
             $row['email'] ?? '',
             $row['school_id'] ?? '',
-            $row['registration_date'] ?? '',
+            !empty($row['is_walkin']) ? 'Walk-in' : 'RSVP',
+            !empty($row['is_walkin']) ? '' : ($row['registration_date'] ?? ''),
             $row['status'] ?? '',
             $row['time_in'] ?? '',
         ]);
@@ -84,14 +89,25 @@ if ($role === 'super_admin') {
     $back_url = BASE_URL . '/backend/super_admin/dashboardsuperadmin.php';
 }
 
-$totalCount = count($rows);
+// RSVPs = signed up in advance; walk-ins = scanned in without signing up.
+$totalCount = 0;
+$walkinCount = 0;
 $presentCount = 0;
+$absentCount = 0;
 foreach ($rows as $row) {
-    if (strtolower(trim((string) ($row['status'] ?? ''))) === 'present' || !empty($row['time_in'])) {
+    $isPresent = strtolower(trim((string) ($row['status'] ?? ''))) === 'present' || !empty($row['time_in']);
+    if (!empty($row['is_walkin'])) {
+        $walkinCount++;
+    } else {
+        $totalCount++;
+        if (!$isPresent) {
+            $absentCount++;
+        }
+    }
+    if ($isPresent) {
         $presentCount++;
     }
 }
-$absentCount = max(0, $totalCount - $presentCount);
 
 $eventDateLabel = '';
 $rawDate = trim((string) ($event['date'] ?? ''));
@@ -470,15 +486,21 @@ function rsvp_format_datetime(?string $value): string
         <div class="rsvp-stats" aria-label="RSVP summary">
             <span class="rsvp-stat">
                 <i class="fas fa-users" aria-hidden="true"></i>
-                <?= (int) $totalCount ?> registered
+                <?= (int) $totalCount ?> RSVP'd
             </span>
+            <?php if ($walkinCount > 0): ?>
+            <span class="rsvp-stat">
+                <i class="fas fa-person-walking" aria-hidden="true"></i>
+                <?= (int) $walkinCount ?> walk-in<?= $walkinCount === 1 ? '' : 's' ?>
+            </span>
+            <?php endif; ?>
             <span class="rsvp-stat rsvp-stat--ok">
                 <i class="fas fa-check-circle" aria-hidden="true"></i>
                 <?= (int) $presentCount ?> checked in
             </span>
             <span class="rsvp-stat rsvp-stat--muted">
                 <i class="fas fa-user-clock" aria-hidden="true"></i>
-                <?= (int) $absentCount ?> not checked in
+                <?= (int) $absentCount ?> RSVP'd, not checked in
             </span>
         </div>
     </header>
@@ -519,7 +541,13 @@ function rsvp_format_datetime(?string $value): string
                                         <span class="rsvp-meta"><?= rsvp_h((string) ($row['email'] ?? '')) ?></span>
                                     </td>
                                     <td data-label="ID"><?= rsvp_h((string) ($row['school_id'] ?? '—')) ?></td>
-                                    <td data-label="Registered"><?= rsvp_h(rsvp_format_datetime($row['registration_date'] ?? null)) ?></td>
+                                    <td data-label="Registered">
+                                        <?php if (!empty($row['is_walkin'])): ?>
+                                            <span class="rsvp-pill rsvp-pill--other">Walk-in</span>
+                                        <?php else: ?>
+                                            <?= rsvp_h(rsvp_format_datetime($row['registration_date'] ?? null)) ?>
+                                        <?php endif; ?>
+                                    </td>
                                     <td data-label="Status">
                                         <span class="rsvp-pill <?= $pillClass ?>">
                                             <?php if ($checkedIn): ?><i class="fas fa-check" aria-hidden="true"></i><?php endif; ?>

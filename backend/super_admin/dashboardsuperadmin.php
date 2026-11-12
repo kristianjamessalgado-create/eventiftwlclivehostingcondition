@@ -81,15 +81,78 @@ if ($superadmin_name === '') {
     }
 }
 
+// Filters for the Users and All Events tables. They run in SQL so they search every page,
+// not just the 20 rows currently shown.
+$saFilters = [
+    'u_q' => trim((string) ($_GET['u_q'] ?? '')),
+    'u_role' => trim((string) ($_GET['u_role'] ?? '')),
+    'u_status' => trim((string) ($_GET['u_status'] ?? '')),
+    'e_q' => trim((string) ($_GET['e_q'] ?? '')),
+    'e_status' => trim((string) ($_GET['e_status'] ?? '')),
+    'e_dept' => trim((string) ($_GET['e_dept'] ?? '')),
+];
+if (!in_array($saFilters['u_role'], ['', 'super_admin', 'admin', 'organizer', 'multimedia', 'student'], true)) {
+    $saFilters['u_role'] = '';
+}
+if (!in_array($saFilters['u_status'], ['', 'active', 'inactive', 'pending', 'locked'], true)) {
+    $saFilters['u_status'] = '';
+}
+if (!in_array($saFilters['e_status'], ['', 'pending', 'active', 'rejected', 'closed'], true)) {
+    $saFilters['e_status'] = '';
+}
+
+/** Build a dashboard URL keeping current filters/pages, with overrides. */
+function eventify_sa_url(array $overrides = []): string
+{
+    global $saFilters, $usersPage, $eventsPage;
+    $q = array_merge($saFilters, [
+        'users_page' => $usersPage ?? 1,
+        'events_page' => $eventsPage ?? 1,
+    ], $overrides);
+    $q = array_filter($q, static function ($v) {
+        return $v !== '' && $v !== null;
+    });
+    return BASE_URL . '/backend/super_admin/dashboardsuperadmin.php?' . http_build_query($q);
+}
+
+$userWhere = [];
+$userTypes = '';
+$userParams = [];
+if ($saFilters['u_q'] !== '') {
+    $userWhere[] = '(name LIKE ? OR email LIKE ?)';
+    $like = '%' . $saFilters['u_q'] . '%';
+    $userTypes .= 'ss';
+    array_push($userParams, $like, $like);
+}
+if ($saFilters['u_role'] !== '') {
+    $userWhere[] = 'role = ?';
+    $userTypes .= 's';
+    $userParams[] = $saFilters['u_role'];
+}
+if ($saFilters['u_status'] === 'active') {
+    $userWhere[] = "status = 'active'";
+} elseif ($saFilters['u_status'] === 'inactive') {
+    $userWhere[] = "status = 'inactive'";
+} elseif ($saFilters['u_status'] === 'pending') {
+    $userWhere[] = "status = 'inactive' AND COALESCE(failed_attempts, 0) = 0";
+} elseif ($saFilters['u_status'] === 'locked') {
+    $userWhere[] = "status = 'inactive' AND COALESCE(failed_attempts, 0) > 0";
+}
+$userWhereSql = $userWhere !== [] ? ' WHERE ' . implode(' AND ', $userWhere) : '';
+
 // Fetch users (paginated)
 $usersPage = max(1, (int) ($_GET['users_page'] ?? 1));
 $usersPerPage = 20;
 $usersTotal = 0;
 $usersTotalPages = 1;
-if ($resUsersCount = $conn->query("SELECT COUNT(*) AS c FROM users")) {
-    if ($row = $resUsersCount->fetch_assoc()) {
-        $usersTotal = (int) ($row['c'] ?? 0);
+$cntStmt = $conn->prepare('SELECT COUNT(*) AS c FROM users' . $userWhereSql);
+if ($cntStmt) {
+    if ($userTypes !== '') {
+        $cntStmt->bind_param($userTypes, ...$userParams);
     }
+    $cntStmt->execute();
+    $usersTotal = (int) ($cntStmt->get_result()->fetch_assoc()['c'] ?? 0);
+    $cntStmt->close();
 }
 $usersTotalPages = max(1, (int) ceil($usersTotal / $usersPerPage));
 if ($usersPage > $usersTotalPages) {
@@ -102,45 +165,64 @@ try {
     /* column may already exist or lack ALTER privilege */
 }
 $users = [];
-$stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts, is_multimedia_moderator FROM users ORDER BY id DESC LIMIT ? OFFSET ?");
+$stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts, is_multimedia_moderator FROM users{$userWhereSql} ORDER BY id DESC LIMIT ? OFFSET ?");
 if (!$stmt) {
-    $stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts FROM users ORDER BY id DESC LIMIT ? OFFSET ?");
+    $stmt = $conn->prepare("SELECT id, name, email, role, status, failed_attempts FROM users{$userWhereSql} ORDER BY id DESC LIMIT ? OFFSET ?");
 }
 if ($stmt) {
-    $stmt->bind_param("ii", $usersPerPage, $usersOffset);
+    $userPageParams = array_merge($userParams, [$usersPerPage, $usersOffset]);
+    $stmt->bind_param($userTypes . 'ii', ...$userPageParams);
     $stmt->execute();
     $result = $stmt->get_result();
     $users = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
     $stmt->close();
 }
 
-// Fetch pending events (for modal)
-$pendingEvents = [];
-$stmtPending = $conn->prepare("
-    SELECT e.id, e.title, e.description, e.date, e.start_time, e.end_time, e.location, e.department, e.status,
-           u.name AS organizer_name, u.email AS organizer_email
-    FROM events e
-    JOIN users u ON e.organizer_id = u.id
-    WHERE e.status = 'pending'
-    ORDER BY e.date ASC, e.id ASC
-");
-if ($stmtPending && $stmtPending->execute()) {
-    $resPending = $stmtPending->get_result();
-    if ($resPending) {
-        $pendingEvents = $resPending->fetch_all(MYSQLI_ASSOC);
-    }
-    $stmtPending->close();
-}
+// Event approval and ticket revenue belong to admins/organizers; the super admin
+// dashboard focuses on accounts, security and system-wide oversight.
 
 // Fetch ALL events for Event Management and Calendar modals (paginated list)
 $eventsPage = max(1, (int) ($_GET['events_page'] ?? 1));
 $eventsPerPage = 20;
 $eventsTotal = 0;
 $eventsTotalPages = 1;
-if ($resEventsCount = $conn->query("SELECT COUNT(*) AS c FROM events")) {
-    if ($row = $resEventsCount->fetch_assoc()) {
-        $eventsTotal = (int) ($row['c'] ?? 0);
+
+$evWhere = [];
+$evTypes = '';
+$evParams = [];
+if ($saFilters['e_q'] !== '') {
+    $evWhere[] = '(e.title LIKE ? OR e.location LIKE ? OR u.name LIKE ?)';
+    $like = '%' . $saFilters['e_q'] . '%';
+    $evTypes .= 'sss';
+    array_push($evParams, $like, $like, $like);
+}
+if ($saFilters['e_status'] === 'closed') {
+    $evWhere[] = "e.status IN ('closed','completed')";
+} elseif ($saFilters['e_status'] !== '') {
+    $evWhere[] = 'e.status = ?';
+    $evTypes .= 's';
+    $evParams[] = $saFilters['e_status'];
+}
+if ($saFilters['e_dept'] === 'ALL') {
+    // School-wide events only.
+    $evWhere[] = "(e.department IS NULL OR TRIM(e.department) IN ('', 'ALL'))";
+} elseif ($saFilters['e_dept'] !== '') {
+    // Single department, or a multi-department JSON list that contains it.
+    $evWhere[] = '(TRIM(e.department) = ? OR e.department LIKE ?)';
+    $evTypes .= 'ss';
+    $evParams[] = $saFilters['e_dept'];
+    $evParams[] = '%' . json_encode($saFilters['e_dept'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . '%';
+}
+$evWhereSql = $evWhere !== [] ? ' WHERE ' . implode(' AND ', $evWhere) : '';
+
+$evCnt = $conn->prepare('SELECT COUNT(*) AS c FROM events e JOIN users u ON e.organizer_id = u.id' . $evWhereSql);
+if ($evCnt) {
+    if ($evTypes !== '') {
+        $evCnt->bind_param($evTypes, ...$evParams);
     }
+    $evCnt->execute();
+    $eventsTotal = (int) ($evCnt->get_result()->fetch_assoc()['c'] ?? 0);
+    $evCnt->close();
 }
 $eventsTotalPages = max(1, (int) ceil($eventsTotal / $eventsPerPage));
 if ($eventsPage > $eventsTotalPages) {
@@ -153,11 +235,13 @@ $stmtAll = $conn->prepare("
            u.name AS organizer_name, u.email AS organizer_email
     FROM events e
     JOIN users u ON e.organizer_id = u.id
+    {$evWhereSql}
     ORDER BY e.date DESC, e.id DESC
     LIMIT ? OFFSET ?
 ");
 if ($stmtAll) {
-    $stmtAll->bind_param("ii", $eventsPerPage, $eventsOffset);
+    $evPageParams = array_merge($evParams, [$eventsPerPage, $eventsOffset]);
+    $stmtAll->bind_param($evTypes . 'ii', ...$evPageParams);
     $stmtAll->execute();
     $resAll = $stmtAll->get_result();
     if ($resAll) {
@@ -169,7 +253,21 @@ if ($stmtAll) {
 }
 eventify_events_attach_schedule_dates($conn, $allEvents);
 
-$saCalendarEvents = eventify_events_to_fullcalendar_list($allEvents, static function ($e) {
+// Calendar shows every event, not only the current table page.
+$saCalendarSource = [];
+$resCal = $conn->query("
+    SELECT e.id, e.title, e.description, e.date, e.end_date, e.start_time, e.end_time, e.location, e.department, e.status, e.created_at,
+           u.name AS organizer_name, u.email AS organizer_email
+    FROM events e
+    JOIN users u ON e.organizer_id = u.id
+    ORDER BY e.date DESC, e.id DESC
+");
+if ($resCal) {
+    $saCalendarSource = $resCal->fetch_all(MYSQLI_ASSOC);
+}
+eventify_events_attach_schedule_dates($conn, $saCalendarSource);
+
+$saCalendarEvents = eventify_events_to_fullcalendar_list($saCalendarSource, static function ($e) {
     return [
         'location' => $e['location'] ?? '',
         'department' => $e['department'] ?? 'ALL',
@@ -201,9 +299,10 @@ if ($resLogs = $conn->query($sqlLogs)) {
 
 // Quick stats for dashboard cards
 
-// User counts by role and status
+// User counts by role and status — counted across the whole users table
+// (not just the 20 rows on the current page, and not affected by table filters).
 $userStats = [
-    'total'        => (int)$usersTotal,
+    'total'        => 0,
     'super_admin'  => 0,
     'admin'        => 0,
     'organizer'    => 0,
@@ -212,17 +311,86 @@ $userStats = [
     'active'       => 0,
     'inactive'     => 0,
 ];
-foreach ($users as $u) {
-    $role = $u['role'] ?? '';
-    $status = $u['status'] ?? '';
-    if (isset($userStats[$role])) {
-        $userStats[$role]++;
+if ($resRoleCounts = $conn->query("SELECT role, status, COUNT(*) AS cnt FROM users GROUP BY role, status")) {
+    while ($row = $resRoleCounts->fetch_assoc()) {
+        $cnt = (int) ($row['cnt'] ?? 0);
+        $role = (string) ($row['role'] ?? '');
+        $status = (string) ($row['status'] ?? '');
+        $userStats['total'] += $cnt;
+        if (isset($userStats[$role]) && $role !== 'total') {
+            $userStats[$role] += $cnt;
+        }
+        if ($status === 'active') {
+            $userStats['active'] += $cnt;
+        } elseif ($status === 'inactive') {
+            $userStats['inactive'] += $cnt;
+        }
     }
-    if ($status === 'active') {
-        $userStats['active']++;
-    } elseif ($status === 'inactive') {
-        $userStats['inactive']++;
+}
+
+// Account security: locked (5 wrong passwords), pending activation, and active accounts with failed attempts.
+$saLockedAccounts = [];
+$saPendingAccounts = [];
+$saAtRiskAccounts = [];
+if ($resSec = $conn->query("
+    SELECT id, name, email, role, status, COALESCE(failed_attempts, 0) AS failed_attempts
+    FROM users
+    WHERE role <> 'super_admin'
+      AND (status = 'inactive' OR COALESCE(failed_attempts, 0) > 0)
+    ORDER BY failed_attempts DESC, id DESC
+    LIMIT 300
+")) {
+    while ($row = $resSec->fetch_assoc()) {
+        $fa = (int) $row['failed_attempts'];
+        if (($row['status'] ?? '') === 'inactive') {
+            if ($fa > 0) {
+                $saLockedAccounts[] = $row;
+            } else {
+                $saPendingAccounts[] = $row;
+            }
+        } elseif ($fa > 0) {
+            $saAtRiskAccounts[] = $row;
+        }
     }
+}
+
+// Security-related audit entries (sign-ins, OTP reactivation, password resets, role and status changes).
+$saSecurityLogs = [];
+if ($resSecLogs = $conn->query("
+    SELECT l.action, l.actor_role, l.details, l.created_at, u.name AS actor_name
+    FROM activity_logs l
+    LEFT JOIN users u ON l.actor_id = u.id
+    WHERE l.action LIKE 'login%'
+       OR l.action LIKE 'password%'
+       OR l.action LIKE 'account%'
+       OR l.action LIKE '%role%'
+       OR l.action LIKE '%unlock%'
+       OR l.action LIKE '%activat%'
+       OR l.action LIKE '%delete_user%'
+       OR l.action LIKE 'user_%'
+    ORDER BY l.created_at DESC
+    LIMIT 30
+")) {
+    $saSecurityLogs = $resSecLogs->fetch_all(MYSQLI_ASSOC);
+}
+
+// Successful sign-ins for the last 7 days (chart).
+$saLoginTrend = ['labels' => [], 'counts' => []];
+$loginByDay = [];
+if ($resTrend = $conn->query("
+    SELECT DATE(created_at) AS d, COUNT(*) AS cnt
+    FROM activity_logs
+    WHERE action = 'login_success' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+    GROUP BY DATE(created_at)
+")) {
+    while ($row = $resTrend->fetch_assoc()) {
+        $loginByDay[(string) $row['d']] = (int) $row['cnt'];
+    }
+}
+for ($i = 6; $i >= 0; $i--) {
+    $day = date('Y-m-d', strtotime("-{$i} days"));
+    $saLoginTrend['labels'][] = date('M j', strtotime($day));
+    $saLoginTrend['counts'][] = $loginByDay[$day] ?? 0;
 }
 
 $saUserRoleLabels = ['Super Admin', 'Admin', 'Organizer', 'Multimedia', 'Student'];
@@ -298,17 +466,6 @@ try {
     );
 } catch (Throwable $e) {
     $activities_hub_events = [];
-}
-
-// Ticket revenue rollup (all paid events; demo/simulate excluded from totals).
-try {
-    $revenueOverview = eventify_revenue_overview($conn);
-} catch (Throwable $e) {
-    $revenueOverview = [
-        'total_revenue' => 0.0, 'tickets_sold' => 0, 'orders_paid' => 0,
-        'pending_amount' => 0.0, 'pending_orders' => 0, 'demo_revenue' => 0.0,
-        'demo_orders' => 0, 'by_method' => [], 'by_event' => [],
-    ];
 }
 
 $viewFile = __DIR__ . '/../../super_admin/dashboardsuperadmin.php';

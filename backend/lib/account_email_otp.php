@@ -23,7 +23,7 @@ function eventify_account_otp_table_ready(mysqli $conn): bool
     $sql = "
         CREATE TABLE IF NOT EXISTS account_email_otps (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            purpose ENUM('register','reactivate') NOT NULL,
+            purpose ENUM('register','reactivate','reset') NOT NULL,
             email VARCHAR(120) NOT NULL,
             user_id INT NULL,
             otp_hash VARCHAR(255) NOT NULL,
@@ -58,6 +58,17 @@ function eventify_account_otp_table_ready(mysqli $conn): bool
     }
 
     try {
+        // Forgot-password codes use purpose 'reset'.
+        $colPurpose = $conn->query("SHOW COLUMNS FROM account_email_otps LIKE 'purpose'");
+        $purposeRow = $colPurpose ? $colPurpose->fetch_assoc() : null;
+        if ($purposeRow && stripos((string) ($purposeRow['Type'] ?? ''), "'reset'") === false) {
+            $conn->query("ALTER TABLE account_email_otps MODIFY purpose ENUM('register','reactivate','reset') NOT NULL");
+        }
+    } catch (Throwable $e) {
+        // Keep OTP available even if migration query fails.
+    }
+
+    try {
         $colUser = $conn->query("SHOW COLUMNS FROM users LIKE 'must_change_password'");
         $hasMustChange = (bool)($colUser && $colUser->num_rows > 0);
         if (!$hasMustChange) {
@@ -70,9 +81,15 @@ function eventify_account_otp_table_ready(mysqli $conn): bool
     return $ready;
 }
 
+/** Allowed OTP purposes: register, reactivate, reset (forgot password). */
+function eventify_account_otp_purpose(string $purpose): string
+{
+    return in_array($purpose, ['reactivate', 'reset'], true) ? $purpose : 'register';
+}
+
 function eventify_can_issue_email_otp(mysqli $conn, string $purpose, string $email): array
 {
-    $purpose = $purpose === 'reactivate' ? 'reactivate' : 'register';
+    $purpose = eventify_account_otp_purpose($purpose);
     $email = eventify_normalize_email($email);
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return ['ok' => false, 'error' => 'Invalid email'];
@@ -120,7 +137,7 @@ function eventify_create_email_otp(mysqli $conn, string $purpose, string $email,
         return ['ok' => false, 'error' => 'OTP table unavailable'];
     }
 
-    $purpose = $purpose === 'reactivate' ? 'reactivate' : 'register';
+    $purpose = eventify_account_otp_purpose($purpose);
     $email = eventify_normalize_email($email);
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return ['ok' => false, 'error' => 'Invalid email'];
@@ -167,7 +184,13 @@ function eventify_create_email_otp(mysqli $conn, string $purpose, string $email,
 
 function eventify_send_account_otp_email(string $email, string $purpose, string $code): array
 {
-    $purposeText = $purpose === 'reactivate' ? 'reactivate your EVENTIFY account' : 'finish creating your EVENTIFY account';
+    if ($purpose === 'reset') {
+        $purposeText = 'reset your EVENTIFY password';
+    } elseif ($purpose === 'reactivate') {
+        $purposeText = 'reactivate your EVENTIFY account';
+    } else {
+        $purposeText = 'finish creating your EVENTIFY account';
+    }
     $code = preg_replace('/\D+/', '', $code) ?? $code;
     $subject = 'Your EVENTIFY verification code is ' . $code;
     $body = "Hi,\n\n"

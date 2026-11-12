@@ -29,7 +29,7 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `account_email_otps` (
   `id` int(11) NOT NULL,
-  `purpose` enum('register','reactivate') NOT NULL,
+  `purpose` enum('register','reactivate','reset') NOT NULL,
   `email` varchar(120) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
   `otp_hash` varchar(255) NOT NULL,
@@ -554,7 +554,7 @@ CREATE TABLE `events` (
   `start_time` time DEFAULT NULL,
   `end_time` time DEFAULT NULL,
   `end_time_na` tinyint(1) NOT NULL DEFAULT 0,
-  `location` varchar(100) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
   `organizer_id` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `status` enum('pending','active','rejected','closed') DEFAULT 'pending',

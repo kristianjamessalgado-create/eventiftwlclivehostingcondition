@@ -103,7 +103,8 @@ try {
 } catch (Throwable $e) {
     $attRows = [];
 }
-if ($attRows === []) {
+// Last-resort list only when NO filter is chosen; with a filter, an empty list is the right answer.
+if ($attRows === [] && empty($attFilters['has_filter'])) {
     try {
         $profileCols = function_exists('eventify_attendance_report_user_select_sql')
             ? eventify_attendance_report_user_select_sql($conn)

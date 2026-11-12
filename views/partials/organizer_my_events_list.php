@@ -63,6 +63,7 @@ if ($eventsSorted !== []) {
                         <a class="btn btn-sm btn-outline-info" href="<?= BASE_URL ?>/event_attendance.php?id=<?= urlencode($event['id']) ?>" target="_blank" rel="noopener" title="View who attended"><i class="fas fa-clipboard-check"></i> Attendance</a>
                         <?php if ($evIsLive): ?>
                             <a class="btn btn-sm btn-outline-success" href="<?= BASE_URL ?>/manage_event_tickets.php?event_id=<?= urlencode($event['id']) ?>" title="Ticket sales"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                            <a class="btn btn-sm btn-success" href="<?= BASE_URL ?>/scan_tickets.php?event_id=<?= urlencode($event['id']) ?>" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera"></i> Scan tickets</a>
                         <?php else: ?>
                             <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/manage_event_tickets.php?event_id=<?= urlencode($event['id']) ?>" title="View ticket history"><i class="fas fa-ticket-alt"></i> Tickets</a>
                         <?php endif; ?>

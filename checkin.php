@@ -35,6 +35,7 @@ if ($token === '') {
     $error = 'Invalid or missing check-in link. Please scan the event QR code again.';
 } else {
     // Load event by check-in token; ensure token exists (generate for old events)
+    eventify_events_ensure_geo_columns($conn);
     $eventHasGeo = false;
     try {
         $geoColCheck = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");
@@ -105,6 +106,10 @@ if ($token === '') {
             $geo_required = eventify_event_checkin_geo_required($event);
             $rsvp_required = eventify_event_checkin_rsvp_required($event);
         }
+        // Lets the phone show "you are X m away" before submitting (server checks again).
+        $checkinVenue = eventify_event_checkin_venue_coords($event);
+        $checkin_venue_lat = $checkinVenue['lat'];
+        $checkin_venue_lng = $checkinVenue['lng'];
     }
 }
 
@@ -483,6 +488,9 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                         <i class="fas fa-check-double me-2"></i><?= htmlspecialchars($scan_state['label'] ?? 'Confirm my attendance') ?>
                     </button>
                 </form>
+                <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-outline-secondary w-100 mt-2" target="_top">
+                    <i class="fas fa-arrow-left me-2"></i>Back to dashboard
+                </a>
                 <?php elseif ($scan_state && !empty($scan_state['message'])): ?>
                 <div class="alert alert-secondary small mb-0"><?= htmlspecialchars($scan_state['message']) ?></div>
                 <?php endif; ?>

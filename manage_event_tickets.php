@@ -157,6 +157,16 @@ $shell_body_class = 'eventify-standalone' . (in_array($role, ['admin', 'super_ad
 include __DIR__ . '/views/partials/standalone_page_shell_open.php';
 ?>
 
+    <div class="efs-card">
+        <div class="efs-card__body d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <strong><i class="fas fa-qrcode me-1"></i> Entrance check</strong>
+                <div class="small text-muted">Scan students' ticket QR codes with your camera to confirm they are real and admit them.</div>
+            </div>
+            <a href="<?= BASE_URL ?>/scan_tickets.php?event_id=<?= $eventId ?>" class="btn btn-success fw-semibold"><i class="fas fa-camera me-1"></i>Scan tickets</a>
+        </div>
+    </div>
+
     <?php if (!$eventLive): ?>
         <div class="alert alert-secondary">
             <i class="fas fa-lock me-1"></i>
@@ -254,7 +264,7 @@ include __DIR__ . '/views/partials/standalone_page_shell_open.php';
                             <button type="button" class="btn btn-link btn-sm ps-0" data-bs-toggle="collapse" data-bs-target="#<?= $editId ?>">Edit</button>
                             <?php endif; ?>
                             <?php if ($eventLive || !$isActive): ?>
-                            <form method="post" class="d-inline" onsubmit="return confirm('<?= $isActive ? 'Deactivate this ticket type? Students will no longer see it in the shop.' : 'Reactivate this ticket type?' ?>');">
+                            <form method="post" class="d-inline" data-efy-confirm="<?= $isActive ? 'Deactivate this ticket type? Students will no longer see it in the shop.' : 'Reactivate this ticket type?' ?>" data-efy-confirm-title="<?= $isActive ? 'Deactivate ticket type' : 'Reactivate ticket type' ?>" data-efy-confirm-label="<?= $isActive ? 'Deactivate' : 'Reactivate' ?>" data-efy-confirm-type="<?= $isActive ? 'danger' : 'info' ?>">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="event_id" value="<?= $eventId ?>">
                                 <input type="hidden" name="action" value="toggle_type">
@@ -391,14 +401,14 @@ include __DIR__ . '/views/partials/standalone_page_shell_open.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end text-nowrap">
-                                        <form method="post" class="d-inline" onsubmit="return confirm('Confirm payment and issue tickets?');">
+                                        <form method="post" class="d-inline" data-efy-confirm="Confirm payment and issue tickets?" data-efy-confirm-title="Confirm payment" data-efy-confirm-label="Confirm" data-efy-confirm-type="info">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="event_id" value="<?= $eventId ?>">
                                             <input type="hidden" name="action" value="confirm_order">
                                             <input type="hidden" name="order_id" value="<?= $oid ?>">
                                             <button type="submit" class="btn btn-sm btn-success"<?= $hasRef ? '' : ' title="Student has not submitted a GCash reference yet"' ?>>Confirm</button>
                                         </form>
-                                        <form method="post" class="d-inline" onsubmit="return confirm('Reject this order?');">
+                                        <form method="post" class="d-inline" data-efy-confirm="Reject this order?" data-efy-confirm-title="Reject order" data-efy-confirm-label="Reject" data-efy-confirm-type="danger">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="event_id" value="<?= $eventId ?>">
                                             <input type="hidden" name="action" value="reject_order">

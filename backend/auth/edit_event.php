@@ -71,6 +71,8 @@ $eventsHasCheckinTimes = function_exists('eventify_events_ensure_checkin_times')
 $eventsHasAttendanceMode = function_exists('eventify_events_ensure_attendance_mode')
     && eventify_events_ensure_attendance_mode($conn);
 eventify_event_schedule_dates_ensure_table($conn);
+require_once __DIR__ . '/../lib/event_checkin_security.php';
+$eventsHasGeo = eventify_events_ensure_geo_columns($conn);
 
 // Fetch event — must be owned by this user (organizer or admin who assigned it to themselves)
 $selectCols = 'id, title, description, date, location, department, status, organizer_id, start_time, end_time';
@@ -88,6 +90,9 @@ if ($eventsHasMaxCapacity) {
 }
 if ($eventsHasEndTimeNa) {
     $selectCols .= ', end_time_na';
+}
+if ($eventsHasGeo) {
+    $selectCols .= ', latitude, longitude';
 }
 if (function_exists('eventify_events_ensure_target_sections')) {
     eventify_events_ensure_target_sections($conn);
@@ -289,7 +294,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if (empty($title)) {
+    // Map pin: optional on edit (empty keeps the saved pin).
+    $editLat = null;
+    $editLng = null;
+    $editGeoError = '';
+    $latRaw = trim((string) ($_POST['event_latitude'] ?? ''));
+    $lngRaw = trim((string) ($_POST['event_longitude'] ?? ''));
+    if ($eventsHasGeo && ($latRaw !== '' || $lngRaw !== '')) {
+        if (!is_numeric($latRaw) || !is_numeric($lngRaw)
+            || (float) $latRaw < -90 || (float) $latRaw > 90
+            || (float) $lngRaw < -180 || (float) $lngRaw > 180) {
+            $editGeoError = 'Invalid map coordinates. Pick the venue on the map again.';
+        } else {
+            $editLat = (float) $latRaw;
+            $editLng = (float) $lngRaw;
+        }
+    }
+
+    if ($editGeoError !== '') {
+        $error = $editGeoError;
+    } elseif (empty($title)) {
         $error = "Title is required.";
     } elseif (empty($date)) {
         $error = "Click at least one day on the calendar for your event.";
@@ -583,6 +607,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $upNa->close();
                                 }
                             }
+                            if ($eventsHasGeo && $editLat !== null && $editLng !== null) {
+                                $upGeo = $conn->prepare('UPDATE events SET latitude = ?, longitude = ? WHERE id = ? AND organizer_id = ?');
+                                if ($upGeo) {
+                                    $upGeo->bind_param('ddii', $editLat, $editLng, $event_id, $session_user_id);
+                                    $upGeo->execute();
+                                    $upGeo->close();
+                                }
+                            }
                             require_once __DIR__ . '/../lib/activity_logger.php';
                             log_activity(
                                 $conn,
@@ -744,6 +776,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $event['end_date']    = $end_date;
     $event['location']    = $location;
     $event['max_capacity'] = $maxCapVal;
+    if ($editLat !== null && $editLng !== null) {
+        $event['latitude'] = $editLat;
+        $event['longitude'] = $editLng;
+    }
     $eventStartTimeValue = $start_time;
     $eventEndTimeValue = $end_time;
     $eventEndTimeNa = $end_time_na;
@@ -823,6 +859,11 @@ $idPrefix = 'edit';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=4">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <style>
+        .event-location-map { height: 280px; border-radius: 8px; border: 1px solid #dadce0; overflow: hidden; z-index: 0; }
+        .event-loc-results { max-height: 160px; overflow-y: auto; border-radius: 8px; z-index: 2; }
+    </style>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1197,6 +1238,27 @@ $idPrefix = 'edit';
 
                 <div class="form-group">
                     <label for="location">Location <span class="required">*</span></label>
+                    <?php if ($eventsHasGeo):
+                        $editPinLat = isset($event['latitude']) && is_numeric($event['latitude']) ? (string) (float) $event['latitude'] : '';
+                        $editPinLng = isset($event['longitude']) && is_numeric($event['longitude']) ? (string) (float) $event['longitude'] : '';
+                    ?>
+                    <p class="text-muted" style="font-size: 13px; margin-bottom: 10px;">
+                        Search, click the map, or use your current location. Students must be near this pin to scan the attendance QR.
+                        <?php if ($editPinLat === ''): ?>
+                            <strong>No pin saved yet</strong> — check-in currently uses the campus location.
+                        <?php endif; ?>
+                    </p>
+                    <input type="hidden" name="event_latitude" id="event_latitude" value="<?= htmlspecialchars($editPinLat) ?>">
+                    <input type="hidden" name="event_longitude" id="event_longitude" value="<?= htmlspecialchars($editPinLng) ?>">
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+                        <input type="search" id="eventLocSearch" class="form-control" style="flex: 1; min-width: 200px;" placeholder="Search place or address" autocomplete="off">
+                        <button type="button" class="btn btn-secondary" id="eventLocSearchBtn" style="white-space: nowrap;">Search</button>
+                        <button type="button" class="btn btn-primary" id="eventLocUseGps" style="white-space: nowrap;"><i class="fas fa-location-crosshairs"></i> Use my location</button>
+                    </div>
+                    <div id="eventLocResults" class="list-group event-loc-results mb-2" style="display: none;"></div>
+                    <div id="eventLocationMap" class="event-location-map mb-2"></div>
+                    <label for="location" style="font-size: 14px; font-weight: 500; margin-bottom: 6px; display: block;">Venue name / address (shown to attendees)</label>
+                    <?php endif; ?>
                     <div class="input-icon">
                         <i class="fas fa-map-marker-alt"></i>
                         <input type="text" id="location" name="location" class="form-control" maxlength="255" required
@@ -1348,7 +1410,36 @@ $idPrefix = 'edit';
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=26"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/eventify_alert_modal.js?v=4"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=27"></script>
+    <?php if ($eventsHasGeo): ?>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+    if (typeof window.L === 'undefined') {
+        document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
+    }
+    </script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=7"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof window.initEventLocationPicker === 'function' && window.L) {
+            window.initEventLocationPicker({
+                mapElId: 'eventLocationMap',
+                latInputId: 'event_latitude',
+                lngInputId: 'event_longitude',
+                addressInputId: 'location',
+                searchInputId: 'eventLocSearch',
+                searchBtnId: 'eventLocSearchBtn',
+                useLocationBtnId: 'eventLocUseGps',
+                resultsElId: 'eventLocResults',
+                geocodeBase: <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>,
+                defaultLat: <?= json_encode(eventify_checkin_campus_coords()['lat']) ?>,
+                defaultLng: <?= json_encode(eventify_checkin_campus_coords()['lng']) ?>
+            });
+        }
+    });
+    </script>
+    <?php endif; ?>
     <script>
     window.__editEventScheduleContext = {
         oldDisplayDates: <?= json_encode(array_values($oldEventDisplayDates), JSON_UNESCAPED_UNICODE) ?>,

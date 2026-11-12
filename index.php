@@ -312,7 +312,7 @@ $landing_past_n = count($publicPastList);
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EVENTIFY</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=36">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/index.css?v=37">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 <style>
@@ -833,6 +833,9 @@ html.eventify-splash-pending body {
                         <i class="fas fa-eye" aria-hidden="true"></i>
                     </button>
                 </div>
+                <div class="auth-forgot-row">
+                    <button type="button" class="auth-link-btn" onclick="openForgotModal({ email: (document.getElementById('loginModalEmail') || {}).value || '' })">Forgot password?</button>
+                </div>
             </div>
             <div class="auth-form-meta">
                 <label class="auth-remember">
@@ -1104,6 +1107,100 @@ html.eventify-splash-pending body {
     <?php include __DIR__ . '/views/partials/auth_page_layout_end.php'; ?>
 </div>
 
+<?php
+$forgotStep = $auth_modal === 'reset' ? 'reset' : 'forgot';
+$forgotAlertType = '';
+$forgotAlertText = '';
+if ($auth_modal === 'forgot' || $auth_modal === 'reset') {
+    if ($auth_error !== '') {
+        $forgotAlertType = 'error';
+        $forgotAlertText = $auth_error;
+    } elseif ($auth_success !== '') {
+        $forgotAlertType = 'success';
+        $forgotAlertText = $auth_success;
+    }
+}
+?>
+<div id="forgotModal" class="modal auth-modal auth-modal--page">
+    <?php
+    $auth_hero_title = 'Reset your password and get back to your events.';
+    $auth_page_close_fn = 'closeForgotModal';
+    include __DIR__ . '/views/partials/auth_page_layout_start.php';
+    ?>
+    <div class="auth-card">
+        <div class="auth-card__head">
+            <span class="auth-card__accent" aria-hidden="true"></span>
+            <div class="auth-card__head-text">
+                <h3 class="auth-card__title" id="forgotModalTitle"><?= $forgotStep === 'reset' ? 'Set a new password' : 'Forgot password' ?></h3>
+                <p class="auth-card__subtitle" id="forgotModalSubtitle"><?= $forgotStep === 'reset'
+                    ? 'Enter the 6-digit code from your email and choose a new password.'
+                    : 'Enter your account email. We will send you a 6-digit code.' ?></p>
+            </div>
+        </div>
+        <div id="forgotModalAlert" class="auth-inline-message<?= $forgotAlertType !== '' ? ' ' . $forgotAlertType : '' ?>" role="alert"<?= $forgotAlertText === '' ? ' style="display:none;"' : '' ?>><?= htmlspecialchars($forgotAlertText) ?></div>
+
+        <form id="forgotRequestForm" action="<?= BASE_URL ?>/backend/auth/forgot_password.php" method="POST" class="auth-form-wrap"<?= $forgotStep === 'reset' ? ' style="display:none;"' : '' ?>>
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="request">
+            <div class="auth-input-wrap">
+                <label class="auth-label sr-only" for="forgotEmail">Email</label>
+                <div class="auth-field-icon">
+                    <i class="fas fa-envelope auth-field-icon__lead" aria-hidden="true"></i>
+                    <input type="email" name="email" id="forgotEmail" class="auth-input" placeholder="Email address" required autocomplete="email" value="<?= htmlspecialchars($verify_email) ?>">
+                </div>
+            </div>
+            <button type="submit" class="auth-btn-primary auth-submit-btn btn-shimmer">Send code</button>
+        </form>
+
+        <form id="forgotResetForm" action="<?= BASE_URL ?>/backend/auth/forgot_password.php" method="POST" class="auth-form-wrap"<?= $forgotStep === 'reset' ? '' : ' style="display:none;"' ?>>
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="reset">
+            <input type="hidden" name="email" id="forgotResetEmail" value="<?= htmlspecialchars($verify_email) ?>">
+            <p class="auth-field-hint">Code sent to <strong id="forgotResetEmailLabel"><?= htmlspecialchars($verify_email) ?></strong>. Check <strong>Spam/Junk</strong> if you don&rsquo;t see it.</p>
+            <div class="auth-input-wrap">
+                <label class="auth-label sr-only" for="forgotOtp">6-digit code</label>
+                <div class="auth-field-icon">
+                    <i class="fas fa-key auth-field-icon__lead" aria-hidden="true"></i>
+                    <input type="text" name="otp_code" id="forgotOtp" class="auth-input" placeholder="6-digit code" required inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code">
+                </div>
+            </div>
+            <div class="auth-input-wrap auth-password-wrap">
+                <label class="auth-label sr-only" for="forgotNewPassword">New password</label>
+                <div class="auth-field-icon auth-field-icon--password">
+                    <i class="fas fa-lock auth-field-icon__lead" aria-hidden="true"></i>
+                    <input type="password" name="new_password" id="forgotNewPassword" class="auth-input" placeholder="New password" required minlength="8" autocomplete="new-password">
+                    <button type="button" class="auth-eye-btn" data-toggle-password="forgotNewPassword" aria-label="Show password" aria-pressed="false">
+                        <i class="fas fa-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <p class="auth-field-hint">At least 8 characters, 1 uppercase letter, and 1 special character.</p>
+            </div>
+            <div class="auth-input-wrap auth-password-wrap">
+                <label class="auth-label sr-only" for="forgotConfirmPassword">Confirm new password</label>
+                <div class="auth-field-icon auth-field-icon--password">
+                    <i class="fas fa-lock auth-field-icon__lead" aria-hidden="true"></i>
+                    <input type="password" name="confirm_password" id="forgotConfirmPassword" class="auth-input" placeholder="Confirm new password" required minlength="8" autocomplete="new-password">
+                    <button type="button" class="auth-eye-btn" data-toggle-password="forgotConfirmPassword" aria-label="Show password" aria-pressed="false">
+                        <i class="fas fa-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="auth-btn-primary auth-submit-btn btn-shimmer">Reset password</button>
+        </form>
+        <form id="forgotResendForm" action="<?= BASE_URL ?>/backend/auth/forgot_password.php" method="POST" class="auth-verify-resend-form mt-2"<?= $forgotStep === 'reset' ? '' : ' style="display:none;"' ?>>
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="request">
+            <input type="hidden" name="email" id="forgotResendEmail" value="<?= htmlspecialchars($verify_email) ?>">
+            <button type="submit" class="auth-btn-secondary auth-verify-resend-btn">Send a new code</button>
+        </form>
+
+        <div class="auth-card__footer">
+            <p><button type="button" class="auth-link-btn" onclick="openLoginModal()">Back to sign in</button></p>
+        </div>
+    </div>
+    <?php include __DIR__ . '/views/partials/auth_page_layout_end.php'; ?>
+</div>
+
 <?php include __DIR__ . '/views/partials/get_started_guide_modal.php'; ?>
 
 <section id="how-it-works" class="reveal-scope">
@@ -1288,6 +1385,6 @@ html.eventify-splash-pending body {
 <!-- JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/index.js?v=27"></script>
+<script src="<?= BASE_URL ?>/assets/js/index.js?v=28"></script>
 </body>
 </html>

@@ -768,6 +768,7 @@ window.__adminClassSections = <?= json_encode(array_values(is_array($dashboardCl
         <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
         <a href="#" id="eventEditLink" class="btn btn-primary">Edit Event</a>
         <a href="#" id="eventTicketsLink" class="btn btn-outline-success" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
+        <a href="#" id="eventScanTicketsLink" class="btn btn-success" style="display:none;" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera me-1"></i> Scan tickets</a>
         <a href="#" id="eventQrLink" class="btn btn-outline-secondary" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> Show QR</a>
         <a href="#" id="eventAttendanceLink" class="btn btn-outline-info" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
         <button type="button" class="btn btn-outline-secondary" id="organizerMarkEndedBtn" style="display:none;" data-eventify-event-id=""><i class="fas fa-flag-checkered me-1"></i>End event</button>
@@ -820,9 +821,9 @@ if (typeof window.L === 'undefined') {
 <script>
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=6"></script>
-    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=26"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
+    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=27"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
 
 <!-- Dashboard Scripts -->
@@ -834,7 +835,7 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=35"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=37"></script>
 
 <script>
 window.EVENTIFY_GEOCODE_URL = window.EVENTIFY_GEOCODE_URL || <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;

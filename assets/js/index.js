@@ -507,6 +507,27 @@ document.addEventListener('DOMContentLoaded', function () {
     bindEyeToggle(toggleLoginModalPassword, loginModalPassword);
     bindEyeToggle(toggleRegisterModalPassword, registerModalPassword);
     bindEyeToggle(toggleRegisterModalConfirmPassword, registerModalConfirmPassword);
+    document.querySelectorAll('[data-toggle-password]').forEach(function (btn) {
+        bindEyeToggle(btn, document.getElementById(btn.getAttribute('data-toggle-password')));
+    });
+
+    var forgotResetForm = document.getElementById('forgotResetForm');
+    if (forgotResetForm) {
+        forgotResetForm.addEventListener('submit', function (e) {
+            var p = String((document.getElementById('forgotNewPassword') || {}).value || '');
+            var c = String((document.getElementById('forgotConfirmPassword') || {}).value || '');
+            var msg = '';
+            if (!/[A-Z]/.test(p) || !/[\W_]/.test(p) || p.length < 8) {
+                msg = 'Password must contain at least 1 uppercase, 1 special character, and 8 characters.';
+            } else if (p !== c) {
+                msg = 'New passwords do not match.';
+            }
+            if (msg) {
+                e.preventDefault();
+                setForgotAlert('error', msg);
+            }
+        });
+    }
 
     function updateRegisterPasswordFeedback() {
         if (!registerModalPassword || !registerModalConfirmPassword) return;
@@ -749,6 +770,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 error: window.AUTH_ERROR || '',
                 success: window.AUTH_SUCCESS || ''
             });
+        } else if (window.AUTH_MODAL === 'forgot' || window.AUTH_MODAL === 'reset') {
+            openForgotModal({ step: window.AUTH_MODAL, keepAlert: true });
         } else if (window.AUTH_MODAL === 'login') {
             openLoginModal();
             var loginServerEl = document.getElementById('loginModalMessageServer');
@@ -941,7 +964,7 @@ function setAuthModalBodyLock(open) {
 }
 
 function resetAuthModalScroll() {
-    ['loginModal', 'registerModal', 'verifyModal'].forEach(function (id) {
+    ['loginModal', 'registerModal', 'verifyModal', 'forgotModal'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) {
             el.scrollTop = 0;
@@ -975,10 +998,74 @@ function initRememberEmail() {
     });
 }
 
+function hideForgotModal() {
+    var forgotModal = document.getElementById('forgotModal');
+    if (forgotModal) forgotModal.style.display = 'none';
+}
+
+function setForgotAlert(type, text) {
+    var alertEl = document.getElementById('forgotModalAlert');
+    if (!alertEl) return;
+    alertEl.classList.remove('error', 'success');
+    if (!text) {
+        alertEl.textContent = '';
+        alertEl.style.display = 'none';
+        return;
+    }
+    alertEl.textContent = text;
+    alertEl.classList.add(type);
+    alertEl.style.display = 'block';
+}
+
+/** opts.step: 'forgot' (enter email) or 'reset' (code + new password). */
+function openForgotModal(opts) {
+    opts = opts || {};
+    var step = opts.step === 'reset' ? 'reset' : 'forgot';
+    ['loginModal', 'registerModal', 'verifyModal'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    closeAllLegalModals();
+
+    var requestForm = document.getElementById('forgotRequestForm');
+    var resetForm = document.getElementById('forgotResetForm');
+    var resendForm = document.getElementById('forgotResendForm');
+    var title = document.getElementById('forgotModalTitle');
+    var subtitle = document.getElementById('forgotModalSubtitle');
+    var emailInput = document.getElementById('forgotEmail');
+    if (requestForm) requestForm.style.display = step === 'forgot' ? '' : 'none';
+    if (resetForm) resetForm.style.display = step === 'reset' ? '' : 'none';
+    if (resendForm) resendForm.style.display = step === 'reset' ? '' : 'none';
+    if (title) title.textContent = step === 'reset' ? 'Set a new password' : 'Forgot password';
+    if (subtitle) {
+        subtitle.textContent = step === 'reset'
+            ? 'Enter the 6-digit code from your email and choose a new password.'
+            : 'Enter your account email. We will send you a 6-digit code.';
+    }
+    if (emailInput && opts.email) emailInput.value = String(opts.email).trim();
+    if (!opts.keepAlert) setForgotAlert('', '');
+
+    var forgotModal = document.getElementById('forgotModal');
+    if (forgotModal) forgotModal.style.display = 'flex';
+    setAuthModalBodyLock(true);
+    resetAuthModalScroll();
+    window.setTimeout(function () {
+        var focusEl = document.getElementById(step === 'reset' ? 'forgotOtp' : 'forgotEmail');
+        if (focusEl) focusEl.focus();
+    }, 80);
+}
+
+function closeForgotModal() {
+    hideForgotModal();
+    closeAllLegalModals();
+    setAuthModalBodyLock(false);
+}
+
 function openLoginModal() {
     var modal = document.getElementById('loginModal');
     var registerModal = document.getElementById('registerModal');
     var verifyModal = document.getElementById('verifyModal');
+    hideForgotModal();
     closeAllLegalModals();
     if (registerModal) registerModal.style.display = 'none';
     if (verifyModal) verifyModal.style.display = 'none';
@@ -997,6 +1084,7 @@ function openRegisterModal() {
     var modal = document.getElementById('loginModal');
     var registerModal = document.getElementById('registerModal');
     var verifyModal = document.getElementById('verifyModal');
+    hideForgotModal();
     closeAllLegalModals();
     if (modal) modal.style.display = 'none';
     if (verifyModal) verifyModal.style.display = 'none';
@@ -1184,6 +1272,7 @@ function openVerifyModal(opts) {
     var resendPurpose = document.getElementById('verifyResendPurpose');
     var resendEmail = document.getElementById('verifyResendEmail');
     var purpose = opts.purpose === 'reactivate' ? 'reactivate' : 'register';
+    hideForgotModal();
     closeAllLegalModals();
     if (modal) modal.style.display = 'none';
     if (registerModal) registerModal.style.display = 'none';
@@ -1265,6 +1354,7 @@ window.onclick = function(e) {
     if (e.target === modal) closeLoginModal();
     if (e.target === registerModal) closeRegisterModal();
     if (e.target === verifyModal) closeVerifyModal();
+    if (e.target === document.getElementById('forgotModal')) closeForgotModal();
     if (e.target === legalPrivacy) closeLegalPrivacyModal();
     if (e.target === legalTerms) closeLegalTermsModal();
 };

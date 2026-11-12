@@ -7,6 +7,15 @@
     var pickerState = {};
     var escClickTimers = {};
 
+    /** Branded modal (eventify_alert_modal.js) instead of the browser alert() pop-up. */
+    function eventifyScheduleNotice(message) {
+        if (typeof global.eventifyAlert === 'function') {
+            global.eventifyAlert(message, { title: 'Event schedule', type: 'warning' });
+            return;
+        }
+        global.alert(message);
+    }
+
     function pad2(n) {
         return n < 10 ? '0' + n : String(n);
     }
@@ -1089,12 +1098,12 @@
         var startEl = document.getElementById(startDateInputId(prefix));
 
         if (count < 1) {
-            alert('Click at least one day on the calendar for your event.');
+            eventifyScheduleNotice('Click at least one day on the calendar for your event.');
             return false;
         }
 
         if (mode === 'single' && count !== 1) {
-            alert('Single-day events must have exactly one day selected. Click one day only.');
+            eventifyScheduleNotice('Single-day events must have exactly one day selected. Click one day only.');
             return false;
         }
 
@@ -1104,24 +1113,24 @@
 
         if (mode === 'range') {
             if (count < 2) {
-                alert('For a date range, click a start day and then an end day on the calendar.');
+                eventifyScheduleNotice('For a date range, click a start day and then an end day on the calendar.');
                 return false;
             }
             var sorted = state.dates.slice().sort();
             var filled = datesBetweenInclusive(sorted[0], sorted[sorted.length - 1]);
             if (filled.length !== count) {
-                alert('Date range must be consecutive days. Use “Specific days” to skip days in between.');
+                eventifyScheduleNotice('Date range must be consecutive days. Use “Specific days” to skip days in between.');
                 return false;
             }
         }
 
         if (!startEl || !startEl.value) {
-            alert('Please select an event day on the calendar.');
+            eventifyScheduleNotice('Please select an event day on the calendar.');
             return false;
         }
 
         if (startEl.value < todayYmd()) {
-            alert('Event days cannot be in the past.');
+            eventifyScheduleNotice('Event days cannot be in the past.');
             return false;
         }
 
@@ -1136,7 +1145,7 @@
                 var bulkStartEl = timePanel.querySelector('.js-bulk-start-time');
                 var bulkStartVal = bulkStartEl ? bulkStartEl.value : '';
                 if (!bulkStartVal) {
-                    alert('Please set a start time for all event days.');
+                    eventifyScheduleNotice('Please set a start time for all event days.');
                     if (bulkStartEl) {
                         bulkStartEl.focus();
                     }
@@ -1144,7 +1153,7 @@
                 }
                 var bulkEndVal = readEndPickerValues(timePanel, '.js-bulk-end-mode', '.js-bulk-end-time');
                 if (bulkEndVal.mode === 'time' && bulkEndVal.time && bulkEndVal.time <= bulkStartVal) {
-                    alert('End time must be after start time.');
+                    eventifyScheduleNotice('End time must be after start time.');
                     return false;
                 }
                 syncGlobalStartTimeFromDays(prefix);
@@ -1170,11 +1179,11 @@
                 }
             });
             if (missingStart) {
-                alert('Please set a start time for each event day.');
+                eventifyScheduleNotice('Please set a start time for each event day.');
                 return false;
             }
             if (badRange) {
-                alert('End time must be after start time on each event day.');
+                eventifyScheduleNotice('End time must be after start time on each event day.');
                 return false;
             }
             syncGlobalStartTimeFromDays(prefix);
@@ -1182,18 +1191,18 @@
         }
 
         if (!startTime) {
-            alert('Please select an event start time.');
+            eventifyScheduleNotice('Please select an event start time.');
             return false;
         }
 
         var lastEnd = state.lastDayEnd || { mode: 'none', time: '' };
         if (lastEnd.mode === 'time') {
             if (!lastEnd.time) {
-                alert('Please enter an end time or choose Not applicable.');
+                eventifyScheduleNotice('Please enter an end time or choose Not applicable.');
                 return false;
             }
             if (mode === 'single' && startTime && lastEnd.time <= startTime) {
-                alert('End time must be after start time on the same day.');
+                eventifyScheduleNotice('End time must be after start time on the same day.');
                 return false;
             }
         }

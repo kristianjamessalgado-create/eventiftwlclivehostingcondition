@@ -319,7 +319,7 @@ $conn->close();
                     <?php endif; ?>
                     <?php if (!$geo_required): ?>
                         <div class="alert alert-info small mb-3 mb-md-2">
-                            <i class="fas fa-qrcode me-1"></i> QR check-in is enabled. Distance check is off for testing — tap <strong>Confirm check-in</strong> after scanning.
+                            <i class="fas fa-qrcode me-1"></i> Tap <strong>Confirm check-in</strong> to record your attendance.
                         </div>
                     <?php endif; ?>
                     <p class="small text-muted mb-2"><?php if ($scan_state && ($scan_state['phase'] ?? '') === 'time_out'): ?>
@@ -332,7 +332,7 @@ $conn->close();
                     <?php if ($scan_state && !empty($scan_state['message']) && !empty($scan_state['can_submit'])): ?>
                         <p class="small text-muted mb-2"><?= htmlspecialchars($scan_state['message']) ?></p>
                     <?php endif; ?>
-                    <p class="small checkin-geo-status mb-2" id="checkinGeoStatus" role="status" aria-live="polite"></p>
+                    <div id="checkinGeoStatus"></div>
                     <form method="POST" id="checkinForm">
                         <?= csrf_field() ?>
                         <input type="hidden" name="confirm" value="1">
@@ -345,6 +345,9 @@ $conn->close();
                             <i class="fas fa-check me-1"></i><?= htmlspecialchars($scan_state['label'] ?? 'Confirm check-in') ?>
                         </button>
                     </form>
+                    <a href="<?= htmlspecialchars($dashboardUrl) ?>" class="btn btn-outline-secondary w-100 mt-2" target="_top">
+                        <i class="fas fa-arrow-left me-1"></i>Back to dashboard
+                    </a>
                     <?php include __DIR__ . '/views/partials/checkin_security_script.php'; ?>
                 <?php endif; ?>
             <?php endif; ?>

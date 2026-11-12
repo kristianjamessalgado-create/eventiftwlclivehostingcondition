@@ -25,6 +25,7 @@ $shell_page_title = $shell_page_title ?? $shell_title;
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= htmlspecialchars(BASE_URL) ?>/assets/css/eventify_standalone.css?v=1">
+    <link rel="stylesheet" href="<?= htmlspecialchars(BASE_URL) ?>/assets/css/eventify_modal.css?v=10">
 </head>
 <body class="<?= htmlspecialchars($shell_body_class) ?>">
 <header class="efs-topbar">

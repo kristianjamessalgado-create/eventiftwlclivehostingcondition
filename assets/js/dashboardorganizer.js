@@ -22,6 +22,11 @@ function eventifyApplyCalendarDayHeaderFormat() {
     } catch (e) { /* ignore */ }
 }
 
+/** True while an event can still be attended (used to decide whether show-up % is final). */
+function eventIsLiveForAttendance(props) {
+    return props && props.event_is_live === true;
+}
+
 /** Sidebar filter: event row matches selected department (supports JSON multi-audience). */
 function eventifyEventDeptMatchesFilter(eventDept, filterDept) {
     const f = String(filterDept || 'ALL').trim();
@@ -205,13 +210,49 @@ function eventifyFillAndShowEventDetails(event, options) {
     if (attWrap) {
         const showAtt = EVENTIFY_ROLE === 'admin' || EVENTIFY_ROLE === 'super_admin';
         if (showAtt) {
-            const rsvp = parseInt(props.rsvp_count, 10);
-            const checkin = parseInt(props.checkin_count, 10);
+            const num = function (v) {
+                const n = parseInt(v, 10);
+                return Number.isFinite(n) ? n : 0;
+            };
+            const rsvp = num(props.rsvp_count);
+            const checkin = num(props.checkin_count);
+            const walkins = num(props.walkin_count);
+            const rsvpPresent = num(props.rsvp_present_count);
+            const mode = String(props.registration_mode || 'rsvp').toLowerCase();
+            const isOpenEntry = mode === 'open';
+            const rsvpLabelEl = document.getElementById('eventRsvpLabel');
+            const noteEl = document.getElementById('eventAttendanceNote');
+            const plural = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+
+            // Open entry has no sign-up: the first box shows walk-ins instead of RSVPs.
             if (rsvpEl) {
-                rsvpEl.textContent = String(Number.isFinite(rsvp) ? rsvp : 0);
+                rsvpEl.textContent = String(isOpenEntry ? walkins : rsvp);
+            }
+            if (rsvpLabelEl) {
+                rsvpLabelEl.textContent = isOpenEntry ? 'Walk-ins'
+                    : (mode === 'paid_ticket' ? 'Ticket holders' : 'RSVPs');
             }
             if (checkinEl) {
-                checkinEl.textContent = String(Number.isFinite(checkin) ? checkin : 0);
+                checkinEl.textContent = String(checkin);
+            }
+            if (noteEl) {
+                const notes = [];
+                if (isOpenEntry) {
+                    notes.push('Open entry: no RSVP needed. Walk-ins are students who scanned the venue QR.');
+                    if (rsvp > 0) {
+                        notes.push(plural(rsvp, 'student', 'students') + ' signed up before this became open entry.');
+                    }
+                } else {
+                    if (walkins > 0) {
+                        notes.push('Checked in includes ' + plural(walkins, 'walk-in', 'walk-ins') + ' without an RSVP.');
+                    }
+                    if (!eventIsLiveForAttendance(props) && rsvp > 0) {
+                        notes.push('Show-up: ' + Math.round((rsvpPresent / rsvp) * 100) + '% of RSVPs attended ('
+                            + plural(rsvp - rsvpPresent, 'no-show', 'no-shows') + ').');
+                    }
+                }
+                noteEl.textContent = notes.join(' ');
+                noteEl.hidden = notes.length === 0;
             }
             attWrap.style.display = 'block';
         } else {
@@ -349,10 +390,11 @@ function eventifyFillAndShowEventDetails(event, options) {
                 msg.textContent = 'Permanently delete "' + (event.title || 'this event') + '"? Use this for duplicate bookings or mistakes.';
             }
             if (impactEl) {
-                const rsvp = Number(props.rsvp_count || 0);
+                // Every registration row is deleted (RSVPs and walk-ins), so count them all.
+                const records = Number(props.registration_total != null ? props.registration_total : (props.rsvp_count || 0));
                 const checkins = Number(props.checkin_count || 0);
                 const bits = [];
-                bits.push(rsvp > 0 ? (rsvp + ' RSVP record' + (rsvp === 1 ? '' : 's') + ' will be removed') : 'No RSVPs on file');
+                bits.push(records > 0 ? (records + ' sign-up / attendance record' + (records === 1 ? '' : 's') + ' will be removed') : 'No sign-ups on file');
                 bits.push(checkins > 0 ? (checkins + ' check-in record' + (checkins === 1 ? '' : 's') + ' will be removed') : 'No check-ins on file');
                 bits.push('Prefer Close if you only want it off the live calendar');
                 impactEl.innerHTML = bits.map(function (b) { return '<li>' + b + '</li>'; }).join('');
@@ -464,6 +506,16 @@ function eventifyFillAndShowEventDetails(event, options) {
             }
         } else {
             ticketsLink.style.display = 'none';
+        }
+    }
+
+    const scanTicketsLink = document.getElementById('eventScanTicketsLink');
+    if (scanTicketsLink) {
+        if (realEventId && eventIsLive) {
+            scanTicketsLink.href = BASE_URL + '/scan_tickets.php?event_id=' + realEventId;
+            scanTicketsLink.style.display = 'inline-block';
+        } else {
+            scanTicketsLink.style.display = 'none';
         }
     }
 
@@ -821,7 +873,7 @@ function initCreateEventDeptAudience() {
                     type: 'warning'
                 });
             } else {
-                alert('Choose All departments, pick at least one college, or select a class section.');
+                window.alert('Choose All departments, pick at least one college, or select a class section.');
             }
         }
     });

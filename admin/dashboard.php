@@ -49,8 +49,9 @@ $upcomingAdminEvents = $upcomingAdminEvents ?? [];
 $upcomingAdminCount  = isset($upcomingAdminCount) ? (int) $upcomingAdminCount : count($upcomingAdminEvents);
 $admin_notifications = $admin_notifications ?? [];
 $admin_unread_count = isset($admin_unread_count) ? (int) $admin_unread_count : 0;
-$feedbackStats = $feedbackStats ?? ['total_feedback' => 0, 'avg_rating' => 0, 'rating_labels' => ['1â˜…','2â˜…','3â˜…','4â˜…','5â˜…'], 'rating_counts' => [0,0,0,0,0]];
+$feedbackStats = $feedbackStats ?? ['total_feedback' => 0, 'avg_rating' => 0, 'rating_labels' => ['1★','2★','3★','4★','5★'], 'rating_counts' => [0,0,0,0,0]];
 $analyticsParticipation = $analyticsParticipation ?? ['registrations' => 0, 'checkins' => 0, 'show_up_rate' => null];
+$adminAnalytics = $adminAnalytics ?? [];
 $admin_feedback_list = $admin_feedback_list ?? [];
 $admin_evaluation_averages = $admin_evaluation_averages ?? [];
 $success       = $_GET['success'] ?? '';
@@ -111,6 +112,9 @@ $revenueOverview = $revenueOverview ?? [
 ];
 $rsvpCountByEvent = $rsvpCountByEvent ?? [];
 $checkinCountByEvent = $checkinCountByEvent ?? [];
+$rsvpPresentByEvent = $rsvpPresentByEvent ?? [];
+$walkinCountByEvent = $walkinCountByEvent ?? [];
+$registrationTotalByEvent = $registrationTotalByEvent ?? [];
 $adminDepartmentChoices = function_exists('eventify_allowed_departments') ? eventify_allowed_departments() : ['ALL'];
 $showPendingReminder = ((int) ($adminSettings['notify_pending_reminder'] ?? 1) === 1) && $stalePendingCount > 0;
 $adminSettings = $adminSettings ?? [
@@ -142,13 +146,13 @@ $peerLabel = 'Organizers';
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=3">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=10">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=12">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=39">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=40">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=3">
@@ -238,7 +242,7 @@ $peerLabel = 'Organizers';
     <div class="sidebar-backdrop" id="adminSidebarBackdrop" aria-hidden="true"></div>
 
     <!-- Left Sidebar -->
-    <aside class="sidebar eventify-kb-scroll-zone" id="adminSidebar" tabindex="0" aria-label="Admin sidebar â€” use arrow keys to scroll">
+    <aside class="sidebar eventify-kb-scroll-zone" id="adminSidebar" tabindex="0" aria-label="Admin sidebar — use arrow keys to scroll">
         <button type="button" class="sidebar-close-mobile" id="adminSidebarClose" aria-label="Close menu"><i class="fas fa-times"></i></button>
 
         <!-- Admin Profile Card -->
@@ -375,7 +379,7 @@ $peerLabel = 'Organizers';
     </aside>
 
     <!-- Main Content Area -->
-    <main class="main-content eventify-kb-scroll-zone" tabindex="0" aria-label="Admin dashboard â€” use arrow keys to scroll">
+    <main class="main-content eventify-kb-scroll-zone" tabindex="0" aria-label="Admin dashboard — use arrow keys to scroll">
         <?php if ($success): ?>
             <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
                 <?= htmlspecialchars($success) ?>
@@ -971,13 +975,14 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
             <div class="adm-event-attendance-summary__grid">
               <div class="adm-event-attendance-summary__item">
                 <span class="adm-event-attendance-summary__value" id="eventRsvpCount">0</span>
-                <span class="adm-event-attendance-summary__label">RSVPs</span>
+                <span class="adm-event-attendance-summary__label" id="eventRsvpLabel">RSVPs</span>
               </div>
               <div class="adm-event-attendance-summary__item">
                 <span class="adm-event-attendance-summary__value" id="eventCheckinCount">0</span>
                 <span class="adm-event-attendance-summary__label">Checked in</span>
               </div>
             </div>
+            <p class="efy-form-help mt-1 mb-0" id="eventAttendanceNote" hidden></p>
           </div>
           <p class="efy-detail-row mt-2 mb-1"><strong>Description</strong></p>
           <p id="eventDescription" class="efy-form-help mb-0"></p>
@@ -988,6 +993,7 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
         <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
         <a href="#" id="eventEditLink" class="btn btn-outline-primary btn-sm" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</a>
         <a href="#" id="eventTicketsLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
+        <a href="#" id="eventScanTicketsLink" class="btn btn-success btn-sm" style="display:none;" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera me-1"></i> Scan tickets</a>
         <a href="#" id="eventQrLink" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> QR</a>
         <a href="#" id="eventAttendanceLink" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
         <a href="#" id="eventRsvpLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-user-check me-1"></i> RSVP</a>
@@ -1154,7 +1160,8 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
 <script>
 window.__adminChartDept = <?= json_encode(['labels' => $chartDeptLabels, 'counts' => $chartDeptCounts]) ?>;
 window.__adminChartStatus = <?= json_encode(['labels' => $chartStatusLabels, 'counts' => $chartStatusCounts]) ?>;
-window.__adminChartFeedback = <?= json_encode(['labels' => $feedbackStats['rating_labels'] ?? ['1â˜…','2â˜…','3â˜…','4â˜…','5â˜…'], 'counts' => $feedbackStats['rating_counts'] ?? [0,0,0,0,0]]) ?>;
+window.__adminAnalytics = <?= json_encode(['trend' => $adminAnalytics['trend'] ?? null, 'weekday' => $adminAnalytics['weekday'] ?? null, 'hours' => $adminAnalytics['hours'] ?? null], JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+window.__adminChartFeedback = <?= json_encode(['labels' => $feedbackStats['rating_labels'] ?? ['1★','2★','3★','4★','5★'], 'counts' => $feedbackStats['rating_counts'] ?? [0,0,0,0,0]]) ?>;
 </script>
 <script>
 window.BASE_URL = <?= json_encode(BASE_URL) ?>;
@@ -1173,7 +1180,7 @@ window.__staffMessengerPeers = <?= json_encode($peersList, JSON_HEX_TAG | JSON_H
 window.__staffMessengerInitialWith = <?= (int) $initialWith ?>;
 window.__staffMessengerPeerLabel = <?= json_encode($peerLabel) ?>;
 window.__staffMessengerError = <?= json_encode($messaging_error) ?>;
-window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events, function ($e) use ($rsvpCountByEvent, $checkinCountByEvent, $session_user_id) {
+window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events, function ($e) use ($rsvpCountByEvent, $checkinCountByEvent, $rsvpPresentByEvent, $walkinCountByEvent, $registrationTotalByEvent, $session_user_id) {
     $eid = (int) ($e['id'] ?? 0);
     $ownerId = (int) ($e['organizer_id'] ?? 0);
     $ownedByMe = $ownerId > 0 && $ownerId === (int) $session_user_id;
@@ -1201,6 +1208,9 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
         'event_is_live'       => function_exists('eventify_event_is_live') ? eventify_event_is_live($e) : (($e['status'] ?? '') === 'active'),
         'rsvp_count'          => (int) ($rsvpCountByEvent[$eid] ?? 0),
         'checkin_count'       => (int) ($checkinCountByEvent[$eid] ?? 0),
+        'rsvp_present_count'  => (int) ($rsvpPresentByEvent[$eid] ?? 0),
+        'walkin_count'        => (int) ($walkinCountByEvent[$eid] ?? 0),
+        'registration_total'  => (int) ($registrationTotalByEvent[$eid] ?? 0),
         'admin_can_close'     => strtolower((string) ($e['status'] ?? '')) === 'active',
         'admin_can_delete'    => true,
     ], function_exists('eventify_event_calendar_status_props') ? eventify_event_calendar_status_props($e) : []);
@@ -1219,19 +1229,19 @@ if (typeof window.L === 'undefined') {
 window.BASE_URL = window.BASE_URL || <?= json_encode(BASE_URL) ?>;
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=26"></script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=27"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=11"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=35"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=37"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=30"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=33"></script>
 </body>
 </html>

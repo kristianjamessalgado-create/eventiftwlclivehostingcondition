@@ -22,7 +22,12 @@ if (!defined('EVENTIFY_SUPERADMIN_DASHBOARD_LOADED')) {
 $superadmin_name = $superadmin_name ?? 'Super Admin';
 $users = $users ?? [];
 $logs = $logs ?? [];
-$pendingEvents = $pendingEvents ?? [];
+$saLockedAccounts = $saLockedAccounts ?? [];
+$saPendingAccounts = $saPendingAccounts ?? [];
+$saAtRiskAccounts = $saAtRiskAccounts ?? [];
+$saSecurityLogs = $saSecurityLogs ?? [];
+$saLoginTrend = $saLoginTrend ?? ['labels' => [], 'counts' => []];
+$saAttentionCount = count($saLockedAccounts) + count($saPendingAccounts);
 $allEvents = $allEvents ?? [];
 $saUserRoleLabels = $saUserRoleLabels ?? ['Super Admin', 'Admin', 'Organizer', 'Multimedia', 'Student'];
 $saUserRoleCounts = $saUserRoleCounts ?? [0,0,0,0,0];
@@ -47,7 +52,8 @@ $error = $error ?? '';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=7">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=10">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css">
 </head>
 <body class="sa-dashboard">
@@ -112,9 +118,14 @@ $error = $error ?? '';
                     type="button"
                     class="sa-nav-btn mb-1"
                     data-bs-toggle="modal"
-                    data-bs-target="#pendingEventsModal"
+                    data-bs-target="#securityModal"
                 >
-                    <span><i class="fas fa-calendar-check me-2"></i>Pending Events</span>
+                    <span>
+                        <i class="fas fa-user-lock me-2"></i>Account Security
+                        <?php if ((int) ($saAttentionCount ?? 0) > 0): ?>
+                            <span class="badge rounded-pill bg-danger ms-1"><?= (int) $saAttentionCount ?></span>
+                        <?php endif; ?>
+                    </span>
                     <i class="fas fa-chevron-right"></i>
                 </button>
                 <button
@@ -133,15 +144,6 @@ $error = $error ?? '';
                     data-bs-target="#calendarModal"
                 >
                     <span><i class="fas fa-calendar-alt me-2"></i>Calendar</span>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                <button
-                    type="button"
-                    class="sa-nav-btn mb-1"
-                    data-bs-toggle="modal"
-                    data-bs-target="#revenueModal"
-                >
-                    <span><i class="fas fa-peso-sign me-2"></i>Revenue</span>
                     <i class="fas fa-chevron-right"></i>
                 </button>
                 <?php
@@ -198,22 +200,31 @@ $error = $error ?? '';
                     </div>
                     <div class="sa-stat-card">
                         <div class="sa-stat-label">
-                            <i class="fas fa-user-tie"></i><span>Admins &amp; Organizers</span>
+                            <i class="fas fa-user-tie"></i><span>Staff Accounts</span>
                         </div>
                         <div class="sa-stat-value">
-                            <?= (int)(($userStats['admin'] ?? 0) + ($userStats['organizer'] ?? 0)) ?>
+                            <?= (int)(($userStats['admin'] ?? 0) + ($userStats['organizer'] ?? 0) + ($userStats['multimedia'] ?? 0)) ?>
                         </div>
                         <div class="sa-stat-sub">
-                            Admin: <?= (int)($userStats['admin'] ?? 0) ?> · Organizer: <?= (int)($userStats['organizer'] ?? 0) ?>
+                            Admin: <?= (int)($userStats['admin'] ?? 0) ?> · Organizer: <?= (int)($userStats['organizer'] ?? 0) ?> · Multimedia: <?= (int)($userStats['multimedia'] ?? 0) ?>
                         </div>
                     </div>
+                    <button type="button" class="sa-stat-card sa-stat-card--action text-start<?= (int) ($saAttentionCount ?? 0) > 0 ? ' sa-stat-card--alert' : '' ?>" data-bs-toggle="modal" data-bs-target="#securityModal">
+                        <div class="sa-stat-label">
+                            <i class="fas fa-user-lock"></i><span>Needs Attention</span>
+                        </div>
+                        <div class="sa-stat-value"><?= (int) ($saAttentionCount ?? 0) ?></div>
+                        <div class="sa-stat-sub">
+                            Locked: <?= count($saLockedAccounts ?? []) ?> · Pending: <?= count($saPendingAccounts ?? []) ?> · Wrong-password warnings: <?= count($saAtRiskAccounts ?? []) ?>
+                        </div>
+                    </button>
                     <div class="sa-stat-card">
                         <div class="sa-stat-label">
                             <i class="fas fa-calendar-alt"></i><span>Events</span>
                         </div>
                         <div class="sa-stat-value"><?= (int)($eventStats['total'] ?? 0) ?></div>
                         <div class="sa-stat-sub">
-                            Pending: <?= (int)($eventStats['pending'] ?? 0) ?> · Active: <?= (int)($eventStats['active'] ?? 0) ?>
+                            Active: <?= (int)($eventStats['active'] ?? 0) ?> · Pending: <?= (int)($eventStats['pending'] ?? 0) ?> · Closed: <?= (int)($eventStats['closed'] ?? 0) ?>
                         </div>
                     </div>
                     <div class="sa-stat-card">
@@ -235,6 +246,10 @@ $error = $error ?? '';
                         <div class="sa-chart-title">Events by status</div>
                         <div class="sa-chart-wrap"><canvas id="saEventsChart"></canvas></div>
                     </div>
+                    <div class="sa-chart-card">
+                        <div class="sa-chart-title">Sign-ins · last 7 days</div>
+                        <div class="sa-chart-wrap"><canvas id="saLoginsChart"></canvas></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -252,35 +267,41 @@ $error = $error ?? '';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <?php
+                $saF = $saFilters ?? ['u_q' => '', 'u_role' => '', 'u_status' => '', 'e_q' => '', 'e_status' => '', 'e_dept' => ''];
+                $saUserFilterOn = ($saF['u_q'] . $saF['u_role'] . $saF['u_status']) !== '';
+                ?>
+                <form method="get" action="<?= BASE_URL ?>/backend/super_admin/dashboardsuperadmin.php" class="mb-3 d-flex flex-wrap gap-2 align-items-center js-sa-filter-form">
+                    <input type="hidden" name="open_modal" value="users">
+                    <input type="hidden" name="events_page" value="<?= (int) $eventsPage ?>">
+                    <?php foreach (['e_q', 'e_status', 'e_dept'] as $keep): if ($saF[$keep] !== ''): ?>
+                        <input type="hidden" name="<?= $keep ?>" value="<?= htmlspecialchars($saF[$keep]) ?>">
+                    <?php endif; endforeach; ?>
+                    <input type="search" id="userSearch" name="u_q" value="<?= htmlspecialchars($saF['u_q']) ?>"
+                           class="form-control form-control-sm" placeholder="Search name or email" style="max-width: 220px;">
+                    <select id="roleFilter" name="u_role" class="form-select form-select-sm" style="max-width: 180px;">
+                        <?php foreach (['' => 'All Roles', 'super_admin' => 'Super Admin', 'admin' => 'Admin', 'organizer' => 'Organizer', 'multimedia' => 'Multimedia', 'student' => 'Student'] as $v => $l): ?>
+                            <option value="<?= $v ?>"<?= $saF['u_role'] === $v ? ' selected' : '' ?>><?= $l ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <select id="statusFilter" name="u_status" class="form-select form-select-sm" style="max-width: 180px;">
+                        <?php foreach (['' => 'All Status', 'active' => 'Active', 'pending' => 'Pending approval', 'locked' => 'Locked', 'inactive' => 'Inactive (pending + locked)'] as $v => $l): ?>
+                            <option value="<?= $v ?>"<?= $saF['u_status'] === $v ? ' selected' : '' ?>><?= $l ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fas fa-search me-1"></i>Search</button>
+                    <?php if ($saUserFilterOn): ?>
+                        <a class="btn btn-sm btn-link" href="<?= htmlspecialchars(eventify_sa_url(['u_q' => '', 'u_role' => '', 'u_status' => '', 'users_page' => 1, 'open_modal' => 'users'])) ?>">Clear</a>
+                    <?php endif; ?>
+                    <small class="text-muted ms-auto"><?= (int) $usersTotal ?> user<?= (int) $usersTotal === 1 ? '' : 's' ?><?= $saUserFilterOn ? ' match' : '' ?></small>
+                </form>
                 <div class="sa-table-wrap sa-modal-table-panel">
                     <?php if (empty($users)): ?>
                         <div class="sa-empty">
                             <i class="fas fa-users-slash"></i>
-                            <p class="mb-0">No users found.</p>
+                            <p class="mb-0"><?= $saUserFilterOn ? 'No users match your search or filters.' : 'No users found.' ?></p>
                         </div>
                     <?php else: ?>
-                        <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-                            <input
-                                type="text"
-                                id="userSearch"
-                                class="form-control form-control-sm"
-                                placeholder="Search name or email"
-                                style="max-width: 220px;"
-                            >
-                            <select id="roleFilter" class="form-select form-select-sm" style="max-width: 180px;">
-                                <option value="">All Roles</option>
-                                <option value="super_admin">Super Admin</option>
-                                <option value="admin">Admin</option>
-                                <option value="organizer">Organizer</option>
-                                <option value="multimedia">Multimedia</option>
-                                <option value="student">Student</option>
-                            </select>
-                            <select id="statusFilter" class="form-select form-select-sm" style="max-width: 160px;">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </div>
                         <div class="sa-modal-table-scroll" tabindex="0" aria-label="Scroll users table horizontally">
                         <table class="sa-table" id="usersTable">
                             <thead>
@@ -328,7 +349,8 @@ $error = $error ?? '';
                                                         </option>
                                                     <?php endforeach; ?>
                                                 </select>
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary js-confirm-submit" title="Change role"
+                                                        data-confirm-message="Change the role of <?= htmlspecialchars((string) $user['name'], ENT_QUOTES, 'UTF-8') ?>? Their access changes the next time they load a page.">
                                                     <i class="fas fa-rotate"></i>
                                                 </button>
                                             </form>
@@ -425,8 +447,8 @@ $error = $error ?? '';
                             <small class="text-muted">Page <?= (int)$usersPage ?> of <?= (int)$usersTotalPages ?></small>
                             <div class="btn-group btn-group-sm">
                                 <?php $prevUsersPage = max(1, $usersPage - 1); $nextUsersPage = min($usersTotalPages, $usersPage + 1); ?>
-                                <a class="btn btn-outline-secondary <?= $usersPage <= 1 ? 'disabled' : '' ?>" href="<?= BASE_URL ?>/backend/super_admin/dashboardsuperadmin.php?users_page=<?= $prevUsersPage ?>&events_page=<?= (int)$eventsPage ?>&open_modal=users">Prev</a>
-                                <a class="btn btn-outline-secondary <?= $usersPage >= $usersTotalPages ? 'disabled' : '' ?>" href="<?= BASE_URL ?>/backend/super_admin/dashboardsuperadmin.php?users_page=<?= $nextUsersPage ?>&events_page=<?= (int)$eventsPage ?>&open_modal=users">Next</a>
+                                <a class="btn btn-outline-secondary <?= $usersPage <= 1 ? 'disabled' : '' ?>" href="<?= htmlspecialchars(eventify_sa_url(['users_page' => $prevUsersPage, 'open_modal' => 'users'])) ?>">Prev</a>
+                                <a class="btn btn-outline-secondary <?= $usersPage >= $usersTotalPages ? 'disabled' : '' ?>" href="<?= htmlspecialchars(eventify_sa_url(['users_page' => $nextUsersPage, 'open_modal' => 'users'])) ?>">Next</a>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -436,113 +458,135 @@ $error = $error ?? '';
     </div>
 </div>
 
-<!-- Revenue Modal -->
-<div class="modal fade" id="revenueModal" tabindex="-1" aria-labelledby="revenueModalLabel" aria-hidden="true">
+<!-- Account Security Modal -->
+<div class="modal fade" id="securityModal" tabindex="-1" aria-labelledby="securityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="revenueModalLabel">
-                    <i class="fas fa-peso-sign me-2"></i>Ticket Revenue
+                <h5 class="modal-title" id="securityModalLabel">
+                    <i class="fas fa-user-lock me-2"></i>Account Security
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <?php
-                  $rev = $revenueOverview ?? [
-                      'total_revenue' => 0.0, 'tickets_sold' => 0, 'orders_paid' => 0,
-                      'pending_amount' => 0.0, 'pending_orders' => 0, 'demo_revenue' => 0.0,
-                      'demo_orders' => 0, 'by_method' => [], 'by_event' => [],
-                  ];
-                  $fmtPeso = static function ($n): string { return '₱' . number_format((float) $n, 2); };
+                $saRoleLabel = static function ($r) {
+                    return ucwords(str_replace('_', ' ', (string) $r));
+                };
                 ?>
-                <p class="text-muted small mb-3">Actual money collected from paid events. Demo / test payments are excluded from the totals and shown separately.</p>
-
-                <div class="row g-2 mb-3">
-                  <div class="col-6 col-md-3">
-                    <div class="border rounded p-3 h-100">
-                      <div class="text-muted small">Total revenue</div>
-                      <div class="h4 mb-0 fw-bold text-success"><?= htmlspecialchars($fmtPeso($rev['total_revenue'])) ?></div>
-                    </div>
-                  </div>
-                  <div class="col-6 col-md-3">
-                    <div class="border rounded p-3 h-100">
-                      <div class="text-muted small">Tickets sold</div>
-                      <div class="h4 mb-0"><?= (int) $rev['tickets_sold'] ?></div>
-                    </div>
-                  </div>
-                  <div class="col-6 col-md-3">
-                    <div class="border rounded p-3 h-100">
-                      <div class="text-muted small">Paid orders</div>
-                      <div class="h4 mb-0"><?= (int) $rev['orders_paid'] ?></div>
-                    </div>
-                  </div>
-                  <div class="col-6 col-md-3">
-                    <div class="border rounded p-3 h-100">
-                      <div class="text-muted small">Pending payment</div>
-                      <div class="h6 mb-0"><?= htmlspecialchars($fmtPeso($rev['pending_amount'])) ?> <span class="text-muted">(<?= (int) $rev['pending_orders'] ?>)</span></div>
-                    </div>
-                  </div>
+                <h6 class="fw-bold mb-2"><i class="fas fa-lock me-2 text-danger"></i>Locked accounts <span class="text-muted fw-normal small">(5 wrong passwords — needs OTP reactivation)</span></h6>
+                <div class="sa-table-wrap sa-modal-table-panel mb-4">
+                    <?php if (empty($saLockedAccounts)): ?>
+                        <div class="sa-empty"><i class="fas fa-shield-halved"></i><p class="mb-0">No locked accounts.</p></div>
+                    <?php else: ?>
+                        <div class="sa-modal-table-scroll" tabindex="0">
+                        <table class="sa-table">
+                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Failed attempts</th><th>Action</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($saLockedAccounts as $acc): ?>
+                                <tr>
+                                    <td><strong><?= htmlspecialchars((string) $acc['name']) ?></strong></td>
+                                    <td><?= htmlspecialchars((string) $acc['email']) ?></td>
+                                    <td><?= htmlspecialchars($saRoleLabel($acc['role'] ?? '')) ?></td>
+                                    <td><span class="sa-badge sa-badge-locked"><?= (int) $acc['failed_attempts'] ?></span></td>
+                                    <td>
+                                        <button type="button" class="sa-btn-react"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#reactivateConfirmModal"
+                                                data-user-id="<?= (int) $acc['id'] ?>"
+                                                data-open-modal="security">
+                                            <i class="fas fa-paper-plane me-1"></i> Send Reactivation OTP
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
-                <?php if ((float) $rev['demo_revenue'] > 0 || (int) $rev['demo_orders'] > 0): ?>
-                  <div class="alert alert-warning py-2 small mb-3">
-                    <i class="fas fa-flask me-1"></i> Demo / test payments (excluded from revenue): <strong><?= htmlspecialchars($fmtPeso($rev['demo_revenue'])) ?></strong> across <?= (int) $rev['demo_orders'] ?> order(s).
-                  </div>
-                <?php endif; ?>
-
-                <div class="row g-3">
-                  <div class="col-12 col-lg-5">
-                    <h6 class="small text-uppercase text-muted">By payment method</h6>
-                    <?php $realMethods = array_filter($rev['by_method'], static function ($m) { return ($m['method'] ?? '') !== 'simulate'; }); ?>
-                    <?php if (!empty($realMethods)): ?>
-                      <div class="sa-table-wrap">
-                        <table class="sa-table">
-                          <thead><tr><th>Method</th><th>Orders</th><th>Revenue</th></tr></thead>
-                          <tbody>
-                            <?php foreach ($realMethods as $m): ?>
-                              <tr>
-                                <td><?= htmlspecialchars((string) $m['label']) ?></td>
-                                <td><?= (int) $m['orders'] ?></td>
-                                <td><?= htmlspecialchars($fmtPeso($m['revenue'])) ?></td>
-                              </tr>
-                            <?php endforeach; ?>
-                          </tbody>
-                        </table>
-                      </div>
+                <h6 class="fw-bold mb-2"><i class="fas fa-user-clock me-2 text-warning"></i>Pending account activations</h6>
+                <div class="sa-table-wrap sa-modal-table-panel mb-4">
+                    <?php if (empty($saPendingAccounts)): ?>
+                        <div class="sa-empty"><i class="fas fa-user-check"></i><p class="mb-0">No accounts waiting for activation.</p></div>
                     <?php else: ?>
-                      <p class="text-muted small mb-0">No real payments yet.</p>
-                    <?php endif; ?>
-                  </div>
-
-                  <div class="col-12 col-lg-7">
-                    <h6 class="small text-uppercase text-muted">By event</h6>
-                    <?php if (!empty($rev['by_event'])): ?>
-                      <div class="sa-table-wrap">
+                        <div class="sa-modal-table-scroll" tabindex="0">
                         <table class="sa-table">
-                          <thead><tr><th>Event</th><th>Organizer</th><th>Orders</th><th>Revenue</th></tr></thead>
-                          <tbody>
-                            <?php foreach ($rev['by_event'] as $ev): ?>
-                              <?php
-                                $evDate = trim((string) ($ev['date'] ?? ''));
-                                $evDateLabel = $evDate !== '' && ($ts = strtotime($evDate)) ? date('M j, Y', $ts) : '';
-                              ?>
-                              <tr>
-                                <td>
-                                  <strong><?= htmlspecialchars((string) $ev['title']) ?></strong>
-                                  <?php if ($evDateLabel !== ''): ?><div class="text-muted" style="font-size:.72rem;"><?= htmlspecialchars($evDateLabel) ?></div><?php endif; ?>
-                                </td>
-                                <td><?= htmlspecialchars((string) ($ev['organizer_name'] ?? '—')) ?></td>
-                                <td><?= (int) $ev['orders'] ?></td>
-                                <td><?= htmlspecialchars($fmtPeso($ev['revenue'])) ?></td>
-                              </tr>
+                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($saPendingAccounts as $acc): ?>
+                                <tr>
+                                    <td><strong><?= htmlspecialchars((string) $acc['name']) ?></strong></td>
+                                    <td><?= htmlspecialchars((string) $acc['email']) ?></td>
+                                    <td><?= htmlspecialchars($saRoleLabel($acc['role'] ?? '')) ?></td>
+                                    <td>
+                                        <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/activate_user.php" class="d-inline">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="id" value="<?= (int) $acc['id'] ?>">
+                                            <input type="hidden" name="open_modal" value="security">
+                                            <button type="button" class="sa-btn-react js-confirm-submit" data-confirm-message="Activate the account of <?= htmlspecialchars((string) $acc['name'], ENT_QUOTES, 'UTF-8') ?>?">
+                                                <i class="fas fa-user-check me-1"></i> Activate
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
-                          </tbody>
+                            </tbody>
                         </table>
-                      </div>
-                    <?php else: ?>
-                      <p class="text-muted small mb-0">No paid-event revenue yet.</p>
+                        </div>
                     <?php endif; ?>
-                  </div>
+                </div>
+
+                <h6 class="fw-bold mb-2"><i class="fas fa-triangle-exclamation me-2 text-warning"></i>Wrong-password warnings <span class="text-muted fw-normal small">(active accounts with recent failed sign-ins)</span></h6>
+                <div class="sa-table-wrap sa-modal-table-panel mb-4">
+                    <?php if (empty($saAtRiskAccounts)): ?>
+                        <div class="sa-empty"><i class="fas fa-circle-check"></i><p class="mb-0">No active account has failed sign-in attempts.</p></div>
+                    <?php else: ?>
+                        <div class="sa-modal-table-scroll" tabindex="0">
+                        <table class="sa-table">
+                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Failed attempts</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($saAtRiskAccounts as $acc): ?>
+                                <tr>
+                                    <td><strong><?= htmlspecialchars((string) $acc['name']) ?></strong></td>
+                                    <td><?= htmlspecialchars((string) $acc['email']) ?></td>
+                                    <td><?= htmlspecialchars($saRoleLabel($acc['role'] ?? '')) ?></td>
+                                    <td><?= (int) $acc['failed_attempts'] ?> of 5</td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <h6 class="fw-bold mb-2"><i class="fas fa-fingerprint me-2"></i>Recent security events</h6>
+                <div class="sa-table-wrap sa-modal-table-panel">
+                    <?php if (empty($saSecurityLogs)): ?>
+                        <div class="sa-empty"><i class="fas fa-clipboard-check"></i><p class="mb-0">No security events recorded yet.</p></div>
+                    <?php else: ?>
+                        <div class="sa-modal-table-scroll" tabindex="0">
+                        <table class="sa-table">
+                            <thead><tr><th>When</th><th>Actor</th><th>Event</th><th>Details</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($saSecurityLogs as $log): ?>
+                                <tr>
+                                    <td><span class="text-muted small"><?= htmlspecialchars(date('Y-m-d H:i', strtotime($log['created_at'] ?? 'now'))) ?></span></td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($log['actor_name'] ?? 'System') ?></strong>
+                                        <?php if (!empty($log['actor_role'])): ?>
+                                            <div class="small text-muted"><?= htmlspecialchars($saRoleLabel($log['actor_role'])) ?></div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border"><?= htmlspecialchars(str_replace('_', ' ', $log['action'] ?? '')) ?></span></td>
+                                    <td><span class="small"><?= htmlspecialchars($log['details'] ?? '') ?></span></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -626,110 +670,6 @@ $error = $error ?? '';
     </div>
 </div>
 
-<!-- Pending Events Modal -->
-<div class="modal fade" id="pendingEventsModal" tabindex="-1" aria-labelledby="pendingEventsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="pendingEventsModalLabel">
-                    <i class="fas fa-calendar-check me-2"></i>Pending Event Approvals
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="sa-table-wrap sa-modal-table-panel">
-                    <?php if (empty($pendingEvents)): ?>
-                        <div class="sa-empty">
-                            <i class="fas fa-calendar-times"></i>
-                            <p class="mb-0">No events are currently waiting for approval.</p>
-                        </div>
-                    <?php else: ?>
-                        <div class="sa-modal-table-scroll" tabindex="0" aria-label="Scroll pending events table horizontally">
-                        <table class="sa-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Event</th>
-                                    <th>Date &amp; Location</th>
-                                    <th>Organizer</th>
-                                    <th>Department</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($pendingEvents as $event): ?>
-                                    <tr>
-                                        <td><span class="text-muted">#<?= (int)$event['id'] ?></span></td>
-                                        <td>
-                                            <strong><?= htmlspecialchars($event['title'] ?? 'Untitled') ?></strong>
-                                            <?php if (!empty($event['description'])): ?>
-                                                <div class="text-muted small mt-1">
-                                                    <?= nl2br(htmlspecialchars(mb_strimwidth($event['description'], 0, 120, '...'))) ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <div class="small">
-                                                <i class="fas fa-calendar-day me-1 text-primary"></i>
-                                                <?= htmlspecialchars($event['date'] ?? 'TBA') ?>
-                                            </div>
-                                            <div class="small mt-1">
-                                                <i class="fas fa-location-dot me-1 text-secondary"></i>
-                                                <?= htmlspecialchars($event['location'] ?? 'TBA') ?>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="small fw-semibold">
-                                                <i class="fas fa-user me-1 text-secondary"></i>
-                                                <?= htmlspecialchars($event['organizer_name'] ?? 'Unknown') ?>
-                                            </div>
-                                            <?php if (!empty($event['organizer_email'])): ?>
-                                                <div class="small text-muted">
-                                                    <?= htmlspecialchars($event['organizer_email']) ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <span class="sa-badge sa-badge-dept">
-                                                <?= htmlspecialchars(($event['department'] ?? 'ALL') === 'ALL' ? 'All Departments' : ($event['department'] ?? 'ALL')) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="sa-badge sa-badge-pending">
-                                                <i class="fas fa-hourglass-half me-1"></i> Pending
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="sa-actions">
-                                                <a href="<?= BASE_URL ?>/event_attendance.php?id=<?= (int)$event['id'] ?>" class="sa-btn sa-btn-outline btn btn-sm" target="_blank" rel="noopener" title="View who attended"><i class="fas fa-clipboard-check me-1"></i>Attendance</a>
-                                                <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/update_event_status.php" class="d-inline">
-                                                    <?= csrf_field() ?>
-                                                    <input type="hidden" name="event_id" value="<?= (int)$event['id'] ?>">
-                                                    <input type="hidden" name="action" value="approve">
-                                                    <input type="hidden" name="return_to" value="dashboard">
-                                                    <input type="hidden" name="open_modal" value="pending">
-                                                    <button type="submit" class="sa-btn-approve">
-                                                        <i class="fas fa-check"></i> Approve
-                                                    </button>
-                                                </form>
-                                                <button type="button" class="sa-btn-reject" data-bs-toggle="modal" data-bs-target="#rejectEventModal" data-event-id="<?= (int)$event['id'] ?>" data-event-title="<?= htmlspecialchars($event['title'] ?? '') ?>" data-return-to="dashboard" data-open-modal="pending">
-                                                    <i class="fas fa-times"></i> Reject
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- All Events Modal (Event Management) -->
 <div class="modal fade" id="allEventsModal" tabindex="-1" aria-labelledby="allEventsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
@@ -741,37 +681,54 @@ $error = $error ?? '';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-                    <input type="text" id="eventSearch" class="form-control form-control-sm" placeholder="Search title or location" style="max-width: 220px;">
-                    <select id="allEventsStatusFilter" class="form-select form-select-sm" style="max-width: 160px;">
-                        <option value="">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="active">Active</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="closed">Closed</option>
-                        <option value="completed">Completed</option>
+                <?php
+                $saF = $saFilters ?? ['u_q' => '', 'u_role' => '', 'u_status' => '', 'e_q' => '', 'e_status' => '', 'e_dept' => ''];
+                $saEventFilterOn = ($saF['e_q'] . $saF['e_status'] . $saF['e_dept']) !== '';
+                $saDeptOptions = [
+                    '' => 'Any department',
+                    'ALL' => 'School-wide events only',
+                    'High school department' => 'High School Department',
+                    'College of Communication, Information and Technology' => 'CCIT',
+                    'College of Accountancy and Business' => 'CAB',
+                    'School of Law and Political Science' => 'SLPS',
+                    'College of Education' => 'Education',
+                    'College of Nursing and Allied health sciences' => 'CONAHS',
+                    'College of Hospitality Management' => 'CHM',
+                    'BSIT' => 'BSIT (old)',
+                    'BSHM' => 'BSHM (old)',
+                    'CONAHS' => 'CONAHS (old)',
+                    'Senior High' => 'Senior High (old)',
+                ];
+                ?>
+                <form method="get" action="<?= BASE_URL ?>/backend/super_admin/dashboardsuperadmin.php" class="mb-3 d-flex flex-wrap gap-2 align-items-center js-sa-filter-form">
+                    <input type="hidden" name="open_modal" value="events">
+                    <input type="hidden" name="users_page" value="<?= (int) $usersPage ?>">
+                    <?php foreach (['u_q', 'u_role', 'u_status'] as $keep): if ($saF[$keep] !== ''): ?>
+                        <input type="hidden" name="<?= $keep ?>" value="<?= htmlspecialchars($saF[$keep]) ?>">
+                    <?php endif; endforeach; ?>
+                    <input type="search" id="eventSearch" name="e_q" value="<?= htmlspecialchars($saF['e_q']) ?>"
+                           class="form-control form-control-sm" placeholder="Search title, location, organizer" style="max-width: 240px;">
+                    <select id="allEventsStatusFilter" name="e_status" class="form-select form-select-sm" style="max-width: 170px;">
+                        <?php foreach (['' => 'All Status', 'pending' => 'Pending', 'active' => 'Active', 'rejected' => 'Rejected', 'closed' => 'Closed / completed'] as $v => $l): ?>
+                            <option value="<?= $v ?>"<?= $saF['e_status'] === $v ? ' selected' : '' ?>><?= $l ?></option>
+                        <?php endforeach; ?>
                     </select>
-                    <select id="allEventsDeptFilter" class="form-select form-select-sm" style="max-width: 200px;">
-                        <option value="">All Departments</option>
-                        <option value="ALL">All Departments</option>
-                        <option value="BSIT">BSIT</option>
-                        <option value="BSHM">BSHM</option>
-                        <option value="CONAHS">CONAHS</option>
-                        <option value="Senior High">Senior High</option>
-                        <option value="High school department">High School Department</option>
-                        <option value="College of Communication, Information and Technology">CCIT</option>
-                        <option value="College of Accountancy and Business">CAB</option>
-                        <option value="School of Law and Political Science">SLPS</option>
-                        <option value="College of Education">Education</option>
-                        <option value="College of Nursing and Allied health sciences">CONAHS</option>
-                        <option value="College of Hospitality Management">CHM</option>
+                    <select id="allEventsDeptFilter" name="e_dept" class="form-select form-select-sm" style="max-width: 220px;">
+                        <?php foreach ($saDeptOptions as $v => $l): ?>
+                            <option value="<?= htmlspecialchars($v) ?>"<?= $saF['e_dept'] === $v ? ' selected' : '' ?>><?= htmlspecialchars($l) ?></option>
+                        <?php endforeach; ?>
                     </select>
-                </div>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="fas fa-search me-1"></i>Search</button>
+                    <?php if ($saEventFilterOn): ?>
+                        <a class="btn btn-sm btn-link" href="<?= htmlspecialchars(eventify_sa_url(['e_q' => '', 'e_status' => '', 'e_dept' => '', 'events_page' => 1, 'open_modal' => 'events'])) ?>">Clear</a>
+                    <?php endif; ?>
+                    <small class="text-muted ms-auto"><?= (int) $eventsTotal ?> event<?= (int) $eventsTotal === 1 ? '' : 's' ?><?= $saEventFilterOn ? ' match' : '' ?></small>
+                </form>
                 <div class="sa-table-wrap sa-modal-table-panel">
                     <?php if (empty($allEvents)): ?>
                         <div class="sa-empty">
                             <i class="fas fa-calendar-times"></i>
-                            <p class="mb-0">No events found.</p>
+                            <p class="mb-0"><?= !empty($saEventFilterOn) ? 'No events match your search or filters.' : 'No events found.' ?></p>
                         </div>
                     <?php else: ?>
                         <div class="sa-modal-table-scroll" tabindex="0" aria-label="Scroll events table horizontally">
@@ -829,17 +786,7 @@ $error = $error ?? '';
                                             <div class="sa-actions">
                                                 <a href="<?= BASE_URL ?>/event_attendance.php?id=<?= $eid ?>" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="View who attended"><i class="fas fa-clipboard-check me-1"></i>Attendance</a>
                                                 <?php if ($estatus === 'pending'): ?>
-                                                    <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/update_event_status.php" class="d-inline">
-                                                        <?= csrf_field() ?>
-                                                        <input type="hidden" name="event_id" value="<?= $eid ?>">
-                                                        <input type="hidden" name="action" value="approve">
-                                                        <input type="hidden" name="return_to" value="dashboard">
-                                                        <input type="hidden" name="open_modal" value="events">
-                                                        <button type="submit" class="sa-btn-approve btn btn-sm"><i class="fas fa-check"></i> Approve</button>
-                                                    </form>
-                                                    <button type="button" class="sa-btn-reject btn btn-sm" data-bs-toggle="modal" data-bs-target="#rejectEventModal" data-event-id="<?= $eid ?>" data-event-title="<?= htmlspecialchars($ev['title'] ?? '') ?>" data-return-to="dashboard" data-open-modal="events">
-                                                        <i class="fas fa-times"></i> Reject
-                                                    </button>
+                                                    <span class="small text-muted align-self-center"><i class="fas fa-hourglass-half me-1"></i>Awaiting admin review</span>
                                                 <?php elseif ($estatus === 'active'): ?>
                                                     <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/update_event_status.php" class="d-inline">
                                                         <?= csrf_field() ?>
@@ -880,41 +827,13 @@ $error = $error ?? '';
                             <small class="text-muted">Page <?= (int)$eventsPage ?> of <?= (int)$eventsTotalPages ?></small>
                             <div class="btn-group btn-group-sm">
                                 <?php $prevEventsPage = max(1, $eventsPage - 1); $nextEventsPage = min($eventsTotalPages, $eventsPage + 1); ?>
-                                <a class="btn btn-outline-secondary <?= $eventsPage <= 1 ? 'disabled' : '' ?>" href="<?= BASE_URL ?>/backend/super_admin/dashboardsuperadmin.php?events_page=<?= $prevEventsPage ?>&users_page=<?= (int)$usersPage ?>&open_modal=events">Prev</a>
-                                <a class="btn btn-outline-secondary <?= $eventsPage >= $eventsTotalPages ? 'disabled' : '' ?>" href="<?= BASE_URL ?>/backend/super_admin/dashboardsuperadmin.php?events_page=<?= $nextEventsPage ?>&users_page=<?= (int)$usersPage ?>&open_modal=events">Next</a>
+                                <a class="btn btn-outline-secondary <?= $eventsPage <= 1 ? 'disabled' : '' ?>" href="<?= htmlspecialchars(eventify_sa_url(['events_page' => $prevEventsPage, 'open_modal' => 'events'])) ?>">Prev</a>
+                                <a class="btn btn-outline-secondary <?= $eventsPage >= $eventsTotalPages ? 'disabled' : '' ?>" href="<?= htmlspecialchars(eventify_sa_url(['events_page' => $nextEventsPage, 'open_modal' => 'events'])) ?>">Next</a>
                             </div>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Reject event modal (with optional reason) -->
-<div class="modal fade" id="rejectEventModal" tabindex="-1" aria-labelledby="rejectEventModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="POST" action="<?= BASE_URL ?>/backend/super_admin/update_event_status.php" id="rejectEventForm">
-                <?= csrf_field() ?>
-                <input type="hidden" name="event_id" id="rejectEventId" value="">
-                <input type="hidden" name="action" value="reject">
-                <input type="hidden" name="return_to" id="rejectReturnTo" value="dashboard">
-                <input type="hidden" name="open_modal" id="rejectOpenModal" value="events">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="rejectEventModalLabel"><i class="fas fa-times-circle me-2 text-danger"></i>Reject event</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="mb-2" id="rejectEventTitleText">Optionally give a reason so the organizer knows what to fix.</p>
-                    <label for="rejectReasonInput" class="form-label small text-muted">Reason (optional)</label>
-                    <textarea class="form-control" id="rejectReasonInput" name="reject_reason" rows="3" placeholder="e.g. Please add a clearer description or change the date."></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger"><i class="fas fa-times me-1"></i>Reject event</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -1072,9 +991,11 @@ $error = $error ?? '';
 window.BASE_URL = <?= json_encode(BASE_URL ?? '') ?>;
 window.saUserRoles = <?= json_encode(['labels' => $saUserRoleLabels, 'counts' => $saUserRoleCounts]) ?>;
 window.saEventStatus = <?= json_encode(['labels' => $saEventStatusLabels, 'counts' => $saEventStatusCounts]) ?>;
+window.saLoginTrend = <?= json_encode($saLoginTrend) ?>;
 window.saAllEventsJson = <?= json_encode($saCalendarEvents ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardsuperadmin.js?v=7"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardsuperadmin.js?v=9"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof eventifyInitSuperAdminDashboard === 'function') {

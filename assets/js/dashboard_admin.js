@@ -701,11 +701,37 @@ document.addEventListener('DOMContentLoaded', function () {
             var eventTitle = form.getAttribute('data-event-title') || 'this event';
             var orgName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text.trim() : 'organizer';
             var msg = 'Assign "' + eventTitle + '" to ' + orgName + '?\n\nAny pending OTP for this event will be cleared. Send a new OTP after assigning.';
-            if (!window.confirm(msg)) {
-                e.preventDefault();
+            if (form.getAttribute('data-efy-confirmed') === '1') {
+                form.removeAttribute('data-efy-confirmed');
+                return;
             }
+            e.preventDefault();
+            adminConfirm(msg, { title: 'Assign organizer', confirmLabel: 'Assign' }).then(function (ok) {
+                if (!ok) return;
+                form.setAttribute('data-efy-confirmed', '1');
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit(e.submitter && e.submitter.form === form ? e.submitter : undefined);
+                } else {
+                    form.submit();
+                }
+            });
         });
     });
+
+    function adminConfirm(message, opts) {
+        if (typeof window.eventifyConfirm === 'function') {
+            return window.eventifyConfirm(message, opts || {});
+        }
+        return Promise.resolve(window.confirm(message));
+    }
+
+    function adminAlert(message, opts) {
+        if (typeof window.eventifyAlert === 'function') {
+            window.eventifyAlert(message, opts || {});
+            return;
+        }
+        window.alert(message);
+    }
 
     var adminChartInstances = [];
 
@@ -842,6 +868,89 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }));
         }
+
+        var extra = window.__adminAnalytics || {};
+        var sumOf = function (arr) {
+            return (arr || []).reduce(function (s, n) { return s + (Number(n) || 0); }, 0);
+        };
+
+        // Monthly trend: events (bars) + check-ins (line, own axis).
+        var trend = extra.trend || {};
+        var ctr = restoreAdminChartCanvas('adminChartTrendWrap', 'adminChartTrend', 'Monthly events and check-ins');
+        if (ctr && (sumOf(trend.events) + sumOf(trend.attendees)) > 0) {
+            adminChartInstances.push(new Chart(ctr, {
+                data: {
+                    labels: trend.labels || [],
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Events held',
+                            data: trend.events || [],
+                            yAxisID: 'yEvents',
+                            backgroundColor: 'rgba(14, 165, 233, 0.5)',
+                            borderColor: 'rgba(14, 165, 233, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            maxBarThickness: 28
+                        },
+                        {
+                            type: 'line',
+                            label: 'Check-ins',
+                            data: trend.attendees || [],
+                            yAxisID: 'yCheckins',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        yEvents: { beginAtZero: true, position: 'left', ticks: { precision: 0 }, title: { display: true, text: 'Events' } },
+                        yCheckins: { beginAtZero: true, position: 'right', ticks: { precision: 0 }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Check-ins' } }
+                    }
+                }
+            }));
+        } else if (ctr) {
+            showEmptyChartMessage('adminChartTrendWrap', 'No events or check-ins in the last 12 months.');
+        }
+
+        function simpleBar(wrapId, canvasId, aria, data, color, emptyMsg) {
+            var c = restoreAdminChartCanvas(wrapId, canvasId, aria);
+            if (!c) return;
+            if (!data || sumOf(data.counts) === 0) {
+                showEmptyChartMessage(wrapId, emptyMsg);
+                return;
+            }
+            adminChartInstances.push(new Chart(c, {
+                type: 'bar',
+                data: {
+                    labels: data.labels || [],
+                    datasets: [{
+                        label: 'Check-ins',
+                        data: data.counts || [],
+                        backgroundColor: color.replace(/, 1\)$/, ', 0.55)'),
+                        borderColor: color,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            }));
+        }
+        simpleBar('adminChartWeekdayWrap', 'adminChartWeekday', 'Check-ins by day of week', extra.weekday, 'rgba(234, 179, 8, 1)', 'No check-ins yet.');
+        simpleBar('adminChartHoursWrap', 'adminChartHours', 'Check-ins by hour', extra.hours, 'rgba(124, 58, 237, 1)', 'No check-ins yet.');
     }
 
     window.initAdminAnalyticsCharts = initAdminAnalyticsCharts;
@@ -865,9 +974,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (auditSearch) {
         auditSearch.addEventListener('input', function () {
             var q = (auditSearch.value || '').toLowerCase().trim();
+            var shown = 0;
             document.querySelectorAll('#auditLogTableBody tr.audit-log-row').forEach(function (tr) {
-                tr.style.display = !q || tr.innerText.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+                var match = !q || (tr.textContent || '').toLowerCase().indexOf(q) !== -1;
+                tr.style.display = match ? '' : 'none';
+                if (match) shown++;
             });
+            var none = document.getElementById('auditLogNoResults');
+            if (none) none.hidden = shown > 0;
         });
     }
 
@@ -930,18 +1044,30 @@ document.addEventListener('DOMContentLoaded', function () {
         bulkRejectBtn.addEventListener('click', function () {
             var selected = getPendingChecks().some(function (c) { return c.checked; });
             if (!selected) {
-                alert('Select at least one event first.');
+                adminAlert('Select at least one event first.', { title: 'Bulk reject', type: 'warning' });
                 return;
             }
-            var reason = prompt('Optional rejection reason for selected events:', '');
-            var input = document.getElementById('bulkRejectReasonInput');
-            if (input) input.value = reason || '';
-            var hiddenAction = document.createElement('input');
-            hiddenAction.type = 'hidden';
-            hiddenAction.name = 'action';
-            hiddenAction.value = 'reject';
-            bulkForm.appendChild(hiddenAction);
-            bulkForm.submit();
+            var askReason = typeof window.eventifyPrompt === 'function'
+                ? window.eventifyPrompt('Reject the selected events? You can optionally tell the organizers what to fix.', {
+                    title: 'Reject selected events',
+                    label: 'Rejection reason (optional)',
+                    placeholder: 'e.g. Venue conflict, missing details…',
+                    confirmLabel: 'Reject events',
+                    type: 'danger',
+                    icon: 'fa-ban'
+                })
+                : Promise.resolve(window.prompt('Optional rejection reason for selected events:', ''));
+            askReason.then(function (reason) {
+                if (reason === null) return;
+                var input = document.getElementById('bulkRejectReasonInput');
+                if (input) input.value = reason || '';
+                var hiddenAction = document.createElement('input');
+                hiddenAction.type = 'hidden';
+                hiddenAction.name = 'action';
+                hiddenAction.value = 'reject';
+                bulkForm.appendChild(hiddenAction);
+                bulkForm.submit();
+            });
         });
     }
 
@@ -1003,7 +1129,9 @@ document.addEventListener('DOMContentLoaded', function () {
             items.forEach(function (row) {
                 var matchesSearch = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
                 var rowStatus = row.getAttribute('data-status') || '';
-                var matchesStatus = !status || rowStatus === status;
+                // "Closed" also covers events stored as "completed".
+                var matchesStatus = !status || rowStatus === status
+                    || (status === 'closed' && rowStatus === 'completed');
                 var matchesMine = !mineOnly || row.getAttribute('data-created-by-me') === '1';
                 var visible = matchesSearch && matchesStatus && matchesMine;
                 row.classList.toggle('d-none', !visible);
@@ -1153,10 +1281,15 @@ document.addEventListener('DOMContentLoaded', function () {
         var btn = e.target.closest('.js-confirm-submit');
         if (!btn) return;
         var msg = btn.getAttribute('data-confirm-message') || 'Are you sure?';
-        if (window.confirm(msg)) {
+        adminConfirm(msg, {
+            title: btn.getAttribute('data-confirm-title') || 'Please confirm',
+            confirmLabel: btn.getAttribute('data-confirm-label') || 'Yes',
+            type: btn.getAttribute('data-confirm-type') || 'warning'
+        }).then(function (ok) {
+            if (!ok) return;
             var form = btn.closest('form');
             if (form) form.submit();
-        }
+        });
     });
 
     // All Users panel: open the "edit student course" dialog prefilled.

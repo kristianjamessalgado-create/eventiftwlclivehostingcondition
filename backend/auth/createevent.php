@@ -39,6 +39,8 @@ require_once __DIR__ . '/../lib/event_organizer_assign.php';
 eventify_events_department_ensure_varchar($conn);
 eventify_sections_schema_ensure($conn);
 
+require_once __DIR__ . '/../lib/event_checkin_security.php';
+eventify_events_ensure_geo_columns($conn);
 $eventsHasGeo = false;
 try {
     $geoColCheck = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");
@@ -619,6 +621,7 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(BASE_URL) ?>/assets/css/eventify_modal.css?v=10">
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1245,14 +1248,15 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/eventify_alert_modal.js?v=4"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
     if (typeof window.L === 'undefined') {
         document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
     }
     </script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=6"></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=26"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=7"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=27"></script>
 
     <script>
         function showMessageModal(msg) {

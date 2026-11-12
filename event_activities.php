@@ -2365,7 +2365,7 @@ if (typeof window.L === 'undefined') {
     document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>');
 }
 </script>
-<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=6"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
 <script src="<?= BASE_URL ?>/assets/js/eah_import_activities_photo.js?v=2"></script>
 <script>
@@ -2481,11 +2481,11 @@ if (typeof window.L === 'undefined') {
                         window.location.href = (window.BASE_URL || '').replace(/\/$/, '') + '/event_activities.php?id=' + (window.__eahEventId || 0) + '&activity=' + endActivityPendingId + '&msg=' + encodeURIComponent('Activity ended.');
                         return;
                     }
-                    window.alert((data && data.error) ? data.error : 'Could not end activity.');
+                    (window.eventifyAlert || window.alert)((data && data.error) ? data.error : 'Could not end activity.', { title: 'End activity', type: 'error' });
                 })
                 .catch(function () {
                     endActivityConfirm.disabled = false;
-                    window.alert('Network error. Please try again.');
+                    (window.eventifyAlert || window.alert)('Network error. Please try again.', { title: 'End activity', type: 'error' });
                 });
         });
     }
@@ -2592,7 +2592,7 @@ if (typeof window.L === 'undefined') {
 window.csrfToken = <?= json_encode($csrfToken) ?>;
 window.__eahMainEventId = <?= (int) $eventId ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pwa.js?v=17"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_main_rsvp.js"></script>

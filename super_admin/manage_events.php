@@ -14,6 +14,7 @@ $backLabel = $backLabel ?? 'Back';
     <title>Manage Events - EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=10">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -337,6 +338,7 @@ $backLabel = $backLabel ?? 'Back';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var rejectModal = document.getElementById('rejectEventModal');
@@ -358,9 +360,24 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!sel) return;
             var eventTitle = form.getAttribute('data-event-title') || 'this event';
             var orgName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text.trim() : 'organizer';
-            if (!window.confirm('Assign "' + eventTitle + '" to ' + orgName + '?\n\nAny pending OTP will be cleared.')) {
-                e.preventDefault();
+            if (form.getAttribute('data-efy-confirmed') === '1') {
+                form.removeAttribute('data-efy-confirmed');
+                return;
             }
+            e.preventDefault();
+            var msg = 'Assign "' + eventTitle + '" to ' + orgName + '?\n\nAny pending OTP will be cleared.';
+            var ask = typeof window.eventifyConfirm === 'function'
+                ? window.eventifyConfirm(msg, { title: 'Assign organizer', confirmLabel: 'Assign' })
+                : Promise.resolve(window.confirm(msg));
+            ask.then(function (ok) {
+                if (!ok) return;
+                form.setAttribute('data-efy-confirmed', '1');
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit(e.submitter && e.submitter.form === form ? e.submitter : undefined);
+                } else {
+                    form.submit();
+                }
+            });
         });
     });
 });

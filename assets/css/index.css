@@ -3999,6 +3999,13 @@ body.auth-modal-open .spline-wrap {
     text-decoration: underline;
 }
 
+.auth-forgot-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.45rem;
+    font-size: 0.85rem;
+}
+
 .auth-link-btn--muted {
     color: rgba(247, 244, 231, 0.62);
     font-weight: 500;

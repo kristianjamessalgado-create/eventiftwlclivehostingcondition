@@ -72,21 +72,21 @@ if (!defined('EVENTIFY_ACTIVITY_CHECKIN_REQUIRE_SESSION_RSVP')) {
 
 
 
-/** When an event/activity has map coordinates, require live GPS within radius. Disabled for local testing. QR check-in stays enabled. */
+/** When an event/activity has map coordinates, students must be within the radius (live GPS) to scan the QR. On by default; set EVENTIFY_CHECKIN_GEO_WHEN_PINNED=0 in .env to turn off for local testing. */
 
 if (!defined('EVENTIFY_CHECKIN_GEO_WHEN_PINNED')) {
 
-    define('EVENTIFY_CHECKIN_GEO_WHEN_PINNED', false);
+    define('EVENTIFY_CHECKIN_GEO_WHEN_PINNED', eventify_env('EVENTIFY_CHECKIN_GEO_WHEN_PINNED', '1') !== '0');
 
 }
 
 
 
-/** Meters from venue pin allowed for check-in. */
+/** Meters from venue pin allowed for check-in (override with EVENTIFY_CHECKIN_GEO_RADIUS_M in .env). */
 
 if (!defined('EVENTIFY_CHECKIN_GEO_RADIUS_M')) {
 
-    define('EVENTIFY_CHECKIN_GEO_RADIUS_M', 300);
+    define('EVENTIFY_CHECKIN_GEO_RADIUS_M', (int) (eventify_env('EVENTIFY_CHECKIN_GEO_RADIUS_M', '300') ?? '300'));
 
 }
 

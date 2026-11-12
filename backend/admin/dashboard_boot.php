@@ -489,6 +489,8 @@ $createEventRedirectTo = '';
 require_once __DIR__ . '/../../config/organizer_departments.php';
 $organizer_department_choices = eventify_organizer_department_choices();
 
+require_once __DIR__ . '/../lib/event_checkin_security.php';
+eventify_events_ensure_geo_columns($conn);
 $eventsHasGeo = false;
 try {
     $geoColCheck = $conn->query("SHOW COLUMNS FROM events WHERE Field IN ('latitude','longitude')");
@@ -594,11 +596,27 @@ try {
 // RSVP and check-in counts for calendar event details
 $rsvpCountByEvent = [];
 $checkinCountByEvent = [];
+$rsvpPresentByEvent = [];
+$walkinCountByEvent = [];
+$registrationTotalByEvent = [];
 try {
-    $rc = $conn->query('SELECT event_id, COUNT(*) AS cnt FROM registrations GROUP BY event_id');
+    // A walk-in row is created at the moment of check-in (open-entry scan), so it is not an RSVP.
+    $walkInSql = "(time_in IS NOT NULL AND registration_date >= time_in - INTERVAL 10 SECOND)";
+    $rc = $conn->query("
+        SELECT event_id,
+               SUM(CASE WHEN NOT {$walkInSql} THEN 1 ELSE 0 END) AS rsvps,
+               SUM(CASE WHEN NOT {$walkInSql} AND status = 'present' AND time_in IS NOT NULL THEN 1 ELSE 0 END) AS rsvp_present,
+               SUM(CASE WHEN {$walkInSql} AND status = 'present' THEN 1 ELSE 0 END) AS walkins,
+               COUNT(*) AS total
+        FROM registrations GROUP BY event_id
+    ");
     if ($rc) {
         while ($row = $rc->fetch_assoc()) {
-            $rsvpCountByEvent[(int) ($row['event_id'] ?? 0)] = (int) ($row['cnt'] ?? 0);
+            $eidKey = (int) ($row['event_id'] ?? 0);
+            $rsvpCountByEvent[$eidKey] = (int) ($row['rsvps'] ?? 0);
+            $rsvpPresentByEvent[$eidKey] = (int) ($row['rsvp_present'] ?? 0);
+            $walkinCountByEvent[$eidKey] = (int) ($row['walkins'] ?? 0);
+            $registrationTotalByEvent[$eidKey] = (int) ($row['total'] ?? 0);
         }
     }
     $cc = $conn->query("SELECT event_id, COUNT(*) AS cnt FROM registrations WHERE status = 'present' AND time_in IS NOT NULL GROUP BY event_id");
@@ -612,15 +630,14 @@ try {
     $checkinCountByEvent = [];
 }
 
-$analyticsRegTotal = array_sum($rsvpCountByEvent);
-$analyticsCheckinTotal = array_sum($checkinCountByEvent);
-$analyticsParticipation = [
-    'registrations' => $analyticsRegTotal,
-    'checkins' => $analyticsCheckinTotal,
-    'show_up_rate' => $analyticsRegTotal > 0
-        ? round(($analyticsCheckinTotal / $analyticsRegTotal) * 100, 1)
-        : null,
-];
+// Analytics & insights panel. Show-up rate now only counts finished events and
+// leaves out walk-ins (see backend/lib/admin_analytics.php for definitions).
+require_once __DIR__ . '/../lib/admin_analytics.php';
+$adminAnalytics = eventify_admin_analytics($conn);
+$analyticsParticipation = $adminAnalytics['participation'];
+// Approved events only; an event for several departments counts once for each.
+$chartDeptLabels = $adminAnalytics['dept_events']['labels'];
+$chartDeptCounts = $adminAnalytics['dept_events']['counts'];
 
 $conn->close();
 

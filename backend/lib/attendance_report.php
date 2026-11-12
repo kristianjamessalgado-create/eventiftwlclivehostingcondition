@@ -641,8 +641,10 @@ if (!function_exists('eventify_attendance_report_load_event_rows')) {
                 $timeInOut
             );
         }
-        if (is_array($rows) && ($rows !== [] || ($filters['view'] ?? 'present') === 'roster')) {
-            return $rows;
+        // Query worked: an empty result means nobody matches the filter, so keep it empty.
+        // (Falling back to the unfiltered list here made filters look like they did nothing.)
+        if (is_array($rows) || !empty($filters['has_filter'])) {
+            return is_array($rows) ? $rows : [];
         }
 
         $fallback = eventify_attendance_report_stmt_rows(
@@ -751,8 +753,10 @@ if (!function_exists('eventify_attendance_report_load_activity_rows')) {
                 $timeInOut
             );
         }
-        if (is_array($rows) && ($rows !== [] || ($filters['view'] ?? 'present') === 'roster')) {
-            return $rows;
+        // Query worked: an empty result means nobody matches the filter, so keep it empty.
+        // (Falling back to the unfiltered list here made filters look like they did nothing.)
+        if (is_array($rows) || !empty($filters['has_filter'])) {
+            return is_array($rows) ? $rows : [];
         }
 
         $fallback = eventify_attendance_report_stmt_rows(

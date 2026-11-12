@@ -40,11 +40,14 @@ if ($token === '') {
         if (!eventify_event_is_live($evRow)) {
             $error = 'This event has ended. Ticket check-in is no longer available.';
         } else {
-            $geo_required = eventify_event_checkin_geo_required([
-                'latitude' => $ticket['latitude'] ?? null,
-                'longitude' => $ticket['longitude'] ?? null,
-                'checkin_require_geo' => $ticket['checkin_require_geo'] ?? null,
-            ]);
+            $ticketVenueRow = [
+                'latitude' => $ticket['latitude'] ?? $ticket['event_latitude'] ?? null,
+                'longitude' => $ticket['longitude'] ?? $ticket['event_longitude'] ?? null,
+            ];
+            $geo_required = eventify_event_checkin_geo_required($ticketVenueRow);
+            $ticketVenue = eventify_event_checkin_venue_coords($ticketVenueRow);
+            $checkin_venue_lat = $ticketVenue['lat'];
+            $checkin_venue_lng = $ticketVenue['lng'];
         }
     }
 }
@@ -120,6 +123,7 @@ $conn->close();
                 <input type="hidden" name="device_hash" id="device_hash" value="">
                 <button type="submit" class="btn btn-success w-100" id="confirmBtn" disabled>Confirm entry</button>
             </form>
+            <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-outline-secondary w-100 mt-2" target="_top">Back to dashboard</a>
             <?php include __DIR__ . '/views/partials/checkin_security_script.php'; ?>
         <?php endif; ?>
     </div>

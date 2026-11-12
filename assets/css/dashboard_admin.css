@@ -2520,3 +2520,53 @@ body.admin-dashboard .adm-messages-panel .msgr-app--embedded {
         box-sizing: border-box !important;
     }
 }
+
+/* ---- Analytics & insights additions ---- */
+.adm-analytics-stats.adm-analytics-stats--auto {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.adm-analytics-panel .adm-chart-wrap--trend {
+    height: 300px;
+}
+.adm-analytics-panel .adm-chart-card > .adm-chart-empty {
+    min-height: 80px;
+}
+.adm-insights {
+    list-style: none;
+    margin: 0 0 1.1rem;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+.adm-insight {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    padding: 0.7rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #0f172a;
+}
+.adm-insight i { margin-top: 0.15rem; width: 1.1rem; text-align: center; }
+.adm-insight--good { border-color: #a7f3d0; background: #ecfdf5; }
+.adm-insight--good i { color: #059669; }
+.adm-insight--warn { border-color: #fde68a; background: #fffbeb; }
+.adm-insight--warn i { color: #d97706; }
+.adm-insight--bad { border-color: #fecaca; background: #fef2f2; }
+.adm-insight--bad i { color: #dc2626; }
+.adm-insight--info i { color: #0284c7; }
+.adm-analytics-table { font-size: 0.86rem; }
+.adm-analytics-table thead th {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.adm-rate { display: flex; align-items: center; gap: 0.6rem; }
+.adm-rate .adm-eval-bar { flex: 1; }
+.adm-rate strong { min-width: 3.2rem; text-align: right; font-variant-numeric: tabular-nums; }

@@ -361,6 +361,42 @@
         if (emptyMsg) {
             emptyMsg.hidden = !(shownRows.length === 0 && isActive(filters));
         }
+        updateTeacherQr(filters);
+    }
+
+    /** Point the teacher QR at the current filter so teachers only stamp these rows. */
+    var teacherQr = document.getElementById('acTeacherQr');
+    var teacherQrTimer = null;
+    function updateTeacherQr(filters) {
+        if (!teacherQr) {
+            return;
+        }
+        var base = teacherQr.getAttribute('data-view-url') || '';
+        if (!base) {
+            return;
+        }
+        var params = [];
+        if (filters.date) {
+            params.push('date=' + encodeURIComponent(filters.date));
+        }
+        if (filters.event) {
+            params.push('event=' + encodeURIComponent(filters.event));
+        }
+        if (filters.activity) {
+            params.push('activity=' + encodeURIComponent(filters.activity));
+        }
+        if (filters.kind && filters.kind !== 'all') {
+            params.push('kind=' + encodeURIComponent(filters.kind));
+        }
+        var url = base + (params.length ? '&' + params.join('&') : '');
+        var src = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=' + encodeURIComponent(url);
+        teacherQr.setAttribute('data-current-url', url);
+        clearTimeout(teacherQrTimer);
+        teacherQrTimer = setTimeout(function () {
+            if (teacherQr.getAttribute('src') !== src) {
+                teacherQr.setAttribute('src', src);
+            }
+        }, 150);
     }
 
     kindChips.forEach(function (chip) {

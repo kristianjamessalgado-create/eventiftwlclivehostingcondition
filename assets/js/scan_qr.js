@@ -137,8 +137,43 @@ function initScanQRModal() {
         return jsQR(imageData.data, imageData.width, imageData.height);
     }
 
+    /** Same-site link (e.g. a student's activity card), or null. */
+    function sameSiteUrl(text) {
+        try {
+            var url = new URL(String(text).trim(), window.location.href);
+            if (url.origin !== window.location.origin) {
+                return null;
+            }
+            return url;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function isActivityCardUrl(url) {
+        return !!url && /\/activity_card_view\.php$/i.test(url.pathname);
+    }
+
+    var scanMode = modalEl.getAttribute('data-scan-mode') === 'staff' ? 'staff' : 'student';
+
     function handleQrText(text) {
         if (!text) return false;
+        var siteUrl = sameSiteUrl(text);
+        if (scanMode === 'staff') {
+            // Staff: open student activity cards (and any other EVENTIFY link) directly.
+            if (siteUrl) {
+                stopCamera();
+                statusEl.textContent = isActivityCardUrl(siteUrl) ? 'Opening activity card…' : 'Opening link…';
+                window.location.href = siteUrl.href;
+                return true;
+            }
+            statusEl.textContent = 'That QR code is not an EVENTIFY link. Scan a student activity card QR.';
+            return false;
+        }
+        if (isActivityCardUrl(siteUrl)) {
+            statusEl.textContent = 'That is an activity card QR — only teachers can open it. Scan an event or activity check-in QR.';
+            return false;
+        }
         var parsed = parseCheckinFromQrUrl(text);
         if (parsed && parsed.token) {
             if (shouldWarnActivityMismatch(parsed)) {
@@ -207,7 +242,7 @@ function initScanQRModal() {
             videoEl.setAttribute('autoplay', 'autoplay');
             placeholderEl.style.display = 'none';
             videoEl.style.display = 'block';
-            statusEl.textContent = 'Position the event QR code within the frame.';
+            statusEl.textContent = scanMode === 'staff' ? 'Point the camera at the student activity card QR.' : 'Position the event QR code within the frame.';
             var onReady = function () {
                 if (hasCameraStarted) return;
                 hasCameraStarted = true;
@@ -215,7 +250,7 @@ function initScanQRModal() {
                 clearReadyPoll();
                 placeholderEl.style.display = 'none';
                 videoEl.style.display = 'block';
-                statusEl.textContent = 'Position the event QR code within the frame.';
+                statusEl.textContent = scanMode === 'staff' ? 'Point the camera at the student activity card QR.' : 'Position the event QR code within the frame.';
                 tick();
             };
             videoEl.onloadedmetadata = onReady;
@@ -268,7 +303,7 @@ function initScanQRModal() {
             if (code && code.data && handleQrText(code.data)) {
                 return;
             }
-            statusEl.textContent = 'No valid EVENTIFY check-in QR found in that image.';
+            statusEl.textContent = scanMode === 'staff' ? 'No EVENTIFY QR found in that image.' : 'No valid EVENTIFY check-in QR found in that image.';
         };
         img.onerror = function () {
             URL.revokeObjectURL(url);
@@ -307,6 +342,7 @@ function initScanQRModal() {
             var raw = (linkInput.value || '').trim();
             if (!raw) return;
             if (handleQrText(raw)) return;
+            if (scanMode === 'staff') return; // staff: only EVENTIFY links (message already shown)
             if (/^https?:\/\//i.test(raw)) {
                 window.location.href = raw;
                 return;
@@ -319,7 +355,7 @@ function initScanQRModal() {
         stopCamera();
         placeholderEl.style.display = 'flex';
         placeholderEl.innerHTML = '<span><i class="fas fa-camera fa-2x mb-2 d-block"></i>Starting camera…</span>';
-        statusEl.textContent = 'Position the event QR code within the frame.';
+        statusEl.textContent = scanMode === 'staff' ? 'Point the camera at the student activity card QR.' : 'Position the event QR code within the frame.';
         var fallback = document.getElementById('scanQRFallback');
         if (fallback) fallback.style.display = 'none';
         if (linkInput) linkInput.value = '';

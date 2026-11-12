@@ -40,7 +40,7 @@ if (is_array($events)) {
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_scroll_fix.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_calendar_shell.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=40">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=5">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=10">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=8">

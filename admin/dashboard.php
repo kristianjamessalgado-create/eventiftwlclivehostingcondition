@@ -155,7 +155,7 @@ $peerLabel = 'Organizers';
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=40">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=5">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=14">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -173,6 +173,9 @@ $peerLabel = 'Organizers';
         </a>
     </div>
     <div class="d-flex align-items-center">
+        <button type="button" class="nav-btn nav-btn--scan me-2" title="Scan activity card QR" aria-label="Scan activity card QR" data-bs-toggle="modal" data-bs-target="#scanQRModal">
+            <i class="fas fa-qrcode"></i>
+        </button>
         <button
             type="button"
             class="nav-btn create-btn me-2"
@@ -271,6 +274,19 @@ $peerLabel = 'Organizers';
         <!-- Quick Actions -->
         <div class="quick-actions">
             <h3 class="section-title">QUICK ACTIONS</h3>
+            <button
+                type="button"
+                class="action-btn action-btn--scan w-100 text-start border-0 bg-transparent"
+                data-bs-toggle="modal"
+                data-bs-target="#scanQRModal"
+                title="Scan a student's activity card QR"
+            >
+                <i class="fas fa-qrcode"></i>
+                <span class="action-btn__text">
+                    <span>Scan QR</span>
+                    <small>Open &amp; stamp an activity card</small>
+                </span>
+            </button>
             <button
                 type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent"
@@ -1243,5 +1259,6 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
 <script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=33"></script>
+<?php include __DIR__ . '/../views/partials/staff_scan_qr_footer.php'; ?>
 </body>
 </html>

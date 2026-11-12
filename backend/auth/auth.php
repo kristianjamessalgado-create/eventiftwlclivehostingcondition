@@ -296,9 +296,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             break;
                     }
                     // Only allow same-origin redirect (prevent open redirect)
-                    // Admins (teachers) may only come back to a student's activity card opened from its QR.
+                    // Admins (teachers) and organizers may only come back to a student's activity card opened from its QR.
                     $redirectAllowedForRole = $user['role'] === 'student'
-                        || (in_array($user['role'], ['admin', 'super_admin'], true)
+                        || (in_array($user['role'], ['admin', 'super_admin', 'organizer'], true)
                             && strpos((string) ($_POST['redirect'] ?? ''), '/activity_card_view.php?t=') !== false);
                     if ($redirectAllowedForRole && !empty($_POST['redirect'])) {
                         $redirect = trim($_POST['redirect']);

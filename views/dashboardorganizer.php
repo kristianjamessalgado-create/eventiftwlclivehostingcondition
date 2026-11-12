@@ -63,7 +63,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardorganizer.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=5">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -90,6 +90,9 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
             data-bs-target="#createEventModal"
         >
             <i class="fas fa-plus"></i>
+        </button>
+        <button type="button" class="nav-btn nav-btn--scan" title="Scan activity card QR" aria-label="Scan activity card QR" data-bs-toggle="modal" data-bs-target="#scanQRModal">
+            <i class="fas fa-qrcode"></i>
         </button>
         <button class="nav-btn" type="button" title="Go to today" id="orgTopTodayBtn" data-organizer-panel="home">
             <i class="fas fa-calendar"></i>
@@ -283,6 +286,19 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
         <!-- Quick Actions -->
         <div class="quick-actions">
             <h3 class="section-title">QUICK ACTIONS</h3>
+            <button
+                type="button"
+                class="action-btn action-btn--scan w-100 text-start border-0 bg-transparent"
+                data-bs-toggle="modal"
+                data-bs-target="#scanQRModal"
+                title="Scan a student's activity card QR"
+            >
+                <i class="fas fa-qrcode"></i>
+                <span class="action-btn__text">
+                    <span>Scan QR</span>
+                    <small>Open &amp; stamp an activity card</small>
+                </span>
+            </button>
             <button
                 type="button"
                 class="action-btn w-100 text-start border-0 bg-transparent<?= $organizer_events_panel_open ? ' is-active' : '' ?>"
@@ -1002,5 +1018,6 @@ document.addEventListener('DOMContentLoaded', function () {
   <input type="hidden" name="action" id="organizerEventStatusHiddenAction" value="">
 </form>
 
+<?php include __DIR__ . '/partials/staff_scan_qr_footer.php'; ?>
 </body>
 </html>

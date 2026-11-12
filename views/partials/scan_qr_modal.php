@@ -1,15 +1,21 @@
 <?php
-/** Shared Scan QR modal — student dashboard and activities hub pages. */
+/**
+ * Shared Scan QR modal.
+ * $scanQrMode 'student' (default): event / activity check-in.
+ * $scanQrMode 'staff' (admin / organizer): open a student's activity card QR.
+ */
+$scanQrMode = (($scanQrMode ?? 'student') === 'staff') ? 'staff' : 'student';
+$scanQrIsStaff = $scanQrMode === 'staff';
 ?>
-<div class="modal fade" id="scanQRModal" tabindex="-1" aria-labelledby="scanQRModalLabel" aria-hidden="true">
+<div class="modal fade" id="scanQRModal" tabindex="-1" aria-labelledby="scanQRModalLabel" aria-hidden="true" data-scan-mode="<?= $scanQrMode ?>">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content efy-modal">
       <div class="modal-header efy-modal__header">
         <div>
-          <span class="efy-modal__eyebrow">Student</span>
+          <span class="efy-modal__eyebrow"><?= $scanQrIsStaff ? 'Teacher' : 'Student' ?></span>
           <h5 class="modal-title efy-modal__title" id="scanQRModalLabel">
             <i class="fas fa-qrcode" aria-hidden="true"></i>
-            Scan QR for attendance
+            <?= $scanQrIsStaff ? 'Scan activity card QR' : 'Scan QR for attendance' ?>
           </h5>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="scanQRModalClose"></button>
@@ -22,7 +28,7 @@
             <span><i class="fas fa-camera fa-2x mb-2 d-block"></i>Starting camera…</span>
           </div>
         </div>
-        <p id="scanQRStatus" class="small text-muted mt-2 mb-0">Scan an <strong>event</strong> or <strong>activity</strong> QR code. Location may be required at the venue.</p>
+        <p id="scanQRStatus" class="small text-muted mt-2 mb-0"><?php if ($scanQrIsStaff): ?>Scan the QR at the top right of a student's <strong>activity card</strong> to view and stamp it.<?php else: ?>Scan an <strong>event</strong> or <strong>activity</strong> QR code. Location may be required at the venue.<?php endif; ?></p>
         <div id="scanQRUpload" class="mt-3 pt-3 border-top">
           <p class="small fw-semibold mb-2">Or upload a QR photo</p>
           <button type="button" class="btn btn-outline-success btn-sm w-100 mb-2" id="scanQRFileBtn">

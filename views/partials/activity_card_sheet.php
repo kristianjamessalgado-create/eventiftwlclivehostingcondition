@@ -77,7 +77,8 @@ if (!function_exists('ac_stamp_html')) {
         </div>
         <?php if ($acQrImageUrl !== ''): ?>
             <figure class="ac-school__qr">
-                <img src="<?= ac_h($acQrImageUrl) ?>" alt="QR code: teachers scan to view this activity card" width="76" height="76">
+                <img src="<?= ac_h($acQrImageUrl) ?>" alt="QR code: teachers scan to view this activity card" width="76" height="76"
+                     id="acTeacherQr" data-view-url="<?= ac_h((string) ($acQrViewUrl ?? '')) ?>">
                 <figcaption>Teacher scan</figcaption>
             </figure>
         <?php else: ?>
@@ -156,7 +157,9 @@ if (!function_exists('ac_stamp_html')) {
                                 <?php else: ?>
                                     <span class="ac-sign-line"></span>
                                 <?php endif; ?>
-                                <?php if ($acTeacherMode && !$isBlank && $rowKey !== ''): ?>
+                                <?php if ($acTeacherMode && !$isBlank && $rowKey !== '' && empty($row['can_stamp'])): ?>
+                                    <span class="ac-stamp-note">Only an admin or this event's organizer can stamp</span>
+                                <?php elseif ($acTeacherMode && !$isBlank && $rowKey !== ''): ?>
                                     <?php if ($signed): ?>
                                         <form method="post" action="<?= ac_h($acTeacherFormAction) ?>" class="ac-stamp-form"
                                               data-efy-confirm="Remove your stamp from this row?" data-efy-confirm-title="Remove stamp" data-efy-confirm-label="Remove" data-efy-confirm-type="danger">

@@ -65,7 +65,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=28">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/attendance_proof.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=5">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_day_sessions.css?v=4">
@@ -1191,7 +1191,7 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 
 <!-- jsQR for QR code decoding -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=6"></script>
 <!-- Dashboard Scripts -->
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_day_sessions.js?v=24"></script>

@@ -13,7 +13,24 @@ require_once __DIR__ . '/backend/lib/activity_card.php';
 require_once __DIR__ . '/backend/lib/activity_logger.php';
 
 $token = strtolower(trim((string) ($_GET['t'] ?? '')));
-$selfUrl = BASE_URL . '/activity_card_view.php?t=' . rawurlencode($token);
+
+// Filter chosen on the student's card (carried in the QR link).
+$acFilter = [
+    'date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_GET['date'] ?? '')) ? (string) $_GET['date'] : '',
+    'event_id' => max(0, (int) ($_GET['event'] ?? 0)),
+    'session_id' => max(0, (int) ($_GET['activity'] ?? 0)),
+    'kind' => in_array((string) ($_GET['kind'] ?? ''), ['events', 'activities', 'checked_in'], true) ? (string) $_GET['kind'] : 'all',
+];
+$acFilterQuery = array_filter([
+    't' => $token,
+    'date' => $acFilter['date'],
+    'event' => $acFilter['event_id'] ?: '',
+    'activity' => $acFilter['session_id'] ?: '',
+    'kind' => $acFilter['kind'] !== 'all' ? $acFilter['kind'] : '',
+], static fn ($v) => $v !== '' && $v !== null);
+$selfUrl = BASE_URL . '/activity_card_view.php?' . http_build_query($acFilterQuery);
+$unfilteredUrl = BASE_URL . '/activity_card_view.php?t=' . rawurlencode($token);
+$acFilterActive = $acFilter['date'] !== '' || $acFilter['event_id'] > 0 || $acFilter['session_id'] > 0 || $acFilter['kind'] !== 'all';
 
 $role = (string) ($_SESSION['role'] ?? '');
 if (!isset($_SESSION['user_id'])) {
@@ -23,9 +40,42 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$isTeacher = in_array($role, ['admin', 'super_admin'], true);
+// Admins (teachers) can stamp any row; organizers can open cards but only stamp
+// rows for events they organize.
+$isAdminStamper = in_array($role, ['admin', 'super_admin'], true);
+$isTeacher = $isAdminStamper || $role === 'organizer';
 $adminId = (int) $_SESSION['user_id'];
 $adminName = trim((string) ($_SESSION['name'] ?? ''));
+
+/** Rows on this student's card that match the QR filter, with 'can_stamp' set for this viewer. */
+function ac_view_rows(mysqli $conn, int $studentId, ?string $dept, array $filter, bool $isAdminStamper, int $viewerId): array
+{
+    $rows = eventify_activity_card_load_rows($conn, $studentId, $dept);
+    $rows = eventify_activity_card_apply_filters($rows, $filter);
+    $ownEvents = [];
+    if (!$isAdminStamper) {
+        $ids = array_values(array_unique(array_filter(array_map(static fn ($r) => (int) ($r['event_id'] ?? 0), $rows))));
+        if ($ids !== []) {
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $st = $conn->prepare("SELECT id FROM events WHERE organizer_id = ? AND id IN ($in)");
+            if ($st) {
+                $types = 'i' . str_repeat('i', count($ids));
+                $st->bind_param($types, $viewerId, ...$ids);
+                $st->execute();
+                $res = $st->get_result();
+                while ($res && ($r = $res->fetch_assoc())) {
+                    $ownEvents[(int) $r['id']] = true;
+                }
+                $st->close();
+            }
+        }
+    }
+    foreach ($rows as &$r) {
+        $r['can_stamp'] = $isAdminStamper || isset($ownEvents[(int) ($r['event_id'] ?? 0)]);
+    }
+    unset($r);
+    return $rows;
+}
 
 $studentId = $isTeacher ? eventify_activity_card_user_by_token($conn, $token) : 0;
 $student = null;
@@ -58,11 +108,12 @@ if ($isTeacher && $student && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     $action = (string) ($_POST['action'] ?? '');
-    $rows = eventify_activity_card_load_rows($conn, $studentId, (string) ($student['department'] ?? '') ?: null);
+    // Only rows inside the QR filter that this viewer may stamp are valid targets.
+    $rows = ac_view_rows($conn, $studentId, (string) ($student['department'] ?? '') ?: null, $acFilter, $isAdminStamper, $adminId);
     $validKeys = [];
     foreach ($rows as $r) {
         $k = eventify_activity_card_row_key($r);
-        if ($k !== '') {
+        if ($k !== '' && !empty($r['can_stamp'])) {
             $validKeys[$k] = trim((string) ($r['time_in'] ?? '')) !== '';
         }
     }
@@ -78,7 +129,7 @@ if ($isTeacher && $student && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $rowKey = (string) ($_POST['row_key'] ?? '');
         if (!array_key_exists($rowKey, $validKeys)) {
-            header('Location: ' . $back . '&error=' . urlencode('That row is no longer on this card.'));
+            header('Location: ' . $back . '&error=' . urlencode('You can\'t stamp that row from this card view.'));
             exit();
         }
         if ($action === 'stamp') {
@@ -109,10 +160,31 @@ $stampedCount = 0;
 if ($isTeacher && $student) {
     $studentDept = trim((string) ($student['department'] ?? ''));
     try {
-        $rows = eventify_activity_card_load_rows($conn, $studentId, $studentDept !== '' ? $studentDept : null);
+        $rows = ac_view_rows($conn, $studentId, $studentDept !== '' ? $studentDept : null, $acFilter, $isAdminStamper, $adminId);
         $rows = eventify_activity_card_attach_stamps($rows, eventify_activity_card_load_stamps($conn, $studentId));
     } catch (Throwable $e) {
         $rows = [];
+    }
+    // Human-readable description of the QR filter for the banner.
+    $filterBits = [];
+    if ($acFilter['date'] !== '') {
+        $filterBits[] = date('M j, Y', strtotime($acFilter['date']));
+    }
+    if ($acFilter['event_id'] > 0 || $acFilter['session_id'] > 0) {
+        foreach ($rows as $r) {
+            if ($acFilter['session_id'] > 0 && (int) ($r['session_id'] ?? 0) === $acFilter['session_id']) {
+                $filterBits[] = (string) ($r['activity_title'] ?? 'Activity');
+                break;
+            }
+            if ($acFilter['session_id'] < 1 && (int) ($r['event_id'] ?? 0) === $acFilter['event_id']) {
+                $filterBits[] = (string) ($r['event_title'] ?? 'Event');
+                break;
+            }
+        }
+    }
+    $kindLabels = ['events' => 'Events only', 'activities' => 'Activities only', 'checked_in' => 'Checked-in rows'];
+    if (isset($kindLabels[$acFilter['kind']])) {
+        $filterBits[] = $kindLabels[$acFilter['kind']];
     }
     // Teachers only need rows the student actually attended or that are stamped.
     foreach ($rows as $r) {
@@ -123,7 +195,7 @@ if ($isTeacher && $student) {
         $acDisplayRows[] = $r;
         if (!empty($r['signed'])) {
             $stampedCount++;
-        } elseif ($in) {
+        } elseif ($in && !empty($r['can_stamp'])) {
             $checkedInUnstamped++;
         }
     }
@@ -139,7 +211,10 @@ $conn->close();
 
 $dashboardUrl = $role === 'super_admin'
     ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php'
-    : BASE_URL . '/backend/admin/dashboard.php';
+    : ($role === 'organizer'
+        ? BASE_URL . '/backend/auth/dashboardorganizer.php'
+        : BASE_URL . '/backend/admin/dashboard.php');
+$filterBits = $filterBits ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -153,7 +228,7 @@ $dashboardUrl = $role === 'super_admin'
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/activity_card.css?v=6">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/activity_card.css?v=7">
 </head>
 <body class="ac-page ac-teacher-page">
 <header class="ac-teacher-bar">
@@ -170,7 +245,7 @@ $dashboardUrl = $role === 'super_admin'
         <div class="ac-teacher-empty">
             <i class="fas fa-lock" aria-hidden="true"></i>
             <h1>Teachers only</h1>
-            <p>Only admin (teacher) accounts can open a student's activity card from its QR code. Sign out and sign in with your teacher account.</p>
+            <p>Only admin (teacher) and organizer accounts can open a student's activity card from its QR code. Sign out and sign in with your teacher account.</p>
         </div>
     <?php elseif (!$student): ?>
         <div class="ac-teacher-empty">
@@ -199,6 +274,20 @@ $dashboardUrl = $role === 'super_admin'
             <?php endif; ?>
         </section>
 
+        <?php if ($acFilterActive): ?>
+            <div class="ac-teacher-filter" role="note">
+                <i class="fas fa-filter" aria-hidden="true"></i>
+                <span>
+                    Showing only what the student filtered<?= $filterBits !== [] ? ': <strong>' . htmlspecialchars(implode(' · ', $filterBits)) . '</strong>' : '' ?>.
+                    Stamps apply to these rows only.
+                </span>
+                <a href="<?= htmlspecialchars($unfilteredUrl) ?>">Show all</a>
+            </div>
+        <?php endif; ?>
+        <?php if (!$isAdminStamper): ?>
+            <p class="ac-teacher-hint"><i class="fas fa-circle-info" aria-hidden="true"></i> As an organizer you can stamp rows for events you organize.</p>
+        <?php endif; ?>
+
         <?php if ($flash !== ''): ?>
             <div class="alert alert-success py-2 small"><i class="fas fa-circle-check me-1"></i><?= htmlspecialchars($flash) ?></div>
         <?php elseif ($flashError !== ''): ?>
@@ -208,8 +297,10 @@ $dashboardUrl = $role === 'super_admin'
         <?php if (empty($acDisplayRows)): ?>
             <div class="ac-teacher-empty">
                 <i class="fas fa-clipboard" aria-hidden="true"></i>
-                <h1>No attendance yet</h1>
-                <p>This student hasn't checked in to any event or activity yet.</p>
+                <h1><?= $acFilterActive ? 'Nothing to stamp here' : 'No attendance yet' ?></h1>
+                <p><?= $acFilterActive
+                    ? 'The student has no check-ins that match this filter.'
+                    : 'This student hasn\'t checked in to any event or activity yet.' ?></p>
             </div>
         <?php else: ?>
             <div class="ac-sheet-wrap">

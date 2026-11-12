@@ -90,8 +90,11 @@ $acStudentName = $studentName;
 $acDeptLabel = $deptLabel;
 $acDisplayRows = $displayRows;
 $acTeacherMode = false;
-$acQrImageUrl = $cardShareToken !== ''
-    ? 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=' . rawurlencode(eventify_activity_card_view_url($cardShareToken))
+// The QR link carries the card's current filter (updated by activity_card.js) so
+// teachers only see and stamp the rows the student filtered for.
+$acQrViewUrl = $cardShareToken !== '' ? eventify_activity_card_view_url($cardShareToken) : '';
+$acQrImageUrl = $acQrViewUrl !== ''
+    ? 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=' . rawurlencode($acQrViewUrl)
     : '';
 
 $dashboardUrl = BASE_URL . '/backend/auth/dashboard_student.php';
@@ -169,7 +172,7 @@ foreach ($allRows as $countRow) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=54">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/activity_card.css?v=6">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/activity_card.css?v=7">
 </head>
 <body class="event-activities-hub event-activities-hub--index event-activities-hub--student ac-page">
 <div class="eah-wrap">
@@ -250,7 +253,7 @@ foreach ($allRows as $countRow) {
             <div class="eah-student-hub-body">
                 <div class="ac-toolbar ac-screen-only">
                     <p class="ac-toolbar__hint">
-                        Choose Format 1 or Format 2, then filter before you print. Times fill in after QR check-in.
+                        Choose Format 1 or Format 2, then filter before you print. Times fill in after QR check-in. The teacher QR follows your filter, so your teacher only sees and stamps those rows.
                     </p>
                     <div class="ac-toolbar__actions">
                         <a class="ac-btn ac-btn--ghost" href="<?= ac_h($historyUrl) ?>">
@@ -337,7 +340,7 @@ foreach ($allRows as $countRow) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/activity_card.js?v=4"></script>
+<script src="<?= BASE_URL ?>/assets/js/activity_card.js?v=5"></script>
 <?php include __DIR__ . '/views/partials/student_scan_qr_footer.php'; ?>
 </body>
 </html>

@@ -2340,7 +2340,7 @@ window.__eahActivityTokenMap = <?= json_encode($studentActivityTokenMap, JSON_UN
 </script>
 <?php endif; ?>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=5"></script>
+<script src="<?= BASE_URL ?>/assets/js/scan_qr.js?v=6"></script>
 <?php include __DIR__ . '/views/partials/scan_qr_modal.php'; ?>
 <?php endif; ?>
 <?php if ($isOrganizer): ?>

@@ -751,3 +751,34 @@ body.student-dashboard.modal-open .top-navbar,
 body.multimedia-dashboard.modal-open .top-navbar {
     z-index: 1040 !important;
 }
+
+/* Scan QR shortcut (admin + organizer): highlighted two-line sidebar item. */
+body.admin-dashboard .sidebar .action-btn.action-btn--scan,
+body.organizer-dashboard .sidebar .action-btn.action-btn--scan {
+    display: flex !important;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+    padding: 0.7rem 0.85rem !important;
+    border: 1px solid rgba(230, 197, 74, 0.55) !important;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(230, 197, 74, 0.2) 0%, rgba(61, 138, 53, 0.18) 100%) !important;
+}
+body.admin-dashboard .sidebar .action-btn--scan > i,
+body.organizer-dashboard .sidebar .action-btn--scan > i {
+    font-size: 1.25rem;
+    color: #e6c54a;
+}
+.action-btn--scan .action-btn__text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    min-width: 0;
+}
+.action-btn--scan .action-btn__text > span {
+    font-weight: 700;
+}
+.action-btn--scan .action-btn__text small {
+    font-size: 0.74rem;
+    opacity: 0.8;
+}

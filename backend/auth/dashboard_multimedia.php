@@ -231,6 +231,12 @@ if ($iniUp !== '') {
     }
 }
 
+// Photo / video / whole-upload limits shown on the upload form (photo limit above wins for photos).
+$mediaLimits = eventify_event_media_upload_limits($conn);
+$max_upload_mb = $mediaLimits['photo_mb'];
+$max_video_mb = $mediaLimits['video_mb'];
+$max_batch_mb = $mediaLimits['batch_mb'];
+
 $eventActivitiesByEvent = [];
 $eventSessionPhotoStats = [];
 eventify_event_day_sessions_ensure_enhanced($conn);

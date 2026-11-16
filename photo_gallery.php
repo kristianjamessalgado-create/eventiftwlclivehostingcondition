@@ -151,6 +151,7 @@ $pageTitle = $event ? htmlspecialchars($event['title']) . ' – Event Photos' : 
     <title><?= $pageTitle ?> | EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=1">
     <style>
         :root {
             --school-cream: #f7f4e7;
@@ -192,6 +193,7 @@ $pageTitle = $event ? htmlspecialchars($event['title']) . ' – Event Photos' : 
         .thumb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:0.75rem; }
         .thumb { position:relative; border-radius:12px; overflow:hidden; background:#e5e7eb; cursor:pointer; border:1px solid rgba(1, 50, 32, 0.22); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .thumb img { width:100%; height:140px; object-fit:cover; display:block; transition:transform .2s ease; }
+        .thumb .efy-media-video-thumb { height:140px; }
         .thumb:hover img { transform:scale(1.03); }
         .thumb:hover { border-color: var(--school-gold-dim); }
         .thumb-overlay { position:absolute; inset:0; background:linear-gradient(to bottom,rgba(0,0,0,0) 40%,rgba(0,0,0,0.45)); display:flex; align-items:flex-end; justify-content:space-between; color:#fff; padding:.4rem .45rem; font-size:.75rem; opacity:0; transition:opacity .2s ease; }
@@ -279,7 +281,7 @@ $pageTitle = $event ? htmlspecialchars($event['title']) . ' – Event Photos' : 
             <?php elseif ($event && empty($photos)): ?>
                 <div class="empty-state">
                     <i class="fas fa-image"></i>
-                    <p class="mb-1">No official photos have been uploaded yet for this event.</p>
+                    <p class="mb-1">No official photos or videos have been uploaded yet for this event.</p>
                     <p class="mb-0 small">Please check again later or contact your multimedia team.</p>
                 </div>
             <?php elseif ($event): ?>
@@ -290,7 +292,7 @@ $pageTitle = $event ? htmlspecialchars($event['title']) . ' – Event Photos' : 
                             $pCredit = trim((string) ($p['credit_line'] ?? ''));
                         ?>
                         <div class="thumb" data-index="<?= (int)$index ?>">
-                            <img src="<?= BASE_URL . '/' . htmlspecialchars($p['file_path']) ?>" alt="<?= htmlspecialchars($pCaption !== '' ? $pCaption : 'Event photo') ?>">
+                            <?= eventify_event_media_html(BASE_URL . '/' . $p['file_path'], $pCaption !== '' ? $pCaption : (eventify_event_media_is_video($p['file_path']) ? 'Event video' : 'Event photo')) ?>
                             <?php if ($pCaption !== '' || $pCredit !== ''): ?>
                                 <div class="thumb-caption">
                                     <?php if ($pCaption !== ''): ?><div><?= htmlspecialchars($pCaption) ?></div><?php endif; ?>
@@ -322,6 +324,7 @@ $pageTitle = $event ? htmlspecialchars($event['title']) . ' – Event Photos' : 
         </div>
     </div>
 
+    <script src="<?= BASE_URL ?>/assets/js/event_media.js?v=1"></script>
     <script>
     (function() {
         var thumbs = document.querySelectorAll('.thumb');
@@ -341,13 +344,20 @@ $pageTitle = $event ? htmlspecialchars($event['title']) . ' – Event Photos' : 
             current = index;
             if (current < 0) current = images.length - 1;
             if (current >= images.length) current = 0;
-            imgEl.src = images[current];
+            if (window.eventifyMedia) {
+                eventifyMedia.show(imgEl, images[current]);
+            } else {
+                imgEl.src = images[current];
+            }
             if (counterEl) counterEl.textContent = (current + 1) + ' / ' + images.length;
             overlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
 
         window.hideViewer = function() {
+            if (window.eventifyMedia) {
+                eventifyMedia.stop(imgEl);
+            }
             overlay.style.display = 'none';
             document.body.style.overflow = '';
         };

@@ -64,6 +64,7 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
 
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=28">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_media.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/attendance_proof.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
@@ -1199,7 +1200,8 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=31"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_media.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_student.js?v=32"></script>
 <script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=1"></script>
 <script>window.__myTicketsBootstrap = <?= json_encode($student_tickets_bootstrap, JSON_UNESCAPED_UNICODE) ?>;</script>
 

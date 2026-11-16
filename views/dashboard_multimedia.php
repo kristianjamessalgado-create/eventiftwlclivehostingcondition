@@ -43,6 +43,7 @@ if (is_array($events)) {
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=10">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_spinner.css?v=2">
@@ -504,7 +505,7 @@ if (is_array($events)) {
                     <span class="efy-modal__eyebrow">Multimedia</span>
                     <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="uploadModalLabel">
                         <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i>
-                        Upload photos
+                        Upload photos &amp; videos
                     </h5>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -525,10 +526,14 @@ if (is_array($events)) {
                         <span class="efy-form-help">Choose the main event for general coverage, or pick a specific activity (e.g. Badminton).</span>
                     </div>
                     <div class="efy-form-section mb-3">
-                        <label class="efy-form-label" for="photosInput">Select images (JPG, PNG, GIF, WEBP, or iPhone HEIC — max <?= (int)($max_upload_mb ?? 10) ?>MB each)</label>
-                        <input type="file" name="photos[]" id="photosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif" multiple required data-photo-queue="uploadPhotoQueue">
+                        <label class="efy-form-label" for="photosInput">Select photos or videos</label>
+                        <input type="file" name="photos[]" id="photosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm,video/x-m4v,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.mp4,.mov,.webm,.m4v" multiple required data-photo-queue="uploadPhotoQueue" data-photo-max-mb="<?= (int)($max_upload_mb ?? 10) ?>" data-video-max-mb="<?= (int)($max_video_mb ?? 10) ?>" data-batch-max-mb="<?= (int)($max_batch_mb ?? 10) ?>">
                         <ul class="mm-upload-queue" id="uploadPhotoQueue" hidden></ul>
-                        <span class="efy-form-help">Select several photos at once. Hold Ctrl and click each photo, or Shift-click a range. iPhone HEIC photos are converted to JPG before upload. Choose files again to add more.</span>
+                        <span class="efy-form-help">
+                            <strong>Photos:</strong> JPG, PNG, GIF, WEBP or iPhone HEIC, up to <?= (int)($max_upload_mb ?? 10) ?>MB each.
+                            <strong>Videos:</strong> MP4, MOV or WebM, up to <?= (int)($max_video_mb ?? 10) ?>MB each.
+                            Up to <?= (int)($max_batch_mb ?? 10) ?>MB per upload in total. Select several files at once (Ctrl-click or Shift-click), or choose files again to add more. HEIC photos are converted to JPG before upload.
+                        </span>
                     </div>
                     <div class="efy-form-section mb-3">
                         <label class="efy-form-label" for="uploadPhotoCaption">Caption <span class="text-muted fw-normal">(optional)</span></label>
@@ -536,7 +541,7 @@ if (is_array($events)) {
                     </div>
                     <div class="efy-form-section mb-0">
                         <label class="efy-form-label" for="uploadPhotoCredit">Credit line <span class="text-muted fw-normal">(optional)</span></label>
-                        <input type="text" class="form-control" name="credit_line" id="uploadPhotoCredit" maxlength="255" placeholder="e.g. Photo by <?= htmlspecialchars($user_name) ?> / WLC Multimedia" value="">
+                        <input type="text" class="form-control" name="credit_line" id="uploadPhotoCredit" maxlength="255" placeholder="e.g. Photo/video by <?= htmlspecialchars($user_name) ?> / WLC Multimedia" value="">
                         <span class="efy-form-help">Shown to students on the published gallery.</span>
                     </div>
                 </div>
@@ -569,7 +574,7 @@ if (is_array($events)) {
                     <span class="efy-modal__eyebrow">Multimedia</span>
                     <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="galleryTitle">
                         <i class="fas fa-images" aria-hidden="true"></i>
-                        <span id="galleryTitleText">Event photos</span>
+                        <span id="galleryTitleText">Event photos &amp; videos</span>
                     </h5>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -596,7 +601,7 @@ if (is_array($events)) {
                     </div>
                 </div>
                 <div id="galleryGrid" class="gallery-grid"><!-- Thumbnails injected by JS --></div>
-                <p id="galleryEmpty" class="efy-form-help mb-0" style="display:none;">No photos uploaded yet for this event.</p>
+                <p id="galleryEmpty" class="efy-form-help mb-0" style="display:none;">No photos or videos uploaded yet for this event.</p>
             </div>
             <div class="modal-footer efy-modal__footer">
                 <button type="button" class="btn efy-btn-muted btn-sm" data-bs-dismiss="modal">Close</button>
@@ -736,6 +741,7 @@ if (is_array($events)) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_media.js?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script>window.csrfToken = <?= json_encode(function_exists('csrf_token') ? csrf_token() : '') ?>;</script>
 <script>window.BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
@@ -1491,10 +1497,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     wrapper.className = 'gallery-item';
                     wrapper.setAttribute('data-photo-id', String(photo.id));
 
-                    var img = document.createElement('img');
-                    img.src = '<?= BASE_URL ?>/' + photo.file_path;
-                    img.alt = 'Event photo';
-                    img.className = 'gallery-photo';
+                    var isVid = !!(window.eventifyMedia && eventifyMedia.isVideo(photo.file_path));
+                    var img = isVid
+                        ? eventifyMedia.thumb('<?= BASE_URL ?>/' + photo.file_path, 'Event video')
+                        : document.createElement('img');
+                    if (!isVid) {
+                        img.src = '<?= BASE_URL ?>/' + photo.file_path;
+                        img.alt = 'Event photo';
+                    }
+                    img.className = isVid ? 'gallery-photo efy-media-video-thumb' : 'gallery-photo';
                     img.style.cursor = 'pointer';
                     img.onerror = function() {
                         this.onerror = null;
@@ -1809,7 +1820,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var media = card.querySelector('.event-media');
         if (!media) return;
         if (photos.length && photos[0] && photos[0].file_path) {
-            var img = media.querySelector('.event-preview');
+            var firstUrl = '<?= BASE_URL ?>/' + photos[0].file_path;
+            if (window.eventifyMedia && eventifyMedia.isVideo(firstUrl)) {
+                media.innerHTML = '';
+                var vthumb = eventifyMedia.thumb(firstUrl, 'Preview video');
+                vthumb.classList.add('event-preview');
+                media.appendChild(vthumb);
+                return;
+            }
+            var img = media.querySelector('img.event-preview');
             if (!img) {
                 media.innerHTML = '';
                 img = document.createElement('img');
@@ -1817,7 +1836,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 img.alt = 'Preview photo';
                 media.appendChild(img);
             }
-            img.src = '<?= BASE_URL ?>/' + photos[0].file_path;
+            img.src = firstUrl;
             return;
         }
         media.innerHTML = '<div class="event-preview-placeholder" aria-hidden="true"><i class="fas fa-image"></i></div>';
@@ -2008,6 +2027,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.closePhotoViewer = function() {
         var viewer = document.getElementById('photoViewer');
+        if (window.eventifyMedia) {
+            eventifyMedia.stop(document.getElementById('viewerImage'));
+        }
         if (viewer) {
             viewer.style.display = 'none';
             document.body.style.overflow = '';
@@ -2029,7 +2051,12 @@ document.addEventListener('DOMContentLoaded', function() {
         var countEl = document.getElementById('viewerPhotoCount');
         
         if (img) {
-            img.src = '<?= BASE_URL ?>/' + photo.file_path;
+            var viewerUrl = '<?= BASE_URL ?>/' + photo.file_path;
+            if (window.eventifyMedia) {
+                eventifyMedia.show(img, viewerUrl);
+            } else {
+                img.src = viewerUrl;
+            }
         }
         if (countEl) {
             countEl.textContent = (currentPhotoIndex + 1) + ' / ' + currentPhotos.length;
@@ -2052,6 +2079,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/multimedia_photo_upload_queue.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/multimedia_photo_upload_queue.js?v=4"></script>
 </body>
 </html>

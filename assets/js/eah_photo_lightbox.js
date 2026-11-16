@@ -18,7 +18,11 @@
         if (!imgEl || !src) {
             return;
         }
-        imgEl.src = src;
+        if (window.eventifyMedia) {
+            window.eventifyMedia.show(imgEl, src);
+        } else {
+            imgEl.src = src;
+        }
         imgEl.alt = alt || 'Activity photo';
         lightbox.hidden = false;
         document.body.classList.add('eah-lightbox-open');
@@ -26,6 +30,9 @@
 
     function closeLightbox() {
         lightbox.hidden = true;
+        if (window.eventifyMedia && imgEl) {
+            window.eventifyMedia.stop(imgEl);
+        }
         if (imgEl) {
             imgEl.src = '';
         }
@@ -43,8 +50,8 @@
             return;
         }
         e.preventDefault();
-        var innerImg = link.querySelector('img');
-        openLightbox(href, innerImg ? innerImg.getAttribute('alt') : 'Activity photo');
+        var innerImg = link.querySelector('img, video');
+        openLightbox(href, innerImg ? (innerImg.getAttribute('alt') || innerImg.getAttribute('aria-label')) : 'Activity photo');
     });
 
     if (closeBtn) {

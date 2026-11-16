@@ -14,31 +14,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'multimedia') {
 $user_id = (int) $_SESSION['user_id'];
 $base_dir = dirname(__DIR__, 2);
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+// Photos AND videos. MIME type (detected from file content) => stored extension.
+$allowedTypes = eventify_event_media_allowed_types();
 
-// Per-image size limit comes from the admin "Max Upload Size (MB)" setting
-// (falls back to 10MB). We also clamp it to what PHP itself permits.
-$maxUploadMb = 10;
-if ($res = @$conn->query("SELECT max_upload_size_mb FROM admin_settings WHERE max_upload_size_mb IS NOT NULL ORDER BY updated_at DESC LIMIT 1")) {
-    if ($row = $res->fetch_assoc()) {
-        $maxUploadMb = max(1, (int) $row['max_upload_size_mb']);
-    }
-    $res->free();
-}
-$iniUpload = trim((string) ini_get('upload_max_filesize'));
-if ($iniUpload !== '') {
-    $iniBytes = (int) $iniUpload;
-    switch (strtolower(substr($iniUpload, -1))) {
-        case 'g': $iniBytes *= 1024 * 1024 * 1024; break;
-        case 'm': $iniBytes *= 1024 * 1024; break;
-        case 'k': $iniBytes *= 1024; break;
-    }
-    $phpUploadLimitMb = (int) floor($iniBytes / (1024 * 1024));
-    if ($phpUploadLimitMb > 0) {
-        $maxUploadMb = min($maxUploadMb, $phpUploadLimitMb);
-    }
-}
-$maxFileSize = $maxUploadMb * 1024 * 1024;
+// Photos use the admin "Max Upload Size (MB)" setting; videos may use whatever
+// PHP allows per file (both are capped by the server's PHP limits).
+$limits = eventify_event_media_upload_limits($conn);
+$maxUploadMb = $limits['photo_mb'];
+$maxVideoMb = $limits['video_mb'];
 
 $event_id = isset($_POST['event_id']) ? (int) $_POST['event_id'] : 0;
 $session_id = isset($_POST['session_id']) ? (int) $_POST['session_id'] : 0;
@@ -47,6 +30,10 @@ $redirect = static function (string $msg) use ($event_id, $session_id): void {
     eventify_multimedia_photo_redirect($event_id, $session_id, $msg);
 };
 
+// When a request is bigger than PHP's post_max_size, PHP drops the whole form.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    $redirect('That upload is too large for the server (limit ' . $limits['batch_mb'] . 'MB per upload). Upload fewer files at once, or use smaller videos.');
+}
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $event_id <= 0) {
     $redirect('Invalid request.');
 }
@@ -132,29 +119,31 @@ if (!empty($_FILES['photos']['name'])) {
                 continue;
             }
             if (in_array($errors[$i], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
-                $fileErrors[] = $name . ' is over ' . $maxUploadMb . 'MB.';
+                $fileErrors[] = $name . ' is larger than the server allows (' . $maxVideoMb . 'MB).';
             } else {
                 $fileErrors[] = $name . ' could not be uploaded.';
             }
             continue;
         }
-        if (($sizes[$i] ?? 0) > $maxFileSize) {
-            $fileErrors[] = $name . ' is over ' . $maxUploadMb . 'MB.';
-            continue;
-        }
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = $finfo ? finfo_file($finfo, $tmp[$i]) : '';
+        $mime = $finfo ? (string) finfo_file($finfo, $tmp[$i]) : '';
         if ($finfo) {
             finfo_close($finfo);
         }
-        if (!in_array($mime, ALLOWED_TYPES, true)) {
-            $fileErrors[] = $name . ' must be JPG, PNG, GIF, or WebP.';
+        if (!isset($allowedTypes[$mime])) {
+            $fileErrors[] = $name . ' must be a photo (JPG, PNG, GIF, WebP) or a video (MP4, MOV, WebM).';
             continue;
         }
-        $files[] = ['name' => $name, 'tmp_name' => $tmp[$i]];
+        $isVideo = strpos($mime, 'image/') !== 0;
+        $limitMb = $isVideo ? $maxVideoMb : $maxUploadMb;
+        if (($sizes[$i] ?? 0) > $limitMb * 1024 * 1024) {
+            $fileErrors[] = $name . ' is over ' . $limitMb . 'MB' . ($isVideo ? ' (video limit).' : ' (photo limit).');
+            continue;
+        }
+        $files[] = ['name' => $name, 'tmp_name' => $tmp[$i], 'ext' => $allowedTypes[$mime], 'video' => $isVideo];
     }
 } elseif (empty($_POST) && empty($_FILES) && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-    $error = 'That batch is too large for the server. Upload fewer photos at once, or use smaller files.';
+    $error = 'That batch is too large for the server (limit ' . $limits['batch_mb'] . 'MB per upload). Upload fewer files at once, or use smaller videos.';
 }
 
 if ($error !== '') {
@@ -163,7 +152,7 @@ if ($error !== '') {
 }
 if ($files === []) {
     $conn->close();
-    $redirect($fileErrors !== [] ? implode(' ', $fileErrors) : 'Please select at least one image.');
+    $redirect($fileErrors !== [] ? implode(' ', $fileErrors) : 'Please select at least one photo or video.');
 }
 if (!is_dir($uploads_base) && !@mkdir($uploads_base, 0755, true)) {
     $conn->close();
@@ -221,14 +210,14 @@ if (!$insert) {
 }
 
 $uploaded = 0;
+$uploadedVideos = 0;
 $lastDbError = '';
 foreach ($files as $f) {
-    $ext = pathinfo($f['name'], PATHINFO_EXTENSION) ?: 'jpg';
-    $safe_name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $f['name']);
-    $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '_' . $safe_name;
-    if (!pathinfo($filename, PATHINFO_EXTENSION)) {
-        $filename .= '.' . (strtolower($ext) ?: 'jpg');
-    }
+    // The extension always comes from the detected file type, never from the
+    // user's filename, so a file can't be saved as .php or similar.
+    $base = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string) pathinfo($f['name'], PATHINFO_FILENAME));
+    $base = substr(trim((string) $base, '_'), 0, 60);
+    $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . ($base !== '' ? '_' . $base : '') . '.' . $f['ext'];
     $dest = $uploads_base . '/' . $filename;
     if (!move_uploaded_file($f['tmp_name'], $dest)) {
         $lastDbError = 'Could not save file on server.';
@@ -248,6 +237,9 @@ foreach ($files as $f) {
     }
     if ($insert->execute()) {
         $uploaded++;
+        if (!empty($f['video'])) {
+            $uploadedVideos++;
+        }
     } else {
         $lastDbError = $insert->error ?: 'Database insert failed.';
         @unlink($dest);
@@ -255,6 +247,9 @@ foreach ($files as $f) {
 }
 
 $insert->close();
+
+// "photo(s)", "video(s)" or "photo(s) and video(s)" for messages.
+$itemLabel = $uploadedVideos === 0 ? 'photo(s)' : ($uploadedVideos === $uploaded ? 'video(s)' : 'photo(s) and video(s)');
 
 if ($uploaded > 0) {
     $eventTitle = trim((string) ($eventRow['title'] ?? ''));
@@ -270,7 +265,7 @@ if ($uploaded > 0) {
         }
     }
     $uploaderLabel = eventify_moderator_display_name($conn, $user_id);
-    $details = $uploaderLabel . ' uploaded ' . $uploaded . ' photo(s)'
+    $details = $uploaderLabel . ' uploaded ' . $uploaded . ' ' . $itemLabel
         . eventify_photo_activity_context_suffix($eventTitle, $sessionTitle)
         . ($autoPublish ? ' — auto-published (moderator)' : ' — pending moderator review');
     eventify_log_photo_activity($conn, $user_id, 'multimedia', 'photo_uploaded', 'event', $event_id, $details);
@@ -299,11 +294,11 @@ $conn->close();
 
 if ($uploaded > 0) {
     if ($autoPublish) {
-        $msg = $uploaded . ' photo(s) uploaded and published.';
+        $msg = $uploaded . ' ' . $itemLabel . ' uploaded and published.';
     } else {
         $msg = $session_id > 0
-            ? $uploaded . ' photo(s) submitted. Your moderator will review them before they appear in the Activities hub.'
-            : $uploaded . ' photo(s) submitted. Your moderator will review them before they are published.';
+            ? $uploaded . ' ' . $itemLabel . ' submitted. Your moderator will review them before they appear in the Activities hub.'
+            : $uploaded . ' ' . $itemLabel . ' submitted. Your moderator will review them before they are published.';
     }
     if ($fileErrors !== []) {
         $msg .= ' Skipped: ' . implode(' ', $fileErrors);

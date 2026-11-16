@@ -174,7 +174,9 @@ require_once __DIR__ . '/../../backend/lib/event_ticketing.php';
                          aria-label="Open <?= htmlspecialchars($title) ?> — choose activity to upload photos"
                          <?php endif; ?>>
                         <div class="event-media">
-                            <?php if ($previewPath): ?>
+                            <?php if ($previewPath && eventify_event_media_is_video($previewPath)): ?>
+                                <?= str_replace('class="efy-media-video-thumb"', 'class="efy-media-video-thumb event-preview"', eventify_event_media_html(BASE_URL . '/' . $previewPath, 'Preview video for ' . $title)) ?>
+                            <?php elseif ($previewPath): ?>
                                 <img
                                     src="<?= BASE_URL ?>/<?= htmlspecialchars($previewPath) ?>"
                                     alt="Preview photo for <?= htmlspecialchars($title) ?>"

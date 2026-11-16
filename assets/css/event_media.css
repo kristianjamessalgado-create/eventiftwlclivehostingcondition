@@ -1,0 +1,58 @@
+/* EVENTIFY event media: video thumbnails and players in photo galleries. */
+
+.efy-media-video-thumb {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0f172a;
+    cursor: pointer;
+}
+
+.efy-media-video-thumb video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none; /* clicks go to the gallery item, which opens the player */
+}
+
+.efy-media-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.6rem;
+    height: 2.6rem;
+    margin: -1.3rem 0 0 -1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    color: #fff;
+    font-size: 0.95rem;
+    pointer-events: none;
+}
+
+.efy-media-play i {
+    margin-left: 2px; /* optical centring of the play triangle */
+}
+
+/* Video shown in a lightbox / viewer */
+video.efy-media-viewer-video {
+    max-width: 100%;
+    max-height: 85vh;
+    background: #000;
+    object-fit: contain;
+}
+
+@media (max-width: 576px) {
+    .efy-media-play {
+        width: 2.1rem;
+        height: 2.1rem;
+        margin: -1.05rem 0 0 -1.05rem;
+        font-size: 0.8rem;
+    }
+}

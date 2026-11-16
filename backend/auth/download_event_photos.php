@@ -103,7 +103,7 @@ $conn->close();
 
 if ($photos === []) {
     http_response_code(404);
-    exit('No photos to download.');
+    exit('No photos or videos to download.');
 }
 
 if (!class_exists('ZipArchive')) {
@@ -127,7 +127,10 @@ if ($zip->open($tmpZip, ZipArchive::OVERWRITE) !== true) {
     exit('Could not create ZIP archive.');
 }
 
+@set_time_limit(0); // large videos can take a while to package
+
 $added = 0;
+$hasVideo = false;
 $usedNames = [];
 foreach ($photos as $p) {
     $rel = ltrim((string) $p['file_path'], '/\\');
@@ -156,6 +159,13 @@ foreach ($photos as $p) {
     }
 
     $zip->addFile($realFile, $entryName);
+    // Videos are already compressed: store them as-is (much faster, same size).
+    if (preg_match('/.(mp4|m4v|webm|mov)$/i', $entryName)) {
+        $hasVideo = true;
+        if (method_exists($zip, 'setCompressionName')) {
+            $zip->setCompressionName($entryName, ZipArchive::CM_STORE);
+        }
+    }
     $added++;
 }
 $zip->close();
@@ -163,7 +173,7 @@ $zip->close();
 if ($added === 0) {
     @unlink($tmpZip);
     http_response_code(404);
-    exit('No photo files were found on the server.');
+    exit('No photo or video files were found on the server.');
 }
 
 // Build a friendly, safe zip filename from the event title
@@ -172,7 +182,7 @@ $slug = trim((string) $slug, '_');
 if ($slug === '') {
     $slug = 'event_' . $event_id;
 }
-$zipName = $slug . '_photos.zip';
+$zipName = $slug . ($hasVideo ? '_media.zip' : '_photos.zip');
 
 while (ob_get_level() > 0) {
     ob_end_clean();

@@ -409,3 +409,97 @@ function eventify_multimedia_photo_redirect(int $eventId, int $sessionId, string
     }
     exit();
 }
+
+/* =====================================================================
+ * Event media: photos AND videos share the event_photos table.
+ * The stored file extension decides how an item is shown.
+ * ===================================================================== */
+
+/** Allowed upload MIME types => stored file extension. */
+function eventify_event_media_allowed_types(): array
+{
+    return [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+        'video/mp4' => 'mp4',
+        'application/mp4' => 'mp4',
+        'video/x-m4v' => 'm4v',
+        'video/webm' => 'webm',
+        'video/quicktime' => 'mov',
+    ];
+}
+
+/** True when a stored media path is a video (by extension). */
+function eventify_event_media_is_video(?string $path): bool
+{
+    $ext = strtolower((string) pathinfo((string) $path, PATHINFO_EXTENSION));
+    return in_array($ext, ['mp4', 'm4v', 'webm', 'mov'], true);
+}
+
+/** Bytes for a php.ini size like "64M". */
+function eventify_ini_size_bytes(string $value): int
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
+    $bytes = (int) $value;
+    switch (strtolower(substr($value, -1))) {
+        case 'g': $bytes *= 1024 * 1024 * 1024; break;
+        case 'm': $bytes *= 1024 * 1024; break;
+        case 'k': $bytes *= 1024; break;
+    }
+    return $bytes;
+}
+
+/**
+ * Upload limits in MB.
+ *  - photo_mb: admin "Max Upload Size (MB)" (default 10), capped by PHP.
+ *  - video_mb: whatever PHP allows per file (max 500MB).
+ *  - batch_mb: PHP post_max_size (whole upload request).
+ *
+ * @return array{photo_mb:int, video_mb:int, batch_mb:int}
+ */
+function eventify_event_media_upload_limits(mysqli $conn): array
+{
+    $photoMb = 10;
+    if ($res = @$conn->query("SELECT max_upload_size_mb FROM admin_settings WHERE max_upload_size_mb IS NOT NULL ORDER BY updated_at DESC LIMIT 1")) {
+        if ($row = $res->fetch_assoc()) {
+            $photoMb = max(1, (int) $row['max_upload_size_mb']);
+        }
+        $res->free();
+    }
+    $fileMb = (int) floor(eventify_ini_size_bytes((string) ini_get('upload_max_filesize')) / (1024 * 1024));
+    $postMb = (int) floor(eventify_ini_size_bytes((string) ini_get('post_max_size')) / (1024 * 1024));
+    $phpFileMb = $fileMb > 0 ? $fileMb : 2;
+    if ($postMb > 0) {
+        $phpFileMb = min($phpFileMb, $postMb);
+    }
+    return [
+        'photo_mb' => max(1, min($photoMb, $phpFileMb)),
+        'video_mb' => max(1, min(500, $phpFileMb)),
+        'batch_mb' => $postMb > 0 ? $postMb : $phpFileMb,
+    ];
+}
+
+/**
+ * HTML for one media item: <img> for photos, <video> for videos.
+ * In 'thumb' mode videos are muted, show the first frame and get a play badge.
+ */
+function eventify_event_media_html(string $url, string $alt = '', string $mode = 'thumb', string $extraAttrs = ''): string
+{
+    $u = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+    $a = htmlspecialchars($alt, ENT_QUOTES, 'UTF-8');
+    if (!eventify_event_media_is_video($url)) {
+        return '<img src="' . $u . '" alt="' . $a . '" loading="lazy" decoding="async"' . ($extraAttrs !== '' ? ' ' . $extraAttrs : '') . '>';
+    }
+    if ($mode === 'player') {
+        return '<video src="' . $u . '" controls playsinline preload="metadata" aria-label="' . $a . '"' . ($extraAttrs !== '' ? ' ' . $extraAttrs : '') . '></video>';
+    }
+    return '<span class="efy-media-video-thumb">'
+        . '<video src="' . $u . '#t=0.5" muted playsinline preload="metadata" aria-label="' . $a . '"' . ($extraAttrs !== '' ? ' ' . $extraAttrs : '') . '></video>'
+        . '<span class="efy-media-play" aria-hidden="true"><i class="fas fa-play"></i></span>'
+        . '</span>';
+}

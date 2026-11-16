@@ -965,6 +965,9 @@ function studentPhotoViewerHide() {
         return;
     }
     overlay.hidden = true;
+    if (window.eventifyMedia) {
+        window.eventifyMedia.stop(imgEl);
+    }
     imgEl.src = '';
     document.body.classList.remove('student-photo-viewer-open');
 }
@@ -987,7 +990,11 @@ function studentPhotoViewerShow(index) {
     if (studentPhotoViewerCurrent >= urls.length) {
         studentPhotoViewerCurrent = 0;
     }
-    imgEl.src = urls[studentPhotoViewerCurrent];
+    if (window.eventifyMedia) {
+        window.eventifyMedia.show(imgEl, urls[studentPhotoViewerCurrent]);
+    } else {
+        imgEl.src = urls[studentPhotoViewerCurrent];
+    }
     if (counterEl) {
         counterEl.textContent = (studentPhotoViewerCurrent + 1) + ' / ' + urls.length;
     }

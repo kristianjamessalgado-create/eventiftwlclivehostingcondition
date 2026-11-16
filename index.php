@@ -142,6 +142,8 @@ try {
         FROM event_photos p
         INNER JOIN events e ON e.id = p.event_id
         WHERE e.title NOT LIKE 'sample%'
+          AND p.file_path NOT LIKE '%.mp4' AND p.file_path NOT LIKE '%.m4v'
+          AND p.file_path NOT LIKE '%.mov' AND p.file_path NOT LIKE '%.webm'
     ";
     if ($photoStatusEnabled) {
         $photoSql .= " AND p.status = 'published' ";

@@ -478,6 +478,7 @@ if ($isStudent && $view === 'activity' && is_array($detailSession) && $event) {
 
 eventify_event_photos_ensure_session_column($conn);
 $photoStatusEnabled = eventify_event_photos_has_status($conn);
+$eahMediaLimits = eventify_event_media_upload_limits($conn);
 $sessionPhotoStats = [];
 $detailActivityPhotos = [];
 $detailPhotoDraftCount = 0;
@@ -735,7 +736,7 @@ function eah_render_activity_photos_section(
                     ?>
                     <figure class="eah-photo-grid__item<?= $isDraft ? ' is-draft' : '' ?><?= $isRejected ? ' is-rejected' : '' ?>">
                         <a href="<?= eah_h(BASE_URL . '/' . ltrim($path, '/')) ?>" target="_blank" rel="noopener">
-                            <img src="<?= eah_h(BASE_URL . '/' . ltrim($path, '/')) ?>" alt="<?= eah_h($phCaption !== '' ? $phCaption : 'Activity photo') ?>" loading="lazy" decoding="async">
+                            <?= eventify_event_media_html(BASE_URL . '/' . ltrim($path, '/'), $phCaption !== '' ? $phCaption : (eventify_event_media_is_video($path) ? 'Activity video' : 'Activity photo')) ?>
                         </a>
                         <?php if ($phCaption !== '' || $phCredit !== ''): ?>
                             <figcaption class="eah-photo-grid__meta">
@@ -901,6 +902,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=53">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=1">
     <?php if ($isStudent || $isOrganizer || $isMultimedia): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=9">
     <?php endif; ?>
@@ -2070,7 +2072,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                     <span class="efy-modal__eyebrow">Multimedia</span>
                     <h5 class="modal-title efy-modal__title efy-modal__title--sm" id="eahUploadPhotosModalLabel">
                         <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i>
-                        Upload activity photos
+                        Upload activity photos &amp; videos
                     </h5>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -2081,10 +2083,10 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                 <input type="hidden" name="session_id" value="<?= (int) ($detailSession['id'] ?? 0) ?>">
                 <div class="modal-body efy-modal__body">
                     <div class="efy-form-section mb-3">
-                        <label class="efy-form-label" for="eahPhotosInput">Select images</label>
-                        <input type="file" name="photos[]" id="eahPhotosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif" multiple required data-photo-queue="eahPhotoQueue">
+                        <label class="efy-form-label" for="eahPhotosInput">Select photos or videos</label>
+                        <input type="file" name="photos[]" id="eahPhotosInput" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm,video/x-m4v,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.mp4,.mov,.webm,.m4v" multiple required data-photo-queue="eahPhotoQueue" data-photo-max-mb="<?= (int) ($eahMediaLimits['photo_mb'] ?? 10) ?>" data-video-max-mb="<?= (int) ($eahMediaLimits['video_mb'] ?? 10) ?>" data-batch-max-mb="<?= (int) ($eahMediaLimits['batch_mb'] ?? 10) ?>">
                         <ul class="mm-upload-queue" id="eahPhotoQueue" hidden></ul>
-                        <span class="efy-form-help">JPG, PNG, GIF, WEBP, or iPhone HEIC. HEIC photos are converted to JPG before upload. Select several at once (Ctrl+click or Shift+click).</span>
+                        <span class="efy-form-help"><strong>Photos:</strong> JPG, PNG, GIF, WEBP or iPhone HEIC (converted to JPG), up to <?= (int) ($eahMediaLimits['photo_mb'] ?? 10) ?>MB each. <strong>Videos:</strong> MP4, MOV or WebM, up to <?= (int) ($eahMediaLimits['video_mb'] ?? 10) ?>MB each. Up to <?= (int) ($eahMediaLimits['batch_mb'] ?? 10) ?>MB per upload. Select several at once (Ctrl+click or Shift+click).</span>
                     </div>
                     <div class="efy-form-section mb-3">
                         <label class="efy-form-label" for="eahPhotoCaption">Caption <span class="text-muted fw-normal">(optional)</span></label>
@@ -2092,7 +2094,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
                     </div>
                     <div class="efy-form-section mb-0">
                         <label class="efy-form-label" for="eahPhotoCredit">Credit line <span class="text-muted fw-normal">(optional)</span></label>
-                        <input type="text" class="form-control" name="credit_line" id="eahPhotoCredit" maxlength="255" placeholder="Photo by photographer name">
+                        <input type="text" class="form-control" name="credit_line" id="eahPhotoCredit" maxlength="255" placeholder="Photo/video by photographer name">
                     </div>
                 </div>
                 <div class="modal-footer efy-modal__footer">
@@ -2326,9 +2328,10 @@ $parentEventSections = function_exists('eventify_parse_target_sections_list')
 <script>
 window.BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/eah_photo_lightbox.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_media.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/eah_photo_lightbox.js?v=2"></script>
 <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/multimedia_photo_upload_queue.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/multimedia_photo_upload_queue.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/photo_moderation_confirm.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>

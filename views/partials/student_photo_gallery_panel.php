@@ -116,14 +116,14 @@ $viewingEvent = $student_photos_event_id > 0;
                         data-photo-index="<?= (int) $i ?>"
                         aria-label="View photo <?= (int) $i + 1 ?> of <?= $photoCount ?>"
                     >
-                        <img src="<?= BASE_URL . '/' . htmlspecialchars((string) ($p['file_path'] ?? '')) ?>" alt="Event photo" loading="lazy">
+                        <?= eventify_event_media_html(BASE_URL . '/' . (string) ($p['file_path'] ?? ''), eventify_event_media_is_video((string) ($p['file_path'] ?? '')) ? 'Event video' : 'Event photo') ?>
                         <span class="student-photo-thumb__overlay">
                             <i class="fas fa-expand" aria-hidden="true"></i>
                         </span>
                     </button>
                 <?php endforeach; ?>
             </div>
-            <p class="student-photo-panel__footer-note">Showing <?= $photoCount ?> photo<?= $photoCount === 1 ? '' : 's' ?>.</p>
+            <p class="student-photo-panel__footer-note">Showing <?= $photoCount ?> item<?= $photoCount === 1 ? '' : 's' ?>.</p>
         <?php elseif (!$viewingEvent && $galleryCount === 0): ?>
             <div class="student-dash-panel__empty">
                 <div class="student-dash-panel__empty-icon" aria-hidden="true"><i class="fas fa-images"></i></div>
@@ -221,7 +221,7 @@ $viewingEvent = $student_photos_event_id > 0;
                     >
                         <div class="student-photo-gallery-card__cover">
                             <?php if ($cover !== ''): ?>
-                                <img src="<?= BASE_URL . '/' . htmlspecialchars($cover) ?>" alt="" loading="lazy">
+                                <?= eventify_event_media_html(BASE_URL . '/' . $cover, '') ?>
                             <?php else: ?>
                                 <span class="student-photo-gallery-card__placeholder" aria-hidden="true"><i class="fas fa-image"></i></span>
                             <?php endif; ?>

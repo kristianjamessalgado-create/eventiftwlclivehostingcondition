@@ -97,8 +97,9 @@ $panelEnterClass = $mm_photo_approvals_panel_open ? ' mm-dash-panel--enter' : ''
                                 <input type="checkbox" class="form-check-input js-mm-photo-select" value="<?= $phId ?>" aria-label="Select photo for <?= htmlspecialchars($phLabel) ?>">
                             </div>
                             <div class="d-flex gap-3 flex-grow-1 min-w-0">
-                                <a href="<?= htmlspecialchars($phImgUrl) ?>" target="_blank" rel="noopener" class="mm-approval-list__thumb flex-shrink-0" title="Open photo">
-                                    <img src="<?= htmlspecialchars($phImgUrl) ?>" alt="Pending photo" loading="lazy" decoding="async">
+                                <?php $phIsVideo = eventify_event_media_is_video($phPath); ?>
+                                <a href="<?= htmlspecialchars($phImgUrl) ?>" target="_blank" rel="noopener" class="mm-approval-list__thumb flex-shrink-0" title="<?= $phIsVideo ? 'Open video' : 'Open photo' ?>">
+                                    <?= eventify_event_media_html($phImgUrl, $phIsVideo ? 'Pending video' : 'Pending photo') ?>
                                 </a>
                                 <div class="min-w-0">
                                     <h6 class="mb-1">

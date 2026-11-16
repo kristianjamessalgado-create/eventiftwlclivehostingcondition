@@ -29,7 +29,8 @@ function eventify_load_student_photo_galleries(mysqli $conn, ?string $studentDep
         SELECT e.id, e.title, e.date, e.location, e.department,
                (SELECT COUNT(*) FROM event_photos p WHERE p.event_id = e.id AND {$publishedCond}) AS photo_count,
                (SELECT p2.file_path FROM event_photos p2 WHERE p2.event_id = e.id AND " . str_replace('p.', 'p2.', $publishedCond) . "
-                  ORDER BY p2.created_at DESC, p2.id DESC LIMIT 1) AS cover,
+                  ORDER BY (p2.file_path LIKE '%.mp4' OR p2.file_path LIKE '%.m4v' OR p2.file_path LIKE '%.mov' OR p2.file_path LIKE '%.webm') ASC,
+                           p2.created_at DESC, p2.id DESC LIMIT 1) AS cover,
                (SELECT MAX(p3.created_at) FROM event_photos p3 WHERE p3.event_id = e.id AND " . str_replace('p.', 'p3.', $publishedCond) . ") AS latest_photo
         FROM events e
         WHERE LOWER(e.status) IN ('active', 'closed')

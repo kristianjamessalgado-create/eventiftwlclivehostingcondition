@@ -9,7 +9,19 @@ $eventStats = is_array($eventStats ?? null) ? $eventStats : [];
 $eventCount = count($events);
 $panelEnterClass = $admin_events_panel_open ? ' adm-dash-panel--enter' : '';
 $pendingCount = (int) ($eventStats['pending'] ?? 0);
-$activeCount = (int) ($eventStats['active'] ?? 0);
+$upcomingCount = 0;
+$liveCount = 0;
+foreach ($events as $evCount) {
+    if (strtolower((string) ($evCount['status'] ?? '')) !== 'active' || !function_exists('eventify_event_status_ui')) {
+        continue;
+    }
+    $evCountLabel = eventify_event_status_ui($evCount)['label'] ?? '';
+    if ($evCountLabel === 'Upcoming') {
+        $upcomingCount++;
+    } elseif ($evCountLabel === 'Active') {
+        $liveCount++;
+    }
+}
 ?>
 
 <section
@@ -52,7 +64,8 @@ $activeCount = (int) ($eventStats['active'] ?? 0);
 
         <?php if ($eventCount > 0): ?>
             <div class="adm-all-events-stats">
-                <span class="adm-all-events-stats__pill"><i class="fas fa-check-circle" aria-hidden="true"></i> <?= $activeCount ?> active</span>
+                <span class="adm-all-events-stats__pill"><i class="fas fa-circle-play" aria-hidden="true"></i> <?= $liveCount ?> happening now</span>
+                <span class="adm-all-events-stats__pill"><i class="fas fa-calendar-check" aria-hidden="true"></i> <?= $upcomingCount ?> upcoming</span>
                 <span class="adm-all-events-stats__pill adm-all-events-stats__pill--warn"><i class="fas fa-hourglass-half" aria-hidden="true"></i> <?= $pendingCount ?> pending</span>
             </div>
         <?php endif; ?>

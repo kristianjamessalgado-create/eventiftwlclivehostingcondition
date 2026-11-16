@@ -146,7 +146,7 @@ $peerLabel = 'Organizers & Super Admin';
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=11">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=12">
@@ -1013,24 +1013,31 @@ include __DIR__ . '/../views/partials/create_event_modal.php';
         </div>
         <p class="efy-form-help mb-0"><strong>Created at:</strong> <span id="eventCreatedAt"></span></p>
       </div>
-      <div class="modal-footer efy-modal__footer flex-wrap gap-2">
-        <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
-        <a href="#" id="eventEditLink" class="btn btn-outline-primary btn-sm" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</a>
-        <a href="#" id="eventTicketsLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
-        <a href="#" id="eventScanTicketsLink" class="btn btn-success btn-sm" style="display:none;" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera me-1"></i> Scan tickets</a>
-        <a href="#" id="eventQrLink" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> QR</a>
-        <a href="#" id="eventAttendanceLink" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
-        <a href="#" id="eventRsvpLink" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-user-check me-1"></i> RSVP</a>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="adminCloseEventBtn">
-          <i class="fas fa-flag-checkered me-1"></i> Close event
-        </button>
-        <button type="button" class="btn efy-btn-danger btn-sm" id="adminDeleteEventBtn">
-          <i class="fas fa-trash-alt me-1"></i> Delete event
-        </button>
-        <button type="button" class="btn efy-btn-primary btn-sm" id="admOpenPendingBtn" title="Open pending event approvals">
-          <i class="fas fa-inbox me-1"></i> Pending Approvals
-        </button>
-        <button type="button" class="btn efy-btn-muted btn-sm" data-bs-dismiss="modal">Dismiss</button>
+      <div class="modal-footer efy-modal__footer evd-footer">
+        <!-- Event tools -->
+        <div class="evd-actions evd-actions--tools">
+          <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success btn-sm evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
+          <a href="#" id="eventEditLink" class="btn btn-outline-primary btn-sm evd-btn" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</a>
+          <a href="#" id="eventTicketsLink" class="btn btn-outline-success btn-sm evd-btn" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
+          <a href="#" id="eventScanTicketsLink" class="btn btn-success btn-sm evd-btn" style="display:none;" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera me-1"></i> Scan tickets</a>
+          <a href="#" id="eventQrLink" class="btn btn-outline-secondary btn-sm evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> QR</a>
+          <a href="#" id="eventAttendanceLink" class="btn btn-outline-info btn-sm evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
+          <a href="#" id="eventRsvpLink" class="btn btn-outline-success btn-sm evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-user-check me-1"></i> RSVP</a>
+        </div>
+        <div class="evd-actions evd-actions--manage">
+          <button type="button" class="btn btn-outline-secondary btn-sm evd-btn" id="adminCloseEventBtn">
+            <i class="fas fa-flag-checkered me-1"></i> Close event
+          </button>
+          <button type="button" class="btn efy-btn-danger btn-sm evd-btn" id="adminDeleteEventBtn">
+            <i class="fas fa-trash-alt me-1"></i> Delete event
+          </button>
+        </div>
+        <div class="evd-actions evd-actions--nav">
+          <button type="button" class="btn efy-btn-primary btn-sm evd-btn" id="admOpenPendingBtn" title="Open pending event approvals">
+            <i class="fas fa-inbox me-1"></i> Pending Approvals
+          </button>
+          <button type="button" class="btn efy-btn-muted btn-sm evd-btn" data-bs-dismiss="modal">Dismiss</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1255,7 +1262,7 @@ window.BASE_URL = window.BASE_URL || <?= json_encode(BASE_URL) ?>;
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
-<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=27"></script>
+<script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=29"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
@@ -1267,7 +1274,7 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=7"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=34"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=35"></script>
 <?php include __DIR__ . '/../views/partials/staff_scan_qr_footer.php'; ?>
 </body>
 </html>

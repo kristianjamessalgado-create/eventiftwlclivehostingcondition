@@ -145,7 +145,7 @@ foreach ($items as $item) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=54">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=3">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=5">
 </head>
 <body class="event-activities-hub event-activities-hub--index event-activities-hub--student">
 <div class="eah-wrap">
@@ -341,6 +341,7 @@ foreach ($items as $item) {
                                         <?php
                                             $kind = $isEvent ? 'event' : 'activity';
                                             $recordId = (int) ($item['record_id'] ?? 0);
+                                            $proofTitle = (string) ($item['title'] ?? '');
                                             $photoPath = (string) ($item['proof_photo'] ?? '');
                                             $returnTo = 'history';
                                             include __DIR__ . '/views/partials/attendance_proof_controls.php';
@@ -363,7 +364,8 @@ foreach ($items as $item) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_activities_hub_nav.js"></script>
-<script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=1"></script>
+<script src="<?= BASE_URL ?>/assets/js/attendance_proof.js?v=3"></script>
+<script src="<?= BASE_URL ?>/assets/js/attendance_camera.js?v=2"></script>
 <?php include __DIR__ . '/views/partials/student_scan_qr_footer.php'; ?>
 </body>
 </html>

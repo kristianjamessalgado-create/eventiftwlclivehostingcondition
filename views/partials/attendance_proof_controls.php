@@ -7,6 +7,7 @@
  * @var string|null $photoPath
  * @var string $returnTo dashboard|history
  * @var string $filter all|events|activities
+ * @var string $proofTitle optional event/activity name printed on the camera stamp
  */
 if (!function_exists('eventify_attendance_proof_public_url')) {
     return;
@@ -28,6 +29,7 @@ $photoUrl = eventify_attendance_proof_public_url($photoPath);
 $uploadAction = (defined('BASE_URL') ? rtrim((string) BASE_URL, '/') : '') . '/backend/auth/upload_attendance_proof.php';
 $hasPhoto = $photoUrl !== '';
 $inputId = 'attProofFile_' . $kind . '_' . $recordId;
+$proofTitle = trim((string) ($proofTitle ?? ''));
 ?>
 <div class="att-proof<?= $hasPhoto ? ' att-proof--has-photo' : '' ?>">
     <?php if ($hasPhoto): ?>
@@ -35,12 +37,16 @@ $inputId = 'attProofFile_' . $kind . '_' . $recordId;
             <img src="<?= htmlspecialchars($photoUrl, ENT_QUOTES, 'UTF-8') ?>" alt="Your attendance photo">
         </button>
     <?php endif; ?>
-    <form class="att-proof__form" method="post" action="<?= htmlspecialchars($uploadAction, ENT_QUOTES, 'UTF-8') ?>" enctype="multipart/form-data">
+    <form class="att-proof__form" method="post" action="<?= htmlspecialchars($uploadAction, ENT_QUOTES, 'UTF-8') ?>" enctype="multipart/form-data" data-proof-title="<?= htmlspecialchars($proofTitle, ENT_QUOTES, 'UTF-8') ?>">
         <?= csrf_field() ?>
         <input type="hidden" name="kind" value="<?= htmlspecialchars($kind, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="record_id" value="<?= $recordId ?>">
         <input type="hidden" name="return" value="<?= htmlspecialchars($returnTo, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="filter" value="<?= htmlspecialchars($filter, ENT_QUOTES, 'UTF-8') ?>">
+        <button type="button" class="att-proof__camera" data-att-proof-camera title="Take a live photo with the EVENTIFY time &amp; location stamp">
+            <i class="fas fa-camera" aria-hidden="true"></i>
+            Take photo
+        </button>
         <label class="att-proof__label" for="<?= htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') ?>">
             <i class="fas fa-image" aria-hidden="true"></i>
             <?= $hasPhoto ? 'Change photo' : 'Add photo' ?>

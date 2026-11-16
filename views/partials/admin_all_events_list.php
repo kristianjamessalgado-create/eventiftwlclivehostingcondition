@@ -25,11 +25,12 @@ if ($allAdminEventsList !== []) {
         <input type="text" id="adminAllEventsSearch" class="form-control form-control-sm" placeholder="Search title, location, or organizer" aria-label="Search events">
         <select id="adminAllEventsStatusFilter" class="form-select form-select-sm" aria-label="Filter by status">
             <option value="">All status</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="rejected">Rejected</option>
+            <option value="pending">Pending approval</option>
+            <option value="phase:upcoming">Upcoming</option>
+            <option value="phase:live">Happening now</option>
+            <option value="phase:ended">Ended</option>
             <option value="closed">Closed</option>
-            <option value="completed">Completed</option>
+            <option value="rejected">Rejected</option>
         </select>
         <label class="adm-all-events-filters__mine" for="adminAllEventsMineFilter">
             <input type="checkbox" id="adminAllEventsMineFilter" class="form-check-input">
@@ -46,9 +47,24 @@ if ($allAdminEventsList !== []) {
                 ));
                 $badgeClass = 'bg-secondary';
                 $badgeLabel = ucfirst($st ?: 'unknown');
+                // Published events: Upcoming (before start), Active (happening now), Ended (past).
+                $evPhase = '';
                 if ($st === 'active') {
-                    $badgeClass = 'bg-success';
-                    $badgeLabel = 'Active';
+                    $evUi = function_exists('eventify_event_status_ui')
+                        ? eventify_event_status_ui($ev)
+                        : ['label' => 'Active', 'badge' => 'success'];
+                    $badgeLabel = (string) $evUi['label'];
+                    if ($badgeLabel === 'Upcoming') {
+                        $badgeClass = 'bg-warning text-dark';
+                        $evPhase = 'upcoming';
+                    } elseif ($badgeLabel === 'Ended') {
+                        $badgeClass = 'bg-secondary';
+                        $evPhase = 'ended';
+                    } else {
+                        $badgeClass = 'bg-success';
+                        $badgeLabel = 'Happening now';
+                        $evPhase = 'live';
+                    }
                 } elseif ($st === 'pending') {
                     $badgeClass = 'bg-warning text-dark';
                     $badgeLabel = 'Pending';
@@ -75,6 +91,7 @@ if ($allAdminEventsList !== []) {
                 data-event-id="<?= $eid ?>"
                 data-event-date="<?= htmlspecialchars($ev['date'] ?? '') ?>"
                 data-status="<?= htmlspecialchars($st) ?>"
+                data-phase="<?= htmlspecialchars($evPhase) ?>"
                 data-created-by-me="<?= !empty($ev['created_by_me']) ? '1' : '0' ?>"
                 data-search="<?= htmlspecialchars($searchBlob) ?>"
             >

@@ -73,7 +73,9 @@ document.addEventListener('DOMContentLoaded', function () {
       endTimeOption: <?= json_encode($postedEndTimeOption, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
       endTime: <?= json_encode($postedEndTime, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
       dayEndTimes: <?= json_encode($postedDayEndTimes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
-      dayStartTimes: <?= json_encode($postedDayStartTimes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
+      dayStartTimes: <?= json_encode($postedDayStartTimes, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
+      // Editing: days the event already had may be in the past (event already started).
+      allowedPastDates: <?= json_encode(array_values($scheduleAllowedPastDates ?? []), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
     });
   }
 });

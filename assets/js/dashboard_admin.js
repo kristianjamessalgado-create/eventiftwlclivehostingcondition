@@ -1133,9 +1133,12 @@ document.addEventListener('DOMContentLoaded', function () {
             items.forEach(function (row) {
                 var matchesSearch = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
                 var rowStatus = row.getAttribute('data-status') || '';
-                // "Closed" also covers events stored as "completed".
-                var matchesStatus = !status || rowStatus === status
-                    || (status === 'closed' && rowStatus === 'completed');
+                var rowPhase = row.getAttribute('data-phase') || '';
+                // "Closed" also covers events stored as "completed";
+                // "phase:upcoming|live|ended" filter published events by date.
+                var matchesStatus = !status
+                    || (status.indexOf('phase:') === 0 ? rowPhase === status.slice(6) : (rowStatus === status
+                    || (status === 'closed' && rowStatus === 'completed')));
                 var matchesMine = !mineOnly || row.getAttribute('data-created-by-me') === '1';
                 var visible = matchesSearch && matchesStatus && matchesMine;
                 row.classList.toggle('d-none', !visible);

@@ -54,7 +54,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=11">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=14">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
@@ -881,15 +881,19 @@ window.__adminClassSections = <?= json_encode(array_values(is_array($dashboardCl
         </div>
         <p class="efy-form-help mb-0"><strong>Created at:</strong> <span id="eventCreatedAt"></span></p>
       </div>
-      <div class="modal-footer efy-modal__footer flex-wrap">
-        <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
-        <a href="#" id="eventEditLink" class="btn btn-primary">Edit Event</a>
-        <a href="#" id="eventTicketsLink" class="btn btn-outline-success" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
-        <a href="#" id="eventScanTicketsLink" class="btn btn-success" style="display:none;" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera me-1"></i> Scan tickets</a>
-        <a href="#" id="eventQrLink" class="btn btn-outline-secondary" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> Show QR</a>
-        <a href="#" id="eventAttendanceLink" class="btn btn-outline-info" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
-        <button type="button" class="btn btn-outline-secondary" id="organizerMarkEndedBtn" style="display:none;" data-eventify-event-id=""><i class="fas fa-flag-checkered me-1"></i>End event</button>
-        <button type="button" class="btn efy-btn-muted" data-bs-dismiss="modal">Close</button>
+      <div class="modal-footer efy-modal__footer evd-footer">
+        <div class="evd-actions evd-actions--tools">
+          <a href="#" id="eventActivitiesHubLink" class="btn btn-outline-success evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-th-large me-1"></i> Activities hub</a>
+          <a href="#" id="eventEditLink" class="btn btn-primary evd-btn">Edit Event</a>
+          <a href="#" id="eventTicketsLink" class="btn btn-outline-success evd-btn" target="_blank" rel="noopener" style="display:none;" title="Enable paid tickets, add ticket types, confirm payments"><i class="fas fa-ticket-alt me-1"></i> Ticket sales</a>
+          <a href="#" id="eventScanTicketsLink" class="btn btn-success evd-btn" style="display:none;" title="Scan student ticket QR codes at the entrance"><i class="fas fa-camera me-1"></i> Scan tickets</a>
+          <a href="#" id="eventQrLink" class="btn btn-outline-secondary evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-qrcode me-1"></i> Show QR</a>
+          <a href="#" id="eventAttendanceLink" class="btn btn-outline-info evd-btn" target="_blank" rel="noopener" style="display:none;"><i class="fas fa-clipboard-check me-1"></i> Attendance</a>
+        </div>
+        <div class="evd-actions evd-actions--nav">
+          <button type="button" class="btn btn-outline-secondary evd-btn" id="organizerMarkEndedBtn" style="display:none;" data-eventify-event-id=""><i class="fas fa-flag-checkered me-1"></i>End event</button>
+          <button type="button" class="btn efy-btn-muted evd-btn" data-bs-dismiss="modal">Close</button>
+        </div>
       </div>
     </div>
   </div>
@@ -940,7 +944,7 @@ if (typeof window.L === 'undefined') {
 window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/event_location_picker.js?v=7"></script>
-    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=27"></script>
+    <script src="<?= BASE_URL ?>/assets/js/event_schedule_picker.js?v=29"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_alert_modal.js?v=4"></script>
 <script src="<?= BASE_URL ?>/assets/js/create_event_modal.js?v=12"></script>
 

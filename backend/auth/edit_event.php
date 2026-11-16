@@ -139,6 +139,12 @@ if (!empty($daysMap[$event_id])) {
     $existingScheduleDays = $daysMap[$event_id];
 }
 $editScheduleDates = array_column($existingScheduleDays, 'schedule_date');
+// Days the event already had before this edit. They may now be in the past
+// (event already started) — keeping them is allowed; only NEW past days are rejected.
+$originalEventDates = array_values(array_unique(array_filter(array_merge(
+    array_map(static fn ($d) => substr((string) $d, 0, 10), $editScheduleDates),
+    [substr(trim((string) ($event['date'] ?? '')), 0, 10)]
+))));
 $editStartDate = trim((string) ($event['date'] ?? ''));
 $editEndDate = trim((string) ($event['end_date'] ?? ''));
 $editDayEndTimes = [];
@@ -367,8 +373,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$error && $scheduleMode === 'specific') {
                 $todayYmd = (new DateTime())->format('Y-m-d');
                 foreach ($scheduleDates as $sd) {
-                    if ($sd < $todayYmd) {
-                        $error = "Event days cannot be in the past.";
+                    if ($sd < $todayYmd && !in_array($sd, $originalEventDates, true)) {
+                        $error = "New event days cannot be in the past.";
                         break;
                     }
                 }
@@ -471,7 +477,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $eventDate = new DateTime($date);
                 $eventDate->setTime(0, 0, 0);
 
-                if ($eventDate < $today) {
+                // An event that has already started keeps its original first day.
+                if ($eventDate < $today && !in_array($eventDate->format('Y-m-d'), $originalEventDates, true)) {
                     $error = "Event date cannot be in the past.";
                 } else {
                     $parsedDept = eventify_parse_event_departments_from_request($_POST);
@@ -847,6 +854,7 @@ $postedEndTimeOption = $eventEndTimeOption;
 $postedEndTime = ($eventEndTimeOption === 'time') ? $eventEndTimeValue : '';
 $postedDayEndTimes = $editDayEndTimes;
 $postedDayStartTimes = $editDayStartTimes;
+$scheduleAllowedPastDates = $originalEventDates;
 $idPrefix = 'edit';
 ?>
 <!DOCTYPE html>
@@ -1411,7 +1419,7 @@ $idPrefix = 'edit';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/eventify_alert_modal.js?v=4"></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=27"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=29"></script>
     <?php if ($eventsHasGeo): ?>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
@@ -1781,7 +1789,9 @@ $idPrefix = 'edit';
             var today = new Date();
             today.setHours(0, 0, 0, 0);
             var eventDate = new Date(date + 'T00:00:00');
-            if (eventDate < today) {
+            // Days the event already had (it may have started already) are allowed.
+            var originalDates = <?= json_encode($originalEventDates ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+            if (eventDate < today && originalDates.indexOf(String(date).slice(0, 10)) === -1) {
                 e.preventDefault();
                 showMessageModal('Event date cannot be in the past.');
                 return false;

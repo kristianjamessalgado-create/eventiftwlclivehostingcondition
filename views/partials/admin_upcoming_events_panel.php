@@ -71,9 +71,22 @@ $panelEnterClass = $admin_upcoming_panel_open ? ' adm-dash-panel--enter' : '';
                                 </div>
                             </div>
                             <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
-                                <span class="badge <?= $st === 'active' ? 'bg-success' : 'bg-warning text-dark' ?>">
-                                    <?= $st === 'active' ? 'Active' : 'Pending' ?>
-                                </span>
+                                <?php
+                                    $upLabel = 'Pending';
+                                    $upClass = 'bg-warning text-dark';
+                                    if ($st === 'active') {
+                                        $upLabel = function_exists('eventify_event_status_ui') ? (string) eventify_event_status_ui($ev)['label'] : 'Upcoming';
+                                        if ($upLabel === 'Active') {
+                                            $upLabel = 'Happening now';
+                                            $upClass = 'bg-success';
+                                        } elseif ($upLabel === 'Ended') {
+                                            $upClass = 'bg-secondary';
+                                        } else {
+                                            $upClass = 'bg-warning text-dark';
+                                        }
+                                    }
+                                ?>
+                                <span class="badge <?= $upClass ?>"><?= htmlspecialchars($upLabel) ?></span>
                                 <?php
                                 require_once __DIR__ . '/../../backend/lib/event_ticketing.php';
                                 $regUi = eventify_registration_mode_ui($ev);

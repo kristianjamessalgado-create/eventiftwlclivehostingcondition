@@ -165,3 +165,282 @@ html:not(.js-att-proof) .att-proof__submit {
     .eah-attendance-row > .att-proof { grid-area: proof; flex-direction: row; }
     .eah-attendance-row .eah-row-status { grid-area: status; }
 }
+
+/* ===============================
+   Take photo (in-app camera with EVENTIFY stamp)
+================================ */
+.att-proof__camera {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1b4a1b 0%, #153313 100%);
+    color: #e6c54a;
+    font-size: 0.8rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(21, 51, 19, 0.25);
+}
+.att-proof__camera:hover,
+.att-proof__camera:focus-visible {
+    color: #fff7a8;
+    outline: none;
+}
+
+html.att-cam-open,
+html.att-cam-open body {
+    overflow: hidden;
+}
+.att-cam {
+    position: fixed;
+    inset: 0;
+    z-index: 21000;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    color: #fff;
+}
+.att-cam[hidden] {
+    display: none;
+}
+.att-cam__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: calc(0.6rem + env(safe-area-inset-top, 0px)) 0.85rem 0.6rem;
+    background: rgba(0, 0, 0, 0.6);
+}
+.att-cam__title {
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+.att-cam__icon {
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 1.05rem;
+}
+.att-cam__stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.att-cam__video,
+.att-cam__preview {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.att-cam__video[hidden],
+.att-cam__preview[hidden] {
+    display: none;
+}
+.att-cam__live-stamp {
+    position: absolute;
+    left: 0.85rem;
+    bottom: 0.85rem;
+    max-width: calc(100% - 1.7rem);
+    padding: 0.45rem 0.7rem;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+.att-cam__live-stamp[hidden] {
+    display: none;
+}
+.att-cam__live-time {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+}
+.att-cam__live-place i {
+    color: #e6c54a;
+}
+.att-cam__msg {
+    position: absolute;
+    top: 0.85rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(92%, 420px);
+    margin: 0;
+    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    background: rgba(185, 28, 28, 0.88);
+    font-size: 0.85rem;
+    text-align: center;
+}
+.att-cam__msg[hidden] {
+    display: none;
+}
+.att-cam__bar {
+    padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(0, 0, 0, 0.75);
+}
+.att-cam__bar-shoot {
+    display: flex;
+    justify-content: center;
+}
+.att-cam__bar-shoot[hidden],
+.att-cam__bar-review[hidden] {
+    display: none;
+}
+.att-cam__shutter {
+    width: 72px;
+    height: 72px;
+    padding: 5px;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    background: transparent;
+}
+.att-cam__shutter span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #e6c54a;
+}
+.att-cam__shutter:active span {
+    transform: scale(0.92);
+}
+.att-cam__bar-review {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    max-width: 480px;
+    margin: 0 auto;
+}
+.att-cam__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 48px;
+    border: 0;
+    border-radius: 12px;
+    background: #e6c54a;
+    color: #153313;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+.att-cam__btn--ghost {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+.att-cam__btn:disabled {
+    opacity: 0.7;
+}
+
+/* ===============================
+   Photo proof prompt (right after a QR check-in)
+================================ */
+.checkin-photo-prompt {
+    margin: 1rem 0 0.25rem;
+    padding: 0.95rem 1rem;
+    border: 2px solid #e6c54a;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #fffaf0 0%, #f7f4e7 100%);
+    text-align: left;
+    box-shadow: 0 8px 22px rgba(21, 51, 19, 0.1);
+}
+.checkin-photo-prompt[hidden] {
+    display: none;
+}
+.checkin-photo-prompt--done {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+.checkin-photo-prompt__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+.checkin-photo-prompt__icon {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #1b4a1b;
+    color: #e6c54a;
+    font-size: 1.15rem;
+}
+.checkin-photo-prompt__thumb {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+}
+.checkin-photo-prompt__title {
+    margin: 0;
+    font-weight: 800;
+    font-size: 1rem;
+    color: #153313;
+}
+.checkin-photo-prompt--done .checkin-photo-prompt__title i {
+    color: #16a34a;
+}
+.checkin-photo-prompt__text {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: #4b5f4b;
+    line-height: 1.4;
+}
+.checkin-photo-prompt__form {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+}
+.checkin-photo-prompt__take {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding: 0.55rem 1rem;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #1b4a1b 0%, #153313 100%);
+    color: #e6c54a;
+    font-weight: 800;
+    font-size: 1rem;
+}
+.checkin-photo-prompt--done .checkin-photo-prompt__take {
+    min-height: 40px;
+    font-size: 0.88rem;
+}
+.checkin-photo-prompt__skip {
+    flex: 0 0 auto;
+    min-height: 48px;
+    padding: 0.55rem 0.9rem;
+    border: 1.5px solid rgba(27, 74, 27, 0.25);
+    border-radius: 12px;
+    background: #fff;
+    color: #4b5f4b;
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+.checkin-photo-prompt__later {
+    margin: 0.55rem 0 0;
+    font-size: 0.75rem;
+    color: #6b7a6b;
+}

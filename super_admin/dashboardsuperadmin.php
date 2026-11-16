@@ -53,7 +53,7 @@ $error = $error ?? '';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=9">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=10">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css">
 </head>
 <body class="sa-dashboard">
@@ -788,7 +788,14 @@ $error = $error ?? '';
                                             <?php if ($estatus === 'pending'): ?>
                                                 <span class="sa-badge sa-badge-pending">Pending</span>
                                             <?php elseif ($estatus === 'active'): ?>
-                                                <span class="sa-badge sa-badge-active">Active</span>
+                                                <?php $saEvLabel = function_exists('eventify_event_status_ui') ? (string) eventify_event_status_ui($ev)['label'] : 'Active'; ?>
+                                                <?php if ($saEvLabel === 'Upcoming'): ?>
+                                                    <span class="sa-badge sa-badge-upcoming">Upcoming</span>
+                                                <?php elseif ($saEvLabel === 'Ended'): ?>
+                                                    <span class="sa-badge sa-badge-closed">Ended</span>
+                                                <?php else: ?>
+                                                    <span class="sa-badge sa-badge-active">Happening now</span>
+                                                <?php endif; ?>
                                             <?php elseif ($estatus === 'rejected'): ?>
                                                 <span class="sa-badge sa-badge-rejected">Rejected</span>
                                             <?php elseif ($estatus === 'completed'): ?>

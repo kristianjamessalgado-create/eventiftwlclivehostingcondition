@@ -225,6 +225,32 @@ if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
     }
 }
 
+// Photo proof prompt: find this student's attendance record once attendance is confirmed.
+$proofRecordId = 0;
+$proofPhotoPath = '';
+if (($confirmed || $already_done) && $event && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
+    try {
+        require_once __DIR__ . '/backend/lib/attendance_proof.php';
+        $proofHasColumn = eventify_attendance_proof_ensure_columns($conn);
+        $proofSql = $proofHasColumn
+            ? "SELECT id, proof_photo FROM registrations WHERE user_id = ? AND event_id = ? AND status = 'present' AND time_in IS NOT NULL LIMIT 1"
+            : "SELECT id FROM registrations WHERE user_id = ? AND event_id = ? AND status = 'present' AND time_in IS NOT NULL LIMIT 1";
+        $proofSt = $conn->prepare($proofSql);
+        if ($proofSt) {
+            $proofUid = (int) $_SESSION['user_id'];
+            $proofEid = (int) $event['id'];
+            $proofSt->bind_param('ii', $proofUid, $proofEid);
+            $proofSt->execute();
+            $proofRow = $proofSt->get_result()->fetch_assoc() ?: [];
+            $proofSt->close();
+            $proofRecordId = (int) ($proofRow['id'] ?? 0);
+            $proofPhotoPath = (string) ($proofRow['proof_photo'] ?? '');
+        }
+    } catch (Throwable $e) {
+        $proofRecordId = 0;
+    }
+}
+
 $conn->close();
 
 $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
@@ -237,6 +263,7 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
     <title><?= $pageTitle ?> - Check-in | EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=5">
     <style>
         :root {
             --school-white: #ffffff;
@@ -428,6 +455,11 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                 <?php else: ?>
                     You have been marked present for this event.
                 <?php endif; ?></p>
+                <?php
+                    $proofKind = 'event';
+                    $proofTitle = (string) ($event['title'] ?? '');
+                    include __DIR__ . '/views/partials/checkin_photo_prompt.php';
+                ?>
                 <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-primary mt-3" target="_top">Back to dashboard</a>
             <?php elseif ($already_done): ?>
                 <p class="text-success mb-2"><i class="fas fa-check-circle me-2"></i><strong><?= eventify_entity_uses_time_in_out($event ?? []) ? 'Time in and time out complete.' : "You're done with attendance already." ?></strong></p>
@@ -437,6 +469,11 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
                 <?php else: ?>
                     You have already confirmed your attendance for this event. No need to check in again.
                 <?php endif; ?></p>
+                <?php
+                    $proofKind = 'event';
+                    $proofTitle = (string) ($event['title'] ?? '');
+                    include __DIR__ . '/views/partials/checkin_photo_prompt.php';
+                ?>
                 <a href="<?= BASE_URL ?>/backend/auth/dashboard_student.php" class="btn btn-primary mt-3" target="_top">Back to dashboard</a>
             <?php elseif ($event && !$show_checkin_form && $scan_state && ($scan_state['phase'] ?? '') === 'unavailable' && !empty($student_attendance['time_in']) && empty($student_attendance['time_out'])): ?>
                 <h5 class="mb-3"><?= htmlspecialchars($event['title']) ?></h5>
@@ -499,5 +536,6 @@ $pageTitle = $event ? htmlspecialchars($event['title']) : 'Event Check-in';
     </div>
     <?php include __DIR__ . '/views/partials/checkin_security_script.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/attendance_camera.js?v=2"></script>
 </body>
 </html>

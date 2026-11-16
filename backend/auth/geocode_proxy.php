@@ -8,7 +8,12 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 $geocodeRole = (string) ($_SESSION['role'] ?? '');
-if (!isset($_SESSION['user_id']) || !in_array($geocodeRole, ['organizer', 'admin', 'super_admin'], true)) {
+// Students may only use "reverse" (GPS → address) for the attendance photo stamp.
+$geocodeAllowedRoles = ['organizer', 'admin', 'super_admin'];
+if ((string) ($_GET['action'] ?? '') === 'reverse') {
+    $geocodeAllowedRoles[] = 'student';
+}
+if (!isset($_SESSION['user_id']) || !in_array($geocodeRole, $geocodeAllowedRoles, true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'Forbidden']);
     exit;

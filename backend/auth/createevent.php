@@ -1268,7 +1268,7 @@ $pageDeptCheckboxState = eventify_organizer_department_form_checkbox_state(
     }
     </script>
     <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_location_picker.js?v=7"></script>
-    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=27"></script>
+    <script src="<?= htmlspecialchars(BASE_URL) ?>/assets/js/event_schedule_picker.js?v=29"></script>
 
     <script>
         function showMessageModal(msg) {

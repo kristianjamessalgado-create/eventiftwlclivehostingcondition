@@ -976,3 +976,49 @@ img[data-profile-pic-view] {
     font-size: 0.78rem;
     color: #b91c1c;
 }
+
+/* ===============================
+   Event details footer: tidy arrangement only (admin + organizer).
+   Buttons keep their own Bootstrap colors; this just lines them up evenly.
+================================ */
+.efy-modal__footer.evd-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+.evd-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+    margin: 0;
+}
+.evd-actions--manage,
+.evd-actions--nav {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+/* JS shows buttons with inline display:inline-block; keep them centred, but respect hidden ones. */
+.evd-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    min-height: 38px;
+    text-align: center;
+}
+.evd-btn[style*="none"],
+.evd-btn[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 575.98px) {
+    .evd-actions,
+    .evd-actions--manage,
+    .evd-actions--nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .evd-btn {
+        white-space: normal;
+    }
+}

@@ -184,6 +184,32 @@ $waitingForCheckout = $session && !$showSuccess && !$needs_rsvp_first && !$needs
     && ($scan_state['phase'] ?? '') === 'unavailable'
     && !empty($student_attendance['checked_in_at'])
     && empty($student_attendance['checked_out_at']);
+
+// Photo proof prompt: this student's attendance record for the activity.
+$proofRecordId = 0;
+$proofPhotoPath = '';
+if ($showSuccess && $session && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
+    try {
+        require_once __DIR__ . '/backend/lib/attendance_proof.php';
+        $proofHasColumn = eventify_attendance_proof_ensure_columns($conn);
+        $proofSql = $proofHasColumn
+            ? 'SELECT id, proof_photo FROM event_day_session_attendance WHERE session_id = ? AND user_id = ? LIMIT 1'
+            : 'SELECT id FROM event_day_session_attendance WHERE session_id = ? AND user_id = ? LIMIT 1';
+        $proofSt = $conn->prepare($proofSql);
+        if ($proofSt) {
+            $proofSid = (int) ($session['id'] ?? 0);
+            $proofUid = (int) $_SESSION['user_id'];
+            $proofSt->bind_param('ii', $proofSid, $proofUid);
+            $proofSt->execute();
+            $proofRow = $proofSt->get_result()->fetch_assoc() ?: [];
+            $proofSt->close();
+            $proofRecordId = (int) ($proofRow['id'] ?? 0);
+            $proofPhotoPath = (string) ($proofRow['proof_photo'] ?? '');
+        }
+    } catch (Throwable $e) {
+        $proofRecordId = 0;
+    }
+}
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -194,6 +220,7 @@ $conn->close();
     <title>Activity Check-in | EVENTIFY</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/attendance_proof.css?v=5">
     <style>
         body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f9f4; padding: 1rem; }
         .checkin-card { max-width: 420px; width: 100%; border-radius: 16px; box-shadow: 0 10px 30px rgba(6, 78, 59, 0.12); overflow: hidden; }
@@ -273,6 +300,11 @@ $conn->close();
                     <?php else: ?>
                         <p class="small text-muted mt-2 mb-0">Where would you like to go next?</p>
                     <?php endif; ?>
+                    <?php
+                        $proofKind = 'activity';
+                        $proofTitle = (string) ($session['title'] ?? '');
+                        include __DIR__ . '/views/partials/checkin_photo_prompt.php';
+                    ?>
                     <div class="checkin-nav">
                         <a href="<?= htmlspecialchars($hubUrl) ?>" class="btn btn-success">Activities hub</a>
                         <a href="<?= htmlspecialchars($dashboardUrl) ?>" class="btn btn-outline-primary">Dashboard</a>
@@ -353,5 +385,6 @@ $conn->close();
             <?php endif; ?>
         </div>
     </div>
+<script src="<?= BASE_URL ?>/assets/js/attendance_camera.js?v=2"></script>
 </body>
 </html>

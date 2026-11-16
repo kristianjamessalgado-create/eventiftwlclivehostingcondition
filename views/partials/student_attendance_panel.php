@@ -108,6 +108,7 @@ foreach ($attendance_records as $rec) {
                                 <?php
                                     $kind = 'event';
                                     $recordId = (int) ($rec['id'] ?? 0);
+                                    $proofTitle = (string) ($rec['event_title'] ?? '');
                                     $photoPath = (string) ($rec['proof_photo'] ?? '');
                                     $returnTo = 'dashboard';
                                     include __DIR__ . '/attendance_proof_controls.php';
@@ -144,6 +145,7 @@ foreach ($attendance_records as $rec) {
                                 <?php
                                     $kind = 'activity';
                                     $recordId = (int) ($ar['attendance_id'] ?? $ar['id'] ?? 0);
+                                    $proofTitle = (string) ($ar['activity_title'] ?? '');
                                     $photoPath = (string) ($ar['proof_photo'] ?? '');
                                     $returnTo = 'dashboard';
                                     include __DIR__ . '/attendance_proof_controls.php';

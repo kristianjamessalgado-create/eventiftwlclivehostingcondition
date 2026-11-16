@@ -198,6 +198,25 @@
         return !state || state.perDayCustomized !== true;
     }
 
+    /** True when saved days (2+) don't all share the same start time and end setting. */
+    function savedDaysHaveDifferentTimes(dates, dayStartTimes, dayEndTimes) {
+        if (!dates || dates.length < 2) {
+            return false;
+        }
+        var firstKey = null;
+        for (var i = 0; i < dates.length; i++) {
+            var ymd = dates[i];
+            var end = dayEndTimes[ymd] || { mode: 'none', time: '' };
+            var key = (dayStartTimes[ymd] || '') + '|' + (end.mode || 'none') + '|' + (end.mode === 'time' ? (end.time || '') : '');
+            if (firstKey === null) {
+                firstKey = key;
+            } else if (key !== firstKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function readEndPickerValues(container, modeSelector, timeSelector) {
         var selected = container.querySelector(modeSelector + ':checked');
         var timeInput = container.querySelector(timeSelector);
@@ -454,7 +473,16 @@
                 el.addEventListener('change', pushBulkToState);
                 el.addEventListener('input', pushBulkToState);
             });
-            pushBulkToState();
+            if (usesSameTimeAllDays(state)) {
+                pushBulkToState();
+            } else {
+                // Per-day mode: don't copy the first day's times onto every day,
+                // and don't post duplicate hidden day fields.
+                var hiddenWrap = panel.querySelector('.esc-hidden-day-inputs');
+                if (hiddenWrap) {
+                    hiddenWrap.innerHTML = '';
+                }
+            }
         }
 
         if (perDayPanel) {
@@ -1028,7 +1056,10 @@
             },
             dayEndTimes: dayEndTimes,
             dayStartTimes: dayStartTimes,
-            perDayCustomized: !!initialOpts.perDayCustomized
+            allowedPastDates: Array.isArray(initialOpts.allowedPastDates) ? initialOpts.allowedPastDates.slice() : [],
+            // Editing a saved event whose days have different times: start in per-day mode
+            // so each day's own start/end shows (and isn't overwritten by the first day's).
+            perDayCustomized: !!initialOpts.perDayCustomized || savedDaysHaveDifferentTimes(dates, dayStartTimes, dayEndTimes)
         };
 
         dates = normalizeDatesForMode(prefix, dates);
@@ -1129,7 +1160,14 @@
             return false;
         }
 
-        if (startEl.value < todayYmd()) {
+        // New days can't be in the past; days the event already had (editing an
+        // event that has started) are allowed.
+        var todayStr = todayYmd();
+        var allowedPast = (state && state.allowedPastDates) || [];
+        var newPastDay = (state ? state.dates : [startEl.value]).some(function (ymd) {
+            return ymd < todayStr && allowedPast.indexOf(ymd) === -1;
+        });
+        if (newPastDay) {
             eventifyScheduleNotice('Event days cannot be in the past.');
             return false;
         }

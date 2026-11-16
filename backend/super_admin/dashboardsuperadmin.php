@@ -457,6 +457,28 @@ if ($resLogins = $conn->query($sqlLoginsToday)) {
 $success = $_GET['success'] ?? '';
 $error = $_GET['error'] ?? '';
 
+// Staff messages from admins (super admin <-> admin channel).
+$saMessagesUnread = 0;
+try {
+    require_once __DIR__ . '/../lib/staff_messaging.php';
+    if (eventify_staff_messages_ensure_table($conn)) {
+        $sau = $conn->prepare("
+            SELECT COUNT(*) AS c FROM staff_messages m
+            INNER JOIN users u ON u.id = m.sender_id AND u.role = 'admin'
+            WHERE m.recipient_id = ? AND m.read_at IS NULL
+        ");
+        if ($sau) {
+            $saUid = (int) ($_SESSION['user_id'] ?? 0);
+            $sau->bind_param('i', $saUid);
+            $sau->execute();
+            $saMessagesUnread = (int) (($sau->get_result()->fetch_assoc() ?: [])['c'] ?? 0);
+            $sau->close();
+        }
+    }
+} catch (Throwable $e) {
+    $saMessagesUnread = 0;
+}
+
 $activities_hub_events = [];
 try {
     $activities_hub_events = eventify_load_activities_hub_picker_events(

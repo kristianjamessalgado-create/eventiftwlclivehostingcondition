@@ -38,8 +38,40 @@ function eventify_staff_messages_ensure_table(mysqli $conn): bool
     }
 }
 
+/** Roles that can use staff messaging. */
+function eventify_staff_messaging_roles(): array
+{
+    return ['admin', 'organizer', 'super_admin'];
+}
+
 /**
- * @return 'admin'|'organizer'|null
+ * Who each role may message:
+ *  - admin       <-> organizer
+ *  - admin       <-> super_admin
+ *
+ * @return list<string>
+ */
+function eventify_staff_messaging_peer_roles(string $role): array
+{
+    switch (strtolower($role)) {
+        case 'admin':
+            return ['organizer', 'super_admin'];
+        case 'organizer':
+        case 'super_admin':
+            return ['admin'];
+    }
+    return [];
+}
+
+/** Human label for a staff role. */
+function eventify_staff_role_label(string $role): string
+{
+    $labels = ['admin' => 'Admin', 'organizer' => 'Organizer', 'super_admin' => 'Super Admin'];
+    return $labels[strtolower($role)] ?? ucfirst($role);
+}
+
+/**
+ * @return 'admin'|'organizer'|'super_admin'|null
  */
 function eventify_staff_user_role(mysqli $conn, int $userId): ?string
 {
@@ -56,14 +88,14 @@ function eventify_staff_user_role(mysqli $conn, int $userId): ?string
     $row = $res ? $res->fetch_assoc() : null;
     $stmt->close();
     $r = strtolower((string)($row['role'] ?? ''));
-    if ($r === 'admin' || $r === 'organizer') {
+    if (in_array($r, eventify_staff_messaging_roles(), true)) {
         return $r;
     }
     return null;
 }
 
 /**
- * True if exactly one party is admin and the other is organizer.
+ * True for admin <-> organizer and admin <-> super_admin pairs.
  */
 function eventify_staff_messaging_pair_allowed(mysqli $conn, int $userA, int $userB): bool
 {
@@ -75,7 +107,7 @@ function eventify_staff_messaging_pair_allowed(mysqli $conn, int $userA, int $us
     if ($ra === null || $rb === null) {
         return false;
     }
-    return ($ra === 'admin' && $rb === 'organizer') || ($ra === 'organizer' && $rb === 'admin');
+    return in_array($rb, eventify_staff_messaging_peer_roles($ra), true);
 }
 
 /**
@@ -93,8 +125,8 @@ function eventify_staff_messaging_pair_allowed(mysqli $conn, int $userA, int $us
 function eventify_staff_messenger_load_context(mysqli $conn, int $uid, string $role, int $initialWith = 0): array
 {
     $role = strtolower($role);
-    $peerRole = ($role === 'admin') ? 'organizer' : 'admin';
-    $peerLabel = ($role === 'admin') ? 'Organizers' : 'Admins';
+    $peerRoles = eventify_staff_messaging_peer_roles($role);
+    $peerLabel = ($role === 'admin') ? 'Organizers & Super Admin' : 'Admins';
     $empty = [
         'peers_list' => [],
         'my_name' => '',
@@ -104,7 +136,7 @@ function eventify_staff_messenger_load_context(mysqli $conn, int $uid, string $r
         'unread_total' => 0,
     ];
 
-    if ($uid < 1 || !in_array($role, ['admin', 'organizer'], true)) {
+    if ($uid < 1 || $peerRoles === []) {
         $empty['messaging_error'] = 'Sign in to use messages.';
         return $empty;
     }
@@ -127,9 +159,16 @@ function eventify_staff_messenger_load_context(mysqli $conn, int $uid, string $r
     }
 
     $peers = [];
-    $pq = $conn->prepare('SELECT id, name, email FROM users WHERE role = ? ORDER BY name ASC LIMIT 500');
+    $roleMarks = implode(',', array_fill(0, count($peerRoles), '?'));
+    $pq = $conn->prepare("SELECT id, name, email, role, profile_picture FROM users WHERE role IN ($roleMarks) AND id <> ? ORDER BY name ASC LIMIT 500");
+    if (!$pq) {
+        // Older schema without profile_picture.
+        $pq = $conn->prepare("SELECT id, name, email, role FROM users WHERE role IN ($roleMarks) AND id <> ? ORDER BY name ASC LIMIT 500");
+    }
     if ($pq) {
-        $pq->bind_param('s', $peerRole);
+        $pqTypes = str_repeat('s', count($peerRoles)) . 'i';
+        $pqParams = array_merge($peerRoles, [$uid]);
+        $pq->bind_param($pqTypes, ...$pqParams);
         $pq->execute();
         $pr = $pq->get_result();
         if ($pr) {
@@ -138,6 +177,9 @@ function eventify_staff_messenger_load_context(mysqli $conn, int $uid, string $r
                     'id' => (int) $row['id'],
                     'name' => (string) ($row['name'] ?? ''),
                     'email' => (string) ($row['email'] ?? ''),
+                    'role' => (string) ($row['role'] ?? ''),
+                    'role_label' => eventify_staff_role_label((string) ($row['role'] ?? '')),
+                    'avatar' => !empty($row['profile_picture']) ? (string) $row['profile_picture'] : null,
                     'last_body' => null,
                     'last_at' => null,
                     'last_sender_id' => null,

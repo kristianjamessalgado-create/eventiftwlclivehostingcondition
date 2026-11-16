@@ -97,7 +97,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
         <button class="nav-btn" type="button" title="Go to today" id="orgTopTodayBtn" data-organizer-panel="home">
             <i class="fas fa-calendar"></i>
         </button>
-        <a class="nav-btn position-relative" title="Messages (Admin)" href="<?= htmlspecialchars($messengerHref) ?>" target="_blank" rel="noopener noreferrer">
+        <a class="nav-btn position-relative" title="Messages (Admin)" href="<?= htmlspecialchars($messengerHref) ?>">
             <i class="fas fa-comments"></i>
             <?php if ($staff_messaging_unread > 0): ?>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem;"><?= $staff_messaging_unread > 99 ? '99+' : $staff_messaging_unread ?></span>
@@ -325,7 +325,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
                     <span class="badge bg-success ms-1"><?= (int) $fb['total_feedback'] ?></span>
                 <?php endif; ?>
             </button>
-            <a class="action-btn text-decoration-none text-reset" href="<?= htmlspecialchars($messengerHref) ?>" target="_blank" rel="noopener noreferrer">
+            <a class="action-btn text-decoration-none text-reset" href="<?= htmlspecialchars($messengerHref) ?>">
                 <i class="fas fa-comments"></i>
                 <span>Messages<?= $staff_messaging_unread > 0 ? ' (' . $staff_messaging_unread . ')' : '' ?></span>
             </a>

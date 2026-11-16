@@ -53,7 +53,7 @@ $error = $error ?? '';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=8">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboardsuperadmin.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css">
 </head>
 <body class="sa-dashboard">
@@ -69,6 +69,12 @@ $error = $error ?? '';
         </div>
     </div>
     <div class="d-flex align-items-center">
+        <a class="sa-nav-msg position-relative" href="<?= BASE_URL ?>/backend/messaging/staff_messenger.php" title="Messages with admins" aria-label="Messages<?= (int) ($saMessagesUnread ?? 0) > 0 ? ' (' . (int) $saMessagesUnread . ' unread)' : '' ?>">
+            <i class="fas fa-comments" aria-hidden="true"></i>
+            <?php if ((int) ($saMessagesUnread ?? 0) > 0): ?>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;"><?= (int) $saMessagesUnread > 99 ? '99+' : (int) $saMessagesUnread ?></span>
+            <?php endif; ?>
+        </a>
         <span class="sa-user"><i class="fas fa-user-shield me-1"></i> <?= htmlspecialchars($superadmin_name) ?></span>
         <a href="<?= BASE_URL ?>/backend/auth/logout.php" class="sa-logout" data-logout-confirm aria-label="Log out">
             <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
@@ -146,6 +152,15 @@ $error = $error ?? '';
                     <span><i class="fas fa-calendar-alt me-2"></i>Calendar</span>
                     <i class="fas fa-chevron-right"></i>
                 </button>
+                <a class="sa-nav-btn mb-1 text-decoration-none" href="<?= BASE_URL ?>/backend/messaging/staff_messenger.php">
+                    <span>
+                        <i class="fas fa-comments me-2"></i>Messages
+                        <?php if ((int) ($saMessagesUnread ?? 0) > 0): ?>
+                            <span class="badge rounded-pill bg-danger ms-1"><?= (int) $saMessagesUnread > 99 ? '99+' : (int) $saMessagesUnread ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
                 <?php
                     $activities_hub_btn_class = 'sa-nav-btn mb-1';
                     $activities_hub_show_chevron = true;

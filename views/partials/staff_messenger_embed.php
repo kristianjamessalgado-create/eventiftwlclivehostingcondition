@@ -16,7 +16,20 @@ $initialWith = isset($initialWith) ? (int) $initialWith : 0;
 $messaging_error = $messaging_error ?? null;
 $uid = isset($uid) ? (int) $uid : (int) ($_SESSION['user_id'] ?? 0);
 $role = $role ?? (string) ($_SESSION['role'] ?? '');
-$peerLabel = ($role === 'admin') ? 'Organizers' : 'Admins';
+$peerLabel = ($role === 'admin') ? 'Organizers & Super Admin' : 'Admins';
+// Role chips only when the inbox mixes roles (admins see organizers + super admin).
+$msgrPeerRoles = [];
+foreach ($peersList as $msgrPeer) {
+    $msgrRole = (string) ($msgrPeer['role'] ?? '');
+    if ($msgrRole !== '') {
+        $msgrPeerRoles[$msgrRole] = true;
+    }
+}
+$msgrRoleChips = ['organizer' => 'Organizers', 'super_admin' => 'Super Admin', 'admin' => 'Admins'];
+$msgrUnreadTotal = 0;
+foreach ($peersList as $msgrPeer) {
+    $msgrUnreadTotal += (int) ($msgrPeer['unread_count'] ?? 0);
+}
 ?>
 <div class="msgr-detail-backdrop" id="msgrDetailBackdrop" hidden aria-hidden="true"></div>
 <div class="msgr-app<?= $msgr_embedded ? ' msgr-app--embedded' : '' ?>" id="staffMessengerApp">
@@ -39,7 +52,7 @@ $peerLabel = ($role === 'admin') ? 'Organizers' : 'Admins';
                 <div>
                     <span class="msgr-inbox-eyebrow">Messaging</span>
                     <h1 class="msgr-inbox-title mb-0">Staff messages</h1>
-                    <p class="msgr-inbox-sub mb-0">Chat with <?= htmlspecialchars(strtolower($peerLabel)) ?></p>
+                    <p class="msgr-inbox-sub mb-0">Chat with <?= htmlspecialchars($role === 'admin' ? 'organizers and the super admin' : 'admins') ?></p>
                 </div>
                 <?php if ($msgr_embedded): ?>
                     <button type="button" class="msgr-icon-btn msgr-icon-btn--on-dark" title="Back to calendar" data-admin-panel="home"><i class="fas fa-times"></i></button>
@@ -49,11 +62,18 @@ $peerLabel = ($role === 'admin') ? 'Organizers' : 'Admins';
             </div>
             <div class="msgr-search-wrap">
                 <i class="fas fa-search msgr-search-icon"></i>
-                <input type="search" id="msgrSearch" class="msgr-search" placeholder="Search <?= htmlspecialchars(strtolower($peerLabel)) ?>…" autocomplete="off">
+                <input type="search" id="msgrSearch" class="msgr-search" placeholder="Search by name or email…" autocomplete="off">
             </div>
             <div class="msgr-tabs" role="tablist">
                 <button type="button" class="msgr-tab active" data-msgr-filter="all">All</button>
-                <button type="button" class="msgr-tab" data-msgr-filter="unread">Unread</button>
+                <button type="button" class="msgr-tab" data-msgr-filter="unread">Unread<span class="msgr-tab-count" id="msgrUnreadTabCount"<?= $msgrUnreadTotal > 0 ? '' : ' hidden' ?>><?= $msgrUnreadTotal ?></span></button>
+                <?php if (count($msgrPeerRoles) > 1): ?>
+                    <?php foreach ($msgrRoleChips as $chipRole => $chipLabel): ?>
+                        <?php if (!empty($msgrPeerRoles[$chipRole])): ?>
+                            <button type="button" class="msgr-tab" data-msgr-filter="role:<?= htmlspecialchars($chipRole) ?>"><?= htmlspecialchars($chipLabel) ?></button>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
         <div class="msgr-chat-list" id="msgrPeerList">
@@ -126,7 +146,7 @@ $peerLabel = ($role === 'admin') ? 'Organizers' : 'Admins';
 
             <div class="msgr-detail-section">
                 <div class="msgr-detail-section-title"><i class="fas fa-shield-alt"></i> Staff channel</div>
-                <p class="small msgr-muted mb-0">Official admin ↔ organizer messaging on EVENTIFY. Use this for event approvals, updates, and coordination.</p>
+                <p class="small msgr-muted mb-0">Official EVENTIFY staff messaging between admins, organizers and the super admin. Use it for event approvals, updates and coordination.</p>
             </div>
         </div>
     </aside>

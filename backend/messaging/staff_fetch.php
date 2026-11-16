@@ -11,7 +11,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $uid = (int)($_SESSION['user_id'] ?? 0);
 $role = strtolower((string)($_SESSION['role'] ?? ''));
-if ($uid < 1 || !in_array($role, ['admin', 'organizer'], true)) {
+if ($uid < 1 || !in_array($role, eventify_staff_messaging_roles(), true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'Access denied']);
     exit;

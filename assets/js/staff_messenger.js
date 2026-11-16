@@ -246,7 +246,32 @@
 
         function matchesFilter(p) {
             if (filter === 'unread' && !(parseInt(p.unread_count, 10) > 0)) return false;
+            if (filter.indexOf('role:') === 0 && String(p.role || '') !== filter.slice(5)) return false;
             return true;
+        }
+
+        /** Avatar: profile photo when available, otherwise initials (tinted by role). */
+        function avatarHtml(p, sizeClass) {
+            var roleClass = p.role ? ' msgr-avatar--' + String(p.role).replace(/[^a-z_]/g, '') : '';
+            if (p.avatar) {
+                return '<div class="msgr-avatar ' + sizeClass + roleClass + ' msgr-avatar--photo">' +
+                    '<img src="' + esc(base + '/' + String(p.avatar).replace(/^\/+/, '')) + '" alt="" loading="lazy"></div>';
+            }
+            return '<div class="msgr-avatar ' + sizeClass + roleClass + '">' + esc(initials(p.name)) + '</div>';
+        }
+
+        function roleBadgeHtml(p) {
+            if (!p.role_label) return '';
+            return '<span class="msgr-role-badge msgr-role-badge--' + esc(String(p.role || '').replace(/[^a-z_]/g, '')) + '">' + esc(p.role_label) + '</span>';
+        }
+
+        function updateUnreadTabCount() {
+            var el = document.getElementById('msgrUnreadTabCount');
+            if (!el) return;
+            var total = 0;
+            peers.forEach(function (p) { total += parseInt(p.unread_count, 10) || 0; });
+            el.textContent = String(total);
+            el.hidden = total < 1;
         }
 
         function matchesSearch(p, q) {
@@ -274,16 +299,23 @@
                 btn.className = 'msgr-chat-row' + (selectedPeerId === id ? ' active' : '') +
                     (parseInt(p.unread_count, 10) > 0 ? ' unread' : '');
                 btn.setAttribute('data-peer-id', String(id));
-                var unreadDot = parseInt(p.unread_count, 10) > 0 ? '<span class="msgr-unread-dot" aria-hidden="true"></span>' : '';
+                var unreadCount = parseInt(p.unread_count, 10) || 0;
+                var unreadDot = unreadCount > 0
+                    ? '<span class="msgr-unread-count" aria-label="' + unreadCount + ' unread">' + (unreadCount > 99 ? '99+' : unreadCount) + '</span>'
+                    : '';
                 btn.innerHTML =
-                    '<div class="msgr-avatar msgr-avatar-sm">' + esc(initials(p.name)) + '</div>' +
+                    avatarHtml(p, 'msgr-avatar-sm') +
                     '<div class="msgr-chat-body">' +
                     '<div class="msgr-chat-top">' +
                     '<span class="msgr-chat-name">' + esc(p.name || 'User') + '</span>' +
                     '<span class="msgr-chat-time">' + esc(formatShortTime(p.last_at)) + '</span>' +
                     '</div>' +
+                    '<div class="msgr-chat-bottom">' +
                     '<div class="msgr-chat-preview">' + esc(previewLine(p)) + '</div>' +
-                    '</div>' + unreadDot;
+                    unreadDot +
+                    '</div>' +
+                    roleBadgeHtml(p) +
+                    '</div>';
                 btn.addEventListener('click', function () {
                     selectPeer(id);
                 });
@@ -292,6 +324,7 @@
             if (!any && peers.length) {
                 listEl.innerHTML = '<div class="msgr-list-empty">No chats match this filter.</div>';
             }
+            updateUnreadTabCount();
         }
 
         function setSelectionClass() {
@@ -303,6 +336,7 @@
                 if (headName) headName.textContent = 'Select a chat';
                 if (headSub) headSub.textContent = peerLabel;
                 if (headAvatar) {
+                    headAvatar.className = 'msgr-avatar msgr-avatar-lg';
                     headAvatar.textContent = '?';
                     headAvatar.classList.add('msgr-avatar--placeholder');
                 }
@@ -317,16 +351,21 @@
             }
             var ini = initials(p.name);
             if (headName) headName.textContent = p.name || 'User';
-            if (headSub) headSub.textContent = p.email || peerLabel;
+            if (headSub) headSub.textContent = (p.role_label ? p.role_label + (p.email ? ' · ' : '') : '') + (p.email || (p.role_label ? '' : peerLabel));
             if (headAvatar) {
-                headAvatar.textContent = ini;
-                headAvatar.classList.remove('msgr-avatar--placeholder');
+                headAvatar.className = 'msgr-avatar msgr-avatar-lg' + (p.role ? ' msgr-avatar--' + String(p.role).replace(/[^a-z_]/g, '') : '');
+                if (p.avatar) {
+                    headAvatar.classList.add('msgr-avatar--photo');
+                    headAvatar.innerHTML = '<img src="' + esc(base + '/' + String(p.avatar).replace(/^\/+/, '')) + '" alt="">';
+                } else {
+                    headAvatar.textContent = ini;
+                }
             }
             if (detailName) detailName.textContent = p.name || 'User';
             if (detailEmail) detailEmail.textContent = p.email || '';
             if (detailAvatar) detailAvatar.textContent = ini;
             if (detailRole) {
-                detailRole.textContent = peerLabel;
+                detailRole.textContent = p.role_label || peerLabel;
                 detailRole.style.display = '';
             }
             if (detailIdle) detailIdle.hidden = true;
@@ -387,6 +426,13 @@
                 var meta = document.createElement('div');
                 meta.className = 'msgr-bubble-meta';
                 meta.textContent = (m.mine ? 'You' : (m.sender_name || 'Other'));
+                var sentAt = m.created_at ? new Date(String(m.created_at).replace(' ', 'T')) : null;
+                if (sentAt && !isNaN(sentAt.getTime())) {
+                    var timeEl = document.createElement('span');
+                    timeEl.className = 'msgr-bubble-time';
+                    timeEl.textContent = ' · ' + sentAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                    meta.appendChild(timeEl);
+                }
                 var body = document.createElement('div');
                 body.textContent = m.body || '';
                 bubble.appendChild(meta);
@@ -490,6 +536,25 @@
                         syncComposerControls();
                         toastError('Send failed.');
                     });
+            });
+        }
+
+        if (textareaEl && formEl) {
+            textareaEl.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) {
+                    ev.preventDefault();
+                    if (sendBtn && !sendBtn.disabled) {
+                        if (typeof formEl.requestSubmit === 'function') {
+                            formEl.requestSubmit();
+                        } else {
+                            formEl.dispatchEvent(new Event('submit', { cancelable: true }));
+                        }
+                    }
+                }
+            });
+            textareaEl.addEventListener('input', function () {
+                textareaEl.style.height = 'auto';
+                textareaEl.style.height = Math.min(textareaEl.scrollHeight, 140) + 'px';
             });
         }
 

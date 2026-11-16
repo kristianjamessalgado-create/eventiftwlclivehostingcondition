@@ -13,7 +13,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $uid = (int)($_SESSION['user_id'] ?? 0);
 $role = strtolower((string)($_SESSION['role'] ?? ''));
-if ($uid < 1 || !in_array($role, ['admin', 'organizer'], true)) {
+if ($uid < 1 || !in_array($role, eventify_staff_messaging_roles(), true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'Access denied']);
     exit;
@@ -85,7 +85,7 @@ if ($body === '' || mb_strlen($body) > 8000) {
 
 if (!eventify_staff_messaging_pair_allowed($conn, $uid, $recipientId)) {
     http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'You can only message admins or organizers.']);
+    echo json_encode(['ok' => false, 'error' => 'You can only message the staff accounts listed in your inbox.']);
     exit;
 }
 
@@ -112,11 +112,11 @@ if (!$ok) {
     exit;
 }
 
-log_activity($conn, $uid, $role, 'staff_message_sent', 'user', $recipientId, 'Staff message (admin↔organizer)');
+log_activity($conn, $uid, $role, 'staff_message_sent', 'user', $recipientId, 'Staff message (' . eventify_staff_role_label($role) . ' to ' . eventify_staff_role_label((string) eventify_staff_user_role($conn, $recipientId)) . ')');
 
 try {
     $snippet = mb_strimwidth($body, 0, 120, '…');
-    $title = $role === 'admin' ? 'Message from Admin' : 'Message from Organizer';
+    $title = 'Message from ' . eventify_staff_role_label($role);
     $ins = $conn->prepare("INSERT INTO notifications (user_id, type, title, message) VALUES (?, 'staff_message', ?, ?)");
     if ($ins) {
         $ins->bind_param('iss', $recipientId, $title, $snippet);

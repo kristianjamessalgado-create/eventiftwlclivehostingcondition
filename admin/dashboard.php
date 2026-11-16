@@ -134,7 +134,7 @@ $adminSettings = $adminSettings ?? [
     'calendar_legend_visible' => 1,
     'table_page_size' => 10,
 ];
-$peerLabel = 'Organizers';
+$peerLabel = 'Organizers & Super Admin';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -153,7 +153,7 @@ $peerLabel = 'Organizers';
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/notifications.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_scroll_fix.css?v=10">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_admin.css?v=40">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=8">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/staff_messenger.css?v=9">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
@@ -1266,7 +1266,7 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
+<script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=7"></script>
 <script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=34"></script>
 <?php include __DIR__ . '/../views/partials/staff_scan_qr_footer.php'; ?>
 </body>

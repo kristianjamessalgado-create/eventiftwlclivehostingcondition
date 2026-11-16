@@ -10,14 +10,21 @@ require_once __DIR__ . '/../lib/staff_messaging.php';
 
 $uid = (int) ($_SESSION['user_id'] ?? 0);
 $role = strtolower((string) ($_SESSION['role'] ?? ''));
-if ($uid < 1 || !in_array($role, ['admin', 'organizer'], true)) {
+if ($uid < 1 || !in_array($role, eventify_staff_messaging_roles(), true)) {
     header('Location: ' . BASE_URL . '/views/login.php?error=' . rawurlencode('Sign in to use messages.'));
     exit;
 }
 
-$pageTitle = ($role === 'admin') ? 'Messages — Organizers' : 'Messages — Admins';
-$dashboardHref = ($role === 'admin')
-    ? BASE_URL . '/backend/admin/dashboard.php'
+// Admins use the messages panel inside their dashboard.
+if ($role === 'admin') {
+    $with = (int) ($_GET['with'] ?? 0);
+    header('Location: ' . BASE_URL . '/backend/admin/dashboard.php?panel=messages' . ($with > 0 ? '&with=' . $with : ''));
+    exit;
+}
+
+$pageTitle = 'Messages — Admins';
+$dashboardHref = ($role === 'super_admin')
+    ? BASE_URL . '/backend/super_admin/dashboardsuperadmin.php'
     : BASE_URL . '/backend/auth/dashboardorganizer.php';
 
 $ctx = eventify_staff_messenger_load_context($conn, $uid, $role, (int) ($_GET['with'] ?? 0));

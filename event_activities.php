@@ -902,7 +902,7 @@ $upcomingSessionsSorted = eah_sort_sessions_by_time(array_values(array_filter(
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_activities_hub.css?v=53">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=2">
     <?php if ($isStudent || $isOrganizer || $isMultimedia): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=9">
     <?php endif; ?>

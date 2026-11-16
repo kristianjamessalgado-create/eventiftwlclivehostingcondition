@@ -4,6 +4,7 @@ session_start();
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/csrf.php';
+require_once __DIR__ . '/../lib/profile_picture.php';
 
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'admin') {
     header('Location: ' . BASE_URL . '/views/login.php?error=' . urlencode('Access denied'));
@@ -53,7 +54,7 @@ if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] ===
             @mkdir($uploadsDir, 0755, true);
         }
 
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $extension = eventify_profile_picture_extension((string) $mimeType) ?: 'jpg';
         $filename = 'profile_' . $userId . '_' . time() . '_' . uniqid() . '.' . $extension;
         $target = $uploadsDir . '/' . $filename;
 
@@ -100,6 +101,10 @@ if ($stmt && $stmt->execute()) {
     $successMsg = $profilePicturePath !== null
         ? 'Profile and picture updated successfully.'
         : 'Profile updated successfully.';
+    if ($profilePicturePath === null && eventify_profile_picture_remove_requested()
+        && eventify_profile_picture_remove($conn, $userId)) {
+        $successMsg = 'Profile updated and profile picture removed.';
+    }
     header('Location: ' . $redirect . '?success=' . urlencode($successMsg));
     exit();
 }

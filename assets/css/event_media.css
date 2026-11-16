@@ -1,6 +1,8 @@
 /* EVENTIFY event media: video thumbnails and players in photo galleries. */
 
-.efy-media-video-thumb {
+/* :where() keeps these defaults at zero specificity, so a gallery's own tile
+   size (e.g. .gallery-photo 110x110) always wins and videos match photos. */
+:where(.efy-media-video-thumb) {
     position: relative;
     display: block;
     width: 100%;

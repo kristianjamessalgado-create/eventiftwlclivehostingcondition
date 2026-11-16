@@ -54,7 +54,7 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=11">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/create_event_modal.css?v=14">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/organizer_profile_modal.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
@@ -512,6 +512,14 @@ $daySessionsHaveGeo = !empty($daySessionsHaveGeo);
             <div class="op-file-field">
               <label class="form-label op-form-label" for="organizerProfilePictureInput">Profile picture</label>
               <input type="file" class="form-control op-form-control" id="organizerProfilePictureInput" name="profile_picture" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewOrganizerProfilePicture(this)">
+              <input type="hidden" name="remove_profile_picture" value="0">
+              <?php if (!empty($user['profile_picture'])): ?>
+                  <div class="efy-pic-remove">
+                      <button type="button" class="efy-pic-remove-btn" data-profile-pic-remove data-preview="organizerProfilePicturePreview" data-input="organizerProfilePictureInput" data-placeholder-class="organizer-profile-picture-placeholder" aria-pressed="false"><i class="fas fa-trash-alt" aria-hidden="true"></i> Remove photo</button>
+                      <span class="efy-pic-remove-note" hidden>Your photo will be removed when you save.</span>
+                  </div>
+              <?php endif; ?>
+
               <small class="op-form-help">JPG, PNG, GIF, or WEBP (max 5MB)</small>
             </div>
           </section>
@@ -919,6 +927,7 @@ window.__adminClassSections = <?= json_encode(array_values(is_array($dashboardCl
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/profile_picture_ui.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -944,7 +953,7 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=38"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=39"></script>
 
 <script>
 window.EVENTIFY_GEOCODE_URL = window.EVENTIFY_GEOCODE_URL || <?= json_encode(BASE_URL . '/backend/auth/geocode_proxy.php') ?>;

@@ -146,7 +146,7 @@ $peerLabel = 'Organizers';
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=10">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=11">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_calendar_shell.css?v=12">
@@ -500,6 +500,14 @@ $peerLabel = 'Organizers';
               <label class="form-label op-form-label" for="adminProfilePictureInput">Profile picture</label>
               <input type="file" class="form-control op-form-control" id="adminProfilePictureInput" name="profile_picture" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewAdminProfilePicture(this)">
               <small class="op-form-help">JPG, PNG, GIF, or WEBP (max 5MB)</small>
+              <input type="hidden" name="remove_profile_picture" value="0">
+              <?php if (!empty($admin_user['profile_picture'])): ?>
+                  <div class="efy-pic-remove">
+                      <button type="button" class="efy-pic-remove-btn" data-profile-pic-remove data-preview="adminProfilePicturePreview" data-input="adminProfilePictureInput" data-placeholder-class="organizer-profile-picture-placeholder" aria-pressed="false"><i class="fas fa-trash-alt" aria-hidden="true"></i> Remove photo</button>
+                      <span class="efy-pic-remove-note" hidden>Your photo will be removed when you save.</span>
+                  </div>
+              <?php endif; ?>
+
             </div>
           </section>
 
@@ -1234,6 +1242,7 @@ window.eventsData = <?= json_encode(eventify_events_to_fullcalendar_list($events
 </script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/profile_picture_ui.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
@@ -1252,13 +1261,13 @@ window.EVENTIFY_GEOCODE_URL = <?= json_encode(BASE_URL . '/backend/auth/geocode_
 <script src="<?= BASE_URL ?>/assets/js/eventify_calendar_colors.js?v=12"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_schedule_display.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_registration_mode.js?v=1"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=38"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboardorganizer.js?v=39"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_notifications.js?v=13"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_dashboard_keyboard_scroll.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_pull_to_refresh.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/eventify_toast.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/staff_messenger.js?v=6"></script>
-<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=33"></script>
+<script src="<?= BASE_URL ?>/assets/js/dashboard_admin.js?v=34"></script>
 <?php include __DIR__ . '/../views/partials/staff_scan_qr_footer.php'; ?>
 </body>
 </html>

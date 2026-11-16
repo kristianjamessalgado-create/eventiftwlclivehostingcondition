@@ -4,6 +4,7 @@ session_start();
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/csrf.php';
+require_once __DIR__ . '/../lib/profile_picture.php';
 
 // Only allow logged-in organizers
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'organizer') {
@@ -68,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 @mkdir($uploadsDir, 0755, true);
             }
 
-            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $extension = eventify_profile_picture_extension((string) $mimeType) ?: 'jpg';
             $filename  = 'profile_' . $userId . '_' . time() . '_' . uniqid() . '.' . $extension;
             $target    = $uploadsDir . '/' . $filename;
 
@@ -141,6 +142,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $successMsg .= " Run school_events_event_approval_otp.sql to enable OTP contact fields.";
         }
 
+        if ($profilePicturePath === null && eventify_profile_picture_remove_requested()
+            && eventify_profile_picture_remove($conn, $userId)) {
+            $successMsg = 'Profile updated and profile picture removed.';
+        }
         header("Location: " . BASE_URL . "/backend/auth/dashboardorganizer.php?msg=" . urlencode($successMsg));
         exit();
     } else {

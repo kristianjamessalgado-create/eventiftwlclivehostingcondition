@@ -892,3 +892,87 @@
         animation-duration: 1.4s;
     }
 }
+
+/* ===============================
+   Profile picture: full-screen viewer + "Remove photo"
+================================ */
+/* Above every modal (Bootstrap 1055, custom profile modals up to 12100, alerts 2000). */
+.efy-pic-viewer,
+.profile-pic-fullscreen {
+    z-index: 20050 !important;
+}
+.efy-pic-viewer {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.9);
+    cursor: zoom-out;
+}
+.efy-pic-viewer[hidden] {
+    display: none;
+}
+.efy-pic-viewer__img {
+    max-width: min(92vw, 720px);
+    max-height: 86vh;
+    border-radius: 14px;
+    object-fit: contain;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    cursor: default;
+}
+.efy-pic-viewer__close {
+    position: absolute;
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-size: 1.1rem;
+}
+html.efy-pic-viewer-open,
+html.efy-pic-viewer-open body {
+    overflow: hidden;
+}
+img.organizer-profile-picture-preview,
+img[data-profile-pic-view] {
+    cursor: zoom-in;
+}
+
+.efy-pic-remove {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.efy-pic-remove-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.8rem;
+    border: 1.5px solid #fca5a5;
+    border-radius: 999px;
+    background: #fff;
+    color: #b91c1c;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.efy-pic-remove-btn:hover,
+.efy-pic-remove-btn:focus-visible {
+    background: #fef2f2;
+    outline: none;
+}
+.efy-pic-remove-btn.is-removing {
+    border-color: #cbd5e1;
+    color: #334155;
+}
+.efy-pic-remove-note {
+    font-size: 0.78rem;
+    color: #b91c1c;
+}

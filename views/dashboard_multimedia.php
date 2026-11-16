@@ -39,11 +39,11 @@ if (is_array($events)) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_scroll_fix.css?v=13">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_calendar_shell.css?v=9">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=40">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard_multimedia.css?v=41">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_pull_to_refresh.css?v=1">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=10">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_modal.css?v=11">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/event_media.css?v=2">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/calendar_legend.css?v=8">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/notifications.css?v=4">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/eventify_spinner.css?v=2">
@@ -383,6 +383,14 @@ if (is_array($events)) {
                             class="form-control efy-form-control"
                             onchange="previewMmProfilePicture(this)"
                         >
+                        <input type="hidden" name="remove_profile_picture" value="0">
+                        <?php if (!empty($user['profile_picture'])): ?>
+                            <div class="efy-pic-remove">
+                                <button type="button" class="efy-pic-remove-btn" data-profile-pic-remove data-preview="mmProfilePicturePreview" data-input="mmProfilePicture" data-placeholder-class="profile-picture-placeholder" aria-pressed="false"><i class="fas fa-trash-alt" aria-hidden="true"></i> Remove photo</button>
+                                <span class="efy-pic-remove-note" hidden>Your photo will be removed when you save.</span>
+                            </div>
+                        <?php endif; ?>
+
                         <small class="efy-form-help">JPG, PNG, GIF, or WEBP (max 5MB)</small>
                     </section>
 
@@ -741,6 +749,7 @@ if (is_array($events)) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/profile_picture_ui.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/event_media.js?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script>window.csrfToken = <?= json_encode(function_exists('csrf_token') ? csrf_token() : '') ?>;</script>
@@ -1115,6 +1124,8 @@ function confirmMmProfileChanges(form) {
     var hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
     var msg = 'Update your display name' + (name ? ' to "' + name + '"' : '') + '.';
     if (hasFile) msg += ' A new profile picture will be uploaded.';
+    var removePic = !!form.querySelector('input[name="remove_profile_picture"][value="1"]');
+    if (removePic && !hasFile) msg += ' Your profile picture will be removed.';
     var messageEl = document.getElementById('confirmMmProfileMessage');
     if (messageEl) messageEl.textContent = msg;
     pendingMmProfileForm = form;

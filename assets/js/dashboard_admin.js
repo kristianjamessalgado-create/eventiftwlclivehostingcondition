@@ -479,6 +479,10 @@ function buildAdminProfileChangeLines(form) {
     if (hasFile) {
         lines.push('Upload a new profile picture');
     }
+    var removePic = !!form.querySelector('input[name="remove_profile_picture"][value="1"]');
+    if (removePic && !hasFile) {
+        lines.push('Remove your profile picture');
+    }
     return lines;
 }
 

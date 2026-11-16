@@ -62,9 +62,9 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=4">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_modal.css?v=11">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/dashboard_student.css?v=28">
-    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_media.css?v=1">
+    <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/event_media.css?v=2">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/attendance_proof.css?v=1">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_dashboard_brand.css?v=6">
     <link rel="stylesheet" href="<?= BASE_URL; ?>/assets/css/eventify_pull_to_refresh.css?v=1">
@@ -623,6 +623,14 @@ $upcoming_events = $upcoming_events ?? array_values(array_filter($events ?? [], 
                     onchange="previewProfilePicture(this)"
                 >
                 <small class="text-muted">JPG, PNG, GIF, or WEBP (max 5MB)</small>
+                <input type="hidden" name="remove_profile_picture" value="0">
+                <?php if (!empty($user['profile_picture'])): ?>
+                    <div class="efy-pic-remove">
+                        <button type="button" class="efy-pic-remove-btn" data-profile-pic-remove data-preview="profilePicturePreview" data-input="profilePictureModal" data-placeholder-class="profile-picture-placeholder" aria-pressed="false"><i class="fas fa-trash-alt" aria-hidden="true"></i> Remove photo</button>
+                        <span class="efy-pic-remove-note" hidden>Your photo will be removed when you save.</span>
+                    </div>
+                <?php endif; ?>
+
             </div>
 
             <div class="form-group">
@@ -770,6 +778,7 @@ window.__eventEvaluationSections = <?= json_encode(array_values($event_evaluatio
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/profile_picture_ui.js?v=1"></script>
 <script src="<?= BASE_URL ?>/assets/js/logout_confirm.js?v=2"></script>
 
 <!-- Logout Modal -->
@@ -1235,9 +1244,12 @@ var pendingFormSubmission = null;
 function confirmProfileChanges(form) {
     var fileInput = form.querySelector('input[name="profile_picture"]');
     var hasNewPicture = fileInput && fileInput.files && fileInput.files.length > 0;
+    var removePic = !!form.querySelector('input[name="remove_profile_picture"][value="1"]');
     var msg = hasNewPicture
         ? 'Are you sure you want to change your profile picture? Your current picture will be replaced.'
-        : 'Are you sure you want to save your changes?';
+        : (removePic
+            ? 'Save your changes and remove your profile picture?'
+            : 'Are you sure you want to save your changes?');
     
     // Store the form for later submission
     pendingFormSubmission = form;
